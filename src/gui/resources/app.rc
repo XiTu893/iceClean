@@ -1,0 +1,44 @@
+// ── IceClean 资源文件 ──
+
+#include "resource.h"
+#include <winver.h>
+
+// ── 应用清单 ──
+#ifndef RT_MANIFEST
+#define RT_MANIFEST 24
+#endif
+
+1   RT_MANIFEST   "app.manifest"
+
+// ── 图标 ──
+// IDI_APP_ICON    ICON    "app.ico"
+
+// ── 版本信息 ──
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION     VERSION_MAJOR,VERSION_MINOR,VERSION_PATCH,VERSION_BUILD
+PRODUCTVERSION  VERSION_MAJOR,VERSION_MINOR,VERSION_PATCH,VERSION_BUILD
+FILEFLAGSMASK   VS_FFI_FILEFLAGSMASK
+FILEFLAGS       0
+FILEOS          VOS_NT_WINDOWS32
+FILETYPE        VFT_APP
+FILESUBTYPE     VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0"
+        BEGIN
+            VALUE "CompanyName",      APP_COMPANY_A
+            VALUE "FileDescription",  APP_DESCRIPTION_A
+            VALUE "FileVersion",      APP_VERSION_A
+            VALUE "InternalName",     APP_NAME_A
+            VALUE "LegalCopyright",   APP_COPYRIGHT_A
+            VALUE "OriginalFilename", "IceClean.exe"
+            VALUE "ProductName",      APP_NAME_A
+            VALUE "ProductVersion",   APP_VERSION_A
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0409, 0x04B0
+    END
+END

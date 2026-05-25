@@ -1,0 +1,11 @@
+{
+    "name": "iceclean",
+    "version-string": "1.0.0",
+    "description": "IceClean - C-drive cleaner and migration tool for Windows",
+    "dependencies": [
+        "wxwidgets",
+        "nlohmann-json",
+        "spdlog",
+        "gtest"
+    ]
+}
