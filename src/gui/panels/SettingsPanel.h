@@ -10,6 +10,18 @@ class SettingsPanel : public wxPanel {
 public:
     SettingsPanel(wxWindow* parent, wxWindowID id = wxID_ANY);
 
+    // 公开接口
+    bool IsAutoRestoreEnabled() const;
+    bool IsMinimizeToTrayEnabled() const;
+    std::vector<int> GetEnabledCleanCategories() const;  // 返回选中的清理类别索引
+
+    // 持久化
+    void LoadSettings();
+    void SaveSettings();
+
+    // 日志
+    void RefreshLog();
+
 private:
     // 常规设置控件
     wxCheckBox* m_autoRestoreCheck = nullptr;

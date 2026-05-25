@@ -241,7 +241,7 @@ void DashboardPanel::OnScanButton(wxCommandEvent& event) {
 }
 
 void DashboardPanel::OnQuickAccessCard(wxCommandEvent& event) {
-    // 快捷卡片点击也触发扫描
+    // 所有快捷卡片都触发一键扫描
     OnScanButton(event);
 }
 

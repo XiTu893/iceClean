@@ -9,6 +9,9 @@ class DeepCleanPanel : public wxPanel {
 public:
     DeepCleanPanel(wxWindow* parent, wxWindowID id = wxID_ANY);
 
+    // 获取选中的深度清理项ID列表
+    std::vector<wxString> GetSelectedIds() const;
+
 private:
     wxNotebook* m_notebook = nullptr;
     wxButton* m_cleanButton = nullptr;

@@ -295,10 +295,32 @@ void DeepCleanPanel::OnCleanButton(wxCommandEvent& event) {
         }
     }
 
-    // 发送清理事件
+    // 发送深度清理事件，携带选中项ID
+    auto selectedIds = GetSelectedIds();
+    if (selectedIds.empty()) {
+        wxMessageBox(L"请至少选择一项清理内容。", L"IceClean", wxOK | wxICON_WARNING, this);
+        return;
+    }
+
     wxThreadEvent cleanEvt(wxEVT_CLEAN_PROGRESS);
-    cleanEvt.SetInt(0);
+    cleanEvt.SetInt(1);  // 1=深度清理
+    cleanEvt.SetPayload(selectedIds);
     wxPostEvent(GetParent(), cleanEvt);
+}
+
+std::vector<wxString> DeepCleanPanel::GetSelectedIds() const {
+    std::vector<wxString> ids;
+    for (const auto& item : m_systemItems) {
+        if (item.checkbox->GetValue()) {
+            ids.push_back(item.id);
+        }
+    }
+    for (const auto& item : m_privacyItems) {
+        if (item.checkbox->GetValue()) {
+            ids.push_back(item.id);
+        }
+    }
+    return ids;
 }
 
 } // namespace IceClean::Gui

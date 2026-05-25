@@ -108,6 +108,7 @@ void ScanResultPanel::BuildCategoryList() {
         arrowLabel->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL));
         arrowLabel->SetForegroundColour(wxColour(0x66, 0x66, 0x66));
         headerSizer->Add(arrowLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
+        ui.arrowLabel = arrowLabel;
 
         // 分类名称
         auto* nameLabel = new wxStaticText(ui.headerPanel, wxID_ANY, cat.name);
@@ -199,6 +200,7 @@ void ScanResultPanel::BuildCategoryList() {
         ui.expanded = cat.expanded;
         if (ui.expanded) {
             ui.detailPanel->Show();
+            ui.arrowLabel->SetLabel(L"▼");
         }
 
         m_categoryUIs.push_back(std::move(ui));
@@ -258,8 +260,10 @@ void ScanResultPanel::OnCategoryHeaderClick(wxMouseEvent& event) {
                 ui.expanded = !ui.expanded;
                 if (ui.expanded) {
                     ui.detailPanel->Show();
+                    ui.arrowLabel->SetLabel(L"▼");
                 } else {
                     ui.detailPanel->Hide();
+                    ui.arrowLabel->SetLabel(L"▶");
                 }
                 m_categoryScroller->FitInside();
                 return;

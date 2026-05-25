@@ -1,4 +1,8 @@
 #include "SettingsPanel.h"
+#include "core/safety/OperationLogger.h"
+#include "utils/JsonUtil.h"
+#include <nlohmann/json.hpp>
+#include <wx/filename.h>
 
 namespace IceClean::Gui {
 
@@ -236,7 +240,97 @@ void SettingsPanel::OnRemoveWhitelist(wxCommandEvent& event) {
 void SettingsPanel::OnClearLog(wxCommandEvent& event) {
     if (wxMessageBox(L"确定要清空所有操作日志吗？", L"确认",
                      wxYES_NO | wxICON_QUESTION) == wxYES) {
+        IceClean::Core::Safety::OperationLogger::ClearLog();
         m_logCtrl->DeleteAllItems();
+    }
+}
+
+// ── 公开接口 ──
+
+bool SettingsPanel::IsAutoRestoreEnabled() const {
+    return m_autoRestoreCheck && m_autoRestoreCheck->GetValue();
+}
+
+bool SettingsPanel::IsMinimizeToTrayEnabled() const {
+    return m_minimizeToTrayCheck && m_minimizeToTrayCheck->GetValue();
+}
+
+std::vector<int> SettingsPanel::GetEnabledCleanCategories() const {
+    std::vector<int> enabled;
+    for (int i = 0; i < static_cast<int>(m_cleanRuleChecks.size()); ++i) {
+        if (m_cleanRuleChecks[i]->GetValue()) {
+            enabled.push_back(i);
+        }
+    }
+    return enabled;
+}
+
+// ── 持久化 ──
+
+void SettingsPanel::LoadSettings() {
+    auto configPath = IceClean::Utils::JsonUtil::GetConfigPath() + L"\\settings.json";
+    auto json = IceClean::Utils::JsonUtil::LoadJson(configPath);
+    if (json.is_null()) return;
+
+    if (json.contains("autoRestore") && json["autoRestore"].is_boolean()) {
+        m_autoRestoreCheck->SetValue(json["autoRestore"].get<bool>());
+    }
+    if (json.contains("minimizeToTray") && json["minimizeToTray"].is_boolean()) {
+        m_minimizeToTrayCheck->SetValue(json["minimizeToTray"].get<bool>());
+    }
+    if (json.contains("cleanCategories") && json["cleanCategories"].is_array()) {
+        auto cats = json["cleanCategories"];
+        for (int i = 0; i < static_cast<int>(m_cleanRuleChecks.size()) && i < static_cast<int>(cats.size()); ++i) {
+            if (cats[i].is_boolean()) {
+                m_cleanRuleChecks[i]->SetValue(cats[i].get<bool>());
+            }
+        }
+    }
+}
+
+void SettingsPanel::SaveSettings() {
+    nlohmann::json json;
+    json["autoRestore"] = m_autoRestoreCheck->GetValue();
+    json["minimizeToTray"] = m_minimizeToTrayCheck->GetValue();
+
+    auto cats = nlohmann::json::array();
+    for (const auto* check : m_cleanRuleChecks) {
+        cats.push_back(check->GetValue());
+    }
+    json["cleanCategories"] = cats;
+
+    auto configPath = IceClean::Utils::JsonUtil::GetConfigPath() + L"\\settings.json";
+    IceClean::Utils::JsonUtil::SaveJson(configPath, json);
+}
+
+// ── 日志刷新 ──
+
+void SettingsPanel::RefreshLog() {
+    m_logCtrl->DeleteAllItems();
+
+    auto records = IceClean::Core::Safety::OperationLogger::GetRecentOperations(50);
+    for (size_t i = 0; i < records.size(); ++i) {
+        const auto& record = records[i];
+
+        // 时间格式化
+        auto timeT = std::chrono::system_clock::to_time_t(record.timestamp);
+        struct tm tmBuf;
+        localtime_s(&tmBuf, &timeT);
+        wchar_t timeStr[64];
+        wcsftime(timeStr, 64, L"%Y-%m-%d %H:%M", &tmBuf);
+
+        wxString typeStr;
+        switch (record.type) {
+            case IceClean::Models::OperationType::Clean:    typeStr = L"清理"; break;
+            case IceClean::Models::OperationType::Migrate:  typeStr = L"迁移"; break;
+            case IceClean::Models::OperationType::Optimize: typeStr = L"优化"; break;
+            case IceClean::Models::OperationType::Restore:  typeStr = L"还原"; break;
+        }
+
+        long idx = m_logCtrl->InsertItem(static_cast<long>(i), timeStr);
+        m_logCtrl->SetItem(idx, 1, typeStr);
+        m_logCtrl->SetItem(idx, 2, record.description);
+        m_logCtrl->SetItem(idx, 3, record.success ? L"成功" : L"失败");
     }
 }
 

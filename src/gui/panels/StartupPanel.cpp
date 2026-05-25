@@ -95,11 +95,22 @@ wxPanel* StartupPanel::CreateToggleSwitch(wxWindow* parent, bool isOn, bool canT
     auto* panel = new wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(44, 22));
     panel->SetBackgroundStyle(wxBG_STYLE_PAINT);
     panel->SetCursor(canToggle ? wxCURSOR_HAND : wxCURSOR_ARROW);
-    DrawToggle(panel, isOn, canToggle);
+
+    // 存储状态到客户端数据
+    panel->SetClientData(new bool(isOn));
+
+    // 绑定绘制事件
+    panel->Bind(wxEVT_PAINT, [this, panel, canToggle](wxPaintEvent&) {
+        bool* state = static_cast<bool*>(panel->GetClientData());
+        DrawToggle(panel, *state, canToggle);
+    });
 
     if (canToggle) {
         panel->Bind(wxEVT_LEFT_DOWN, &StartupPanel::OnToggleClick, this);
     }
+
+    // 初始绘制
+    DrawToggle(panel, isOn, canToggle);
 
     return panel;
 }
@@ -107,23 +118,24 @@ wxPanel* StartupPanel::CreateToggleSwitch(wxWindow* parent, bool isOn, bool canT
 void StartupPanel::DrawToggle(wxPanel* panel, bool isOn, bool canToggle) {
     if (!panel) return;
 
-    wxClientDC dc(panel);
-    dc.SetBackground(*wxWHITE);
-    dc.Clear();
-
     const int w = panel->GetSize().GetWidth();
     const int h = panel->GetSize().GetHeight();
     const int radius = h / 2;
 
-    // 轨道背景
+    // 轨道背景颜色
     wxColour trackColor;
     if (!canToggle) {
-        trackColor = wxColour(0xCC, 0xCC, 0xCC); // 灰色 - 不可操作
+        trackColor = wxColour(0xCC, 0xCC, 0xCC);
     } else if (isOn) {
-        trackColor = wxColour(0x00, 0x78, 0xD4); // 蓝色 - 开启
+        trackColor = wxColour(0x00, 0x78, 0xD4);
     } else {
-        trackColor = wxColour(0xCC, 0xCC, 0xCC); // 灰色 - 关闭
+        trackColor = wxColour(0xCC, 0xCC, 0xCC);
     }
+
+    // 使用 wxBufferedPaintDC 或 wxClientDC
+    wxWindowDC dc(panel);
+    dc.SetBackground(*wxWHITE);
+    dc.Clear();
 
     dc.SetBrush(wxBrush(trackColor));
     dc.SetPen(*wxTRANSPARENT_PEN);
@@ -146,7 +158,9 @@ void StartupPanel::OnToggleClick(wxMouseEvent& event) {
                 if (item.isSystemCritical) return false;
                 item.isOn = !item.isOn;
                 data[item.itemIndex].isEnabled = item.isOn;
-                DrawToggle(item.togglePanel, item.isOn, true);
+                // 更新客户端数据并刷新
+                *static_cast<bool*>(item.togglePanel->GetClientData()) = item.isOn;
+                item.togglePanel->Refresh();
                 return true;
             }
         }

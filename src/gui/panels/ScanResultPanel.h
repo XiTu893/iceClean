@@ -33,6 +33,7 @@ private:
     struct CategoryUI {
         wxPanel* headerPanel = nullptr;
         wxPanel* detailPanel = nullptr;
+        wxStaticText* arrowLabel = nullptr;
         wxStaticText* sizeLabel = nullptr;
         wxCheckBox* categoryCheck = nullptr;
         bool expanded = false;
