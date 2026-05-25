@@ -247,7 +247,7 @@ void MainWindow::StartScan(int scanType)
     m_workerThread = std::thread([this, scanType]() {
         if (scanType == 0) {
             // ── 普通垃圾扫描 ──
-            Core::Scanner::ScannerAggregator aggregator;
+            IceClean::Core::Scanner::ScannerAggregator aggregator;
             auto result = aggregator.ScanAll(this);
 
             // 发送完成事件
@@ -258,25 +258,25 @@ void MainWindow::StartScan(int scanType)
         }
         else if (scanType == 1) {
             // ── 迁移扫描（大文件检测）──
-            Core::Migrator::LargeFolderDetector detector(500);
+            IceClean::Core::Migrator::LargeFolderDetector detector(500);
             auto items = detector.Detect([this](const std::wstring& currentPath) {
                 // 进度回调（可选）
             });
 
             // 同时检测微信/QQ/Steam
-            Core::Migrator::WeChatMigrator wechatMigrator;
+            IceClean::Core::Migrator::WeChatMigrator wechatMigrator;
             auto wechatItems = wechatMigrator.Detect();
             items.insert(items.end(), wechatItems.begin(), wechatItems.end());
 
-            Core::Migrator::QQMigrator qqMigrator;
+            IceClean::Core::Migrator::QQMigrator qqMigrator;
             auto qqItems = qqMigrator.Detect();
             items.insert(items.end(), qqItems.begin(), qqItems.end());
 
-            Core::Migrator::SteamMigrator steamMigrator;
+            IceClean::Core::Migrator::SteamMigrator steamMigrator;
             auto steamItems = steamMigrator.Detect();
             items.insert(items.end(), steamItems.begin(), steamItems.end());
 
-            Core::Migrator::UserFolderMigrator userMigrator;
+            IceClean::Core::Migrator::UserFolderMigrator userMigrator;
             auto userItems = userMigrator.Detect();
             items.insert(items.end(), userItems.begin(), userItems.end());
 
@@ -290,7 +290,7 @@ void MainWindow::StartScan(int scanType)
             auto drive = m_diskAnalyzerPanel->GetSelectedDrive().ToStdWstring();
             if (drive.empty()) drive = L"C:\\";
 
-            Core::Analyzer::DiskSpaceAnalyzer analyzer;
+            IceClean::Core::Analyzer::DiskSpaceAnalyzer analyzer;
             auto rootNode = analyzer.Scan(drive);
 
             wxThreadEvent* completeEvt = new wxThreadEvent(wxEVT_SCAN_COMPLETE);
@@ -315,7 +315,7 @@ void MainWindow::OnScanComplete(wxThreadEvent& event)
         // 普通扫描完成
         m_dashboardPanel->SetScanning(false);
 
-        auto result = event.GetPayload<Models::ScanResult>();
+        auto result = event.GetPayload<IceClean::Models::ScanResult>();
         m_lastScanResult = result;
 
         // 将结果传递给扫描结果面板
@@ -326,12 +326,12 @@ void MainWindow::OnScanComplete(wxThreadEvent& event)
     }
     else if (scanType == 1) {
         // 迁移扫描完成
-        auto items = event.GetPayload<std::vector<Models::MigrationItem>>();
+        auto items = event.GetPayload<std::vector<IceClean::Models::MigrationItem>>();
         m_migrationPanel->SetMigrationItems(items);
     }
     else if (scanType == 3) {
         // 磁盘分析完成
-        auto rootNode = event.GetPayload<std::shared_ptr<Models::DiskNode>>();
+        auto rootNode = event.GetPayload<std::shared_ptr<IceClean::Models::DiskNode>>();
         m_diskAnalyzerPanel->SetDiskData(rootNode);
     }
 }
@@ -369,26 +369,26 @@ void MainWindow::StartClean(int cleanType, const std::vector<std::wstring>& path
     m_workerRunning = true;
 
     // 创建还原点
-    Safety::RestorePointManager::CreateRestorePoint(L"IceClean 清理操作前自动还原点");
+    IceClean::Safety::RestorePointManager::CreateRestorePoint(L"IceClean 清理操作前自动还原点");
 
     m_workerThread = std::thread([this, cleanType, paths]() {
         uint64_t totalFreed = 0;
 
         // 文件清理
-        Core::Cleaner::FileCleaner fileCleaner;
-        auto fileResult = fileCleaner.Clean(paths, [](const Models::CleanProgress& progress) {
+        IceClean::Core::Cleaner::FileCleaner fileCleaner;
+        auto fileResult = fileCleaner.Clean(paths, [](const IceClean::Models::CleanProgress& progress) {
             // 进度回调
         });
         totalFreed += fileResult.freedBytes;
 
         // 记录操作日志
-        Models::OperationRecord record;
-        record.type = Models::OperationType::Clean;
+        IceClean::Models::OperationRecord record;
+        record.type = IceClean::Models::OperationType::Clean;
         record.description = L"清理垃圾文件";
         record.size = totalFreed;
         record.timestamp = std::chrono::system_clock::now();
         record.success = fileResult.success;
-        Safety::OperationLogger::LogOperation(record);
+        IceClean::Safety::OperationLogger::LogOperation(record);
 
         wxThreadEvent* completeEvt = new wxThreadEvent(wxEVT_CLEAN_COMPLETE);
         completeEvt->SetInt(cleanType);
@@ -408,24 +408,24 @@ void MainWindow::StartDeepClean(const std::vector<wxString>& selectedIds)
     m_workerRunning = true;
 
     // 创建还原点
-    Safety::RestorePointManager::CreateRestorePoint(L"IceClean 深度清理前自动还原点");
+    IceClean::Safety::RestorePointManager::CreateRestorePoint(L"IceClean 深度清理前自动还原点");
 
     m_workerThread = std::thread([this, selectedIds]() {
         uint64_t totalFreed = 0;
 
         for (const auto& id : selectedIds) {
             if (id == L"winSxS") {
-                Core::Cleaner::DismCleaner dismCleaner;
+                IceClean::Core::Cleaner::DismCleaner dismCleaner;
                 auto result = dismCleaner.Clean({L"WinSxS"});
                 totalFreed += result.freedBytes;
             }
             else if (id == L"compactOS") {
-                Core::Cleaner::DismCleaner dismCleaner;
+                IceClean::Core::Cleaner::DismCleaner dismCleaner;
                 auto result = dismCleaner.Clean({L"CompactOS"});
                 totalFreed += result.freedBytes;
             }
             else if (id == L"hibernation") {
-                Core::Cleaner::HibernationCleaner hibCleaner;
+                IceClean::Core::Cleaner::HibernationCleaner hibCleaner;
                 auto result = hibCleaner.Clean({});
                 totalFreed += result.freedBytes;
             }
@@ -436,20 +436,20 @@ void MainWindow::StartDeepClean(const std::vector<wxString>& selectedIds)
                     L"C:\\$Windows.~BT",
                     L"C:\\$Windows.~WS"
                 };
-                Core::Cleaner::FileCleaner fileCleaner;
+                IceClean::Core::Cleaner::FileCleaner fileCleaner;
                 auto result = fileCleaner.Clean(oldWinPaths);
                 totalFreed += result.freedBytes;
             }
         }
 
         // 记录操作日志
-        Models::OperationRecord record;
-        record.type = Models::OperationType::Clean;
+        IceClean::Models::OperationRecord record;
+        record.type = IceClean::Models::OperationType::Clean;
         record.description = L"深度清理";
         record.size = totalFreed;
         record.timestamp = std::chrono::system_clock::now();
         record.success = true;
-        Safety::OperationLogger::LogOperation(record);
+        IceClean::Safety::OperationLogger::LogOperation(record);
 
         wxThreadEvent* completeEvt = new wxThreadEvent(wxEVT_CLEAN_COMPLETE);
         completeEvt->SetInt(1);  // 1=深度清理
@@ -477,7 +477,7 @@ void MainWindow::OnCleanComplete(wxThreadEvent& event)
 
     // 显示结果
     wxString msg = wxString::Format(L"清理完成！共释放 %s 空间。",
-        Utils::FormatUtil::FormatFileSize(freedBytes));
+        IceClean::Utils::FormatUtil::FormatFileSize(freedBytes));
     wxMessageBox(msg, L"IceClean", wxOK | wxICON_INFORMATION, this);
 }
 
@@ -493,7 +493,7 @@ void MainWindow::OnMigrateRequest(wxThreadEvent& event)
     StartMigration(items, targetDrive);
 }
 
-void MainWindow::StartMigration(const std::vector<Models::MigrationItem>& items,
+void MainWindow::StartMigration(const std::vector<IceClean::Models::MigrationItem>& items,
                                  const wxString& targetDrive)
 {
     std::lock_guard<std::mutex> lock(m_workerMutex);
@@ -501,7 +501,7 @@ void MainWindow::StartMigration(const std::vector<Models::MigrationItem>& items,
     m_workerRunning = true;
 
     // 创建还原点
-    Safety::RestorePointManager::CreateRestorePoint(L"IceClean 迁移操作前自动还原点");
+    IceClean::Safety::RestorePointManager::CreateRestorePoint(L"IceClean 迁移操作前自动还原点");
 
     auto targetDriveW = targetDrive.ToStdWstring();
     auto itemsCopy = items;
@@ -511,25 +511,25 @@ void MainWindow::StartMigration(const std::vector<Models::MigrationItem>& items,
         int successCount = 0;
 
         for (const auto& item : itemsCopy) {
-            std::unique_ptr<Core::Migrator::IMigrator> migrator;
+            std::unique_ptr<IceClean::Core::Migrator::IMigrator> migrator;
 
             switch (item.type) {
-                case Models::MigrationType::SteamGame:
-                    migrator = std::make_unique<Core::Migrator::SteamMigrator>();
+                case IceClean::Models::MigrationType::SteamGame:
+                    migrator = std::make_unique<IceClean::Core::Migrator::SteamMigrator>();
                     break;
-                case Models::MigrationType::UserFolder:
-                    migrator = std::make_unique<Core::Migrator::UserFolderMigrator>();
+                case IceClean::Models::MigrationType::UserFolder:
+                    migrator = std::make_unique<IceClean::Core::Migrator::UserFolderMigrator>();
                     break;
-                case Models::MigrationType::WeChatCache:
-                    migrator = std::make_unique<Core::Migrator::WeChatMigrator>();
+                case IceClean::Models::MigrationType::WeChatCache:
+                    migrator = std::make_unique<IceClean::Core::Migrator::WeChatMigrator>();
                     break;
-                case Models::MigrationType::QQCache:
-                    migrator = std::make_unique<Core::Migrator::QQMigrator>();
+                case IceClean::Models::MigrationType::QQCache:
+                    migrator = std::make_unique<IceClean::Core::Migrator::QQMigrator>();
                     break;
-                case Models::MigrationType::CustomFolder:
-                case Models::MigrationType::LargeSoftware:
+                case IceClean::Models::MigrationType::CustomFolder:
+                case IceClean::Models::MigrationType::LargeSoftware:
                 default:
-                    migrator = std::make_unique<Core::Migrator::FolderMigrator>(
+                    migrator = std::make_unique<IceClean::Core::Migrator::FolderMigrator>(
                         item.sourcePath, item.name);
                     break;
             }
@@ -542,14 +542,14 @@ void MainWindow::StartMigration(const std::vector<Models::MigrationItem>& items,
         }
 
         // 记录操作日志
-        Models::OperationRecord record;
-        record.type = Models::OperationType::Migrate;
+        IceClean::Models::OperationRecord record;
+        record.type = IceClean::Models::OperationType::Migrate;
         record.description = wxString::Format(L"迁移 %d 个项目至 %s",
             successCount, targetDriveW).ToStdWstring();
         record.size = totalMigrated;
         record.timestamp = std::chrono::system_clock::now();
         record.success = (successCount > 0);
-        Safety::OperationLogger::LogOperation(record);
+        IceClean::Safety::OperationLogger::LogOperation(record);
 
         wxThreadEvent* completeEvt = new wxThreadEvent(wxEVT_MIGRATE_COMPLETE);
         completeEvt->SetPayload(totalMigrated);
@@ -572,14 +572,14 @@ void MainWindow::OnMigrateComplete(wxThreadEvent& event)
     RefreshRecentOperations();
 
     wxString msg = wxString::Format(L"迁移完成！共迁移 %s 数据。",
-        Utils::FormatUtil::FormatFileSize(migratedBytes));
+        IceClean::Utils::FormatUtil::FormatFileSize(migratedBytes));
     wxMessageBox(msg, L"IceClean", wxOK | wxICON_INFORMATION, this);
 }
 
 // ── 启动优化 ──
 
-void MainWindow::StartStartupOptimize(const std::vector<Models::StartupItem>& modifiedStartup,
-                                       const std::vector<Models::StartupItem>& modifiedServices)
+void MainWindow::StartStartupOptimize(const std::vector<IceClean::Models::StartupItem>& modifiedStartup,
+                                       const std::vector<IceClean::Models::StartupItem>& modifiedServices)
 {
     std::lock_guard<std::mutex> lock(m_workerMutex);
     if (m_workerRunning) return;
@@ -588,7 +588,7 @@ void MainWindow::StartStartupOptimize(const std::vector<Models::StartupItem>& mo
     m_workerThread = std::thread([this, modifiedStartup, modifiedServices]() {
         int disabledCount = 0;
 
-        Core::Optimizer::StartupOptimizer startupOpt;
+        IceClean::Core::Optimizer::StartupOptimizer startupOpt;
         for (const auto& item : modifiedStartup) {
             if (!item.isEnabled) {
                 if (startupOpt.DisableItem(item)) {
@@ -597,7 +597,7 @@ void MainWindow::StartStartupOptimize(const std::vector<Models::StartupItem>& mo
             }
         }
 
-        Core::Optimizer::ServiceOptimizer serviceOpt;
+        IceClean::Core::Optimizer::ServiceOptimizer serviceOpt;
         for (const auto& item : modifiedServices) {
             if (!item.isEnabled) {
                 if (serviceOpt.DisableService(item.name)) {
@@ -607,13 +607,13 @@ void MainWindow::StartStartupOptimize(const std::vector<Models::StartupItem>& mo
         }
 
         // 记录操作日志
-        Models::OperationRecord record;
-        record.type = Models::OperationType::Optimize;
+        IceClean::Models::OperationRecord record;
+        record.type = IceClean::Models::OperationType::Optimize;
         record.description = wxString::Format(L"优化启动项，禁用 %d 项", disabledCount).ToStdWstring();
         record.size = 0;
         record.timestamp = std::chrono::system_clock::now();
         record.success = (disabledCount > 0);
-        Safety::OperationLogger::LogOperation(record);
+        IceClean::Safety::OperationLogger::LogOperation(record);
 
         wxThreadEvent* completeEvt = new wxThreadEvent(wxEVT_CLEAN_COMPLETE);
         completeEvt->SetInt(2);  // 2=启动优化
@@ -632,10 +632,10 @@ void MainWindow::LoadStartupData()
 {
     // 在后台线程加载启动项和服务
     std::thread([this]() {
-        Core::Optimizer::StartupOptimizer startupOpt;
+        IceClean::Core::Optimizer::StartupOptimizer startupOpt;
         auto startupItems = startupOpt.GetStartupItems();
 
-        Core::Optimizer::ServiceOptimizer serviceOpt;
+        IceClean::Core::Optimizer::ServiceOptimizer serviceOpt;
         auto serviceItems = serviceOpt.GetDisablableServices();
 
         // 在主线程更新UI
@@ -652,7 +652,7 @@ void MainWindow::LoadStartupData()
 void MainWindow::RefreshDiskInfo()
 {
     uint64_t totalBytes = 0, freeBytes = 0;
-    if (Utils::Win32Util::GetDiskSpace(L"C:\\", totalBytes, freeBytes)) {
+    if (IceClean::Utils::Win32Util::GetDiskSpace(L"C:\\", totalBytes, freeBytes)) {
         uint64_t usedBytes = totalBytes - freeBytes;
         m_dashboardPanel->UpdateDiskInfo(usedBytes, totalBytes);
     }
@@ -660,7 +660,7 @@ void MainWindow::RefreshDiskInfo()
 
 void MainWindow::RefreshRecentOperations()
 {
-    auto records = Safety::OperationLogger::GetRecentOperations(20);
+    auto records = IceClean::Safety::OperationLogger::GetRecentOperations(20);
     m_dashboardPanel->UpdateRecentOperations(records);
 }
 
