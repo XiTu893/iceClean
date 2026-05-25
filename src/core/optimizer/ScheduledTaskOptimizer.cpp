@@ -3,6 +3,7 @@
 #include <comdef.h>
 #include <taskschd.h>
 #include <algorithm>
+#include <functional>
 
 #pragma comment(lib, "taskschd.lib")
 #pragma comment(lib, "comsupp.lib")
@@ -164,7 +165,7 @@ std::vector<ScheduledTaskInfo> ScheduledTaskOptimizer::GetStartupTasks() {
 
             for (LONG i = 1; i <= folderCount; ++i) {
                 ITaskFolder* pSubFolder = nullptr;
-                hr2 = pSubFolders->get_Item(i, &pSubFolder);
+                hr2 = pSubFolders->get_Item(_variant_t(i), &pSubFolder);
                 if (SUCCEEDED(hr2)) {
                     BSTR subFolderName = nullptr;
                     pSubFolder->get_Name(&subFolderName);
@@ -246,7 +247,7 @@ bool ScheduledTaskOptimizer::DisableTask(const std::wstring& taskPath, const std
     }
 
     IRegisteredTask* pTask = nullptr;
-    hr = pFolder->get_Task(_bstr_t(taskName.c_str()), &pTask);
+    hr = pFolder->GetTask(_bstr_t(taskName.c_str()), &pTask);
     if (FAILED(hr)) {
         pFolder->Release();
         pService->Release();
@@ -294,7 +295,7 @@ bool ScheduledTaskOptimizer::EnableTask(const std::wstring& taskPath, const std:
     }
 
     IRegisteredTask* pTask = nullptr;
-    hr = pFolder->get_Task(_bstr_t(taskName.c_str()), &pTask);
+    hr = pFolder->GetTask(_bstr_t(taskName.c_str()), &pTask);
     if (FAILED(hr)) {
         pFolder->Release();
         pService->Release();

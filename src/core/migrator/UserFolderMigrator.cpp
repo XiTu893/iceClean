@@ -2,6 +2,10 @@
 #include "utils/RegistryUtil.h"
 #include <shlobj.h>
 
+#ifndef CSIDL_DOWNLOADS
+#define CSIDL_DOWNLOADS 0x0027
+#endif
+
 namespace IceClean::Core::Migrator {
 
 std::wstring UserFolderMigrator::GetName() const {

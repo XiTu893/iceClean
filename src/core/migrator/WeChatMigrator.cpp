@@ -13,7 +13,7 @@ Models::MigrationType WeChatMigrator::GetMigrationType() const {
 }
 
 std::wstring WeChatMigrator::GetWeChatDataPath() const {
-    // 微信数据默认在 Documents\WeChat Files\
+    // 微信数据默认在 Documents/WeChat Files/
     std::wstring docsPath = Utils::Win32Util::GetSpecialFolder(CSIDL_PERSONAL);
     if (docsPath.empty()) return L"";
 

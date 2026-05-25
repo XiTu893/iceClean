@@ -13,7 +13,7 @@ Models::MigrationType QQMigrator::GetMigrationType() const {
 }
 
 std::wstring QQMigrator::GetQQDataPath() const {
-    // QQ数据默认在 Documents\Tencent Files\
+    // QQ数据默认在 Documents/Tencent Files/
     std::wstring docsPath = Utils::Win32Util::GetSpecialFolder(CSIDL_PERSONAL);
     if (docsPath.empty()) return L"";
 
