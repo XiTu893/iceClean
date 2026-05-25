@@ -1,12 +1,16 @@
-# ── 收集所有源文件 ──
+# ── 收集源文件 (仅 .cpp 和 .rc，不包含 .h 头文件) ──
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/*.h
     ${CMAKE_CURRENT_SOURCE_DIR}/*.rc
 )
 
 # ── 创建可执行文件 (WIN32 子系统) ──
 add_executable(IceClean WIN32 ${SOURCES})
+
+# ── Windows DLL 导出符号 ──
+set_target_properties(IceClean PROPERTIES
+    CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON
+)
 
 # ── 包含目录 ──
 target_include_directories(IceClean PRIVATE

@@ -62,7 +62,7 @@ void MainWindow::CreateControls()
     m_contentBook->AddPage(m_settingsPanel, L"设置");
 
     // Bind sidebar selection change event
-    m_sidebar->Bind(NavSidebar::wxEVT_NAV_SELECTION_CHANGED, [this](wxCommandEvent& event) {
+    m_sidebar->Bind(wxEVT_NAV_SELECTION_CHANGED, [this](wxCommandEvent& event) {
         SwitchPanel(event.GetInt());
     });
 }

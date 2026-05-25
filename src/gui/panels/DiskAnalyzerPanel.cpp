@@ -2,6 +2,12 @@
 #include "gui/Events.h"
 #include "utils/FormatUtil.h"
 
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#include <shellapi.h>
+
 namespace IceClean::Gui {
 
 wxBEGIN_EVENT_TABLE(DiskAnalyzerPanel, wxPanel)

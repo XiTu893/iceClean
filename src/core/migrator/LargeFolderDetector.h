@@ -4,6 +4,7 @@
 #include <vector>
 #include <functional>
 #include <atomic>
+#include <windows.h>
 
 namespace IceClean::Core::Migrator {
 

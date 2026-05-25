@@ -4,6 +4,7 @@
 #include <atomic>
 #include <string>
 #include <cstdint>
+#include <windows.h>
 
 namespace IceClean::Core::Analyzer {
 

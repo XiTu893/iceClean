@@ -17,8 +17,6 @@
 
 namespace IceClean::Core::Scanner {
 
-wxDEFINE_EVENT(wxEVT_SCAN_PROGRESS, wxThreadEvent);
-
 ScannerAggregator::ScannerAggregator() {
     RegisterBuiltinScanners();
 }

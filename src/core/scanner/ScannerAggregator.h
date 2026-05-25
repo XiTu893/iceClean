@@ -5,6 +5,7 @@
 #include <mutex>
 #include "IScanner.h"
 #include "models/ScanResult.h"
+#include "gui/Events.h"
 #include <wx/event.h>
 
 namespace IceClean::Core::Scanner {
@@ -37,8 +38,5 @@ public:
 private:
     std::vector<std::unique_ptr<IScanner>> m_scanners;
 };
-
-// 自定义事件类型 - 扫描进度
-wxDECLARE_EVENT(wxEVT_SCAN_PROGRESS, wxThreadEvent);
 
 } // namespace IceClean::Core::Scanner

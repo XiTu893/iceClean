@@ -2,6 +2,7 @@
 #include "models/StartupItem.h"
 #include <vector>
 #include <string>
+#include <windows.h>
 
 namespace IceClean::Core::Optimizer {
 

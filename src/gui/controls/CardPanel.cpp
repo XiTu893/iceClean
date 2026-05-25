@@ -5,8 +5,8 @@
 
 namespace IceClean::Gui {
 
-CardPanel::CardPanel(wxWindow* parent, const wxString& title)
-    : wxPanel(parent, wxID_ANY)
+CardPanel::CardPanel(wxWindow* parent, wxWindowID id, const wxString& title)
+    : wxPanel(parent, id)
     , m_title(title)
 {
     SetBackgroundStyle(wxBG_STYLE_PAINT);
@@ -37,6 +37,22 @@ CardPanel::CardPanel(wxWindow* parent, const wxString& title)
     SetSizer(outerSizer);
 
     Bind(wxEVT_PAINT, &CardPanel::OnPaint, this);
+    Bind(wxEVT_LEFT_DOWN, &CardPanel::OnLeftDown, this);
+}
+
+void CardPanel::SetClickable(bool clickable) {
+    m_clickable = clickable;
+    SetCursor(clickable ? wxCURSOR_HAND : wxCURSOR_ARROW);
+}
+
+void CardPanel::OnLeftDown(wxMouseEvent& event) {
+    if (m_clickable) {
+        // 发送 wxEVT_BUTTON 事件，让父窗口可以 Bind 处理
+        wxCommandEvent btnEvent(wxEVT_BUTTON, GetId());
+        btnEvent.SetEventObject(this);
+        ProcessWindowEvent(btnEvent);
+    }
+    event.Skip();
 }
 
 void CardPanel::OnPaint(wxPaintEvent& /*event*/)

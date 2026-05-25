@@ -4,6 +4,9 @@
 
 namespace IceClean::Gui {
 
+// 导航栏选择变更事件
+wxDECLARE_EVENT(wxEVT_NAV_SELECTION_CHANGED, wxCommandEvent);
+
 struct NavItem {
     std::wstring label;
     int iconId;  // Icon identifier
@@ -15,9 +18,6 @@ public:
 
     int GetSelection() const { return m_selection; }
     void SetSelection(int index);
-
-    // Custom event
-    static wxDECLARE_EVENT(wxEVT_NAV_SELECTION_CHANGED);
 
 private:
     void OnPaint(wxPaintEvent& event);

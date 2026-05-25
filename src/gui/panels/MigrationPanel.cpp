@@ -4,6 +4,11 @@
 #include "gui/Events.h"
 #include "utils/FormatUtil.h"
 
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+
 namespace IceClean::Gui {
 
 wxBEGIN_EVENT_TABLE(MigrationPanel, wxPanel)
