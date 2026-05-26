@@ -1,7 +1,9 @@
 #pragma once
 #include <wx/wx.h>
 #include <wx/notebook.h>
+#include <wx/listctrl.h>
 #include <vector>
+#include "core/cleaner/RegistryCleaner.h"
 
 namespace IceClean::Gui {
 
@@ -34,12 +36,25 @@ private:
     };
     std::vector<PrivacyCleanItem> m_privacyItems;
 
+    // 注册表清理标签页
+    wxButton* m_registryScanButton = nullptr;
+    wxButton* m_registryCleanButton = nullptr;
+    wxCheckBox* m_registrySelectAllCheck = nullptr;
+    wxListCtrl* m_registryList = nullptr;
+    wxStaticText* m_registryStatusLabel = nullptr;
+    std::vector<IceClean::Core::Cleaner::RegistryInvalidItem> m_registryItems;
+
     void CreateControls();
     void CreateSystemCleanTab(wxWindow* parent);
     void CreateRegistryCleanTab(wxWindow* parent);
     void CreatePrivacyCleanTab(wxWindow* parent);
 
     void OnCleanButton(wxCommandEvent& event);
+    void OnRegistryScan(wxCommandEvent& event);
+    void OnRegistryClean(wxCommandEvent& event);
+    void OnRegistrySelectAll(wxCommandEvent& event);
+
+    wxString GetTypeString(IceClean::Core::Cleaner::RegistryInvalidItem::Type type) const;
 
     wxDECLARE_EVENT_TABLE();
 };

@@ -16,6 +16,7 @@ struct ScanProgressInfo {
     int completedScanners = 0;   // 已完成的扫描器数量
     int totalScanners = 0;       // 总扫描器数量
     std::wstring currentScanner; // 当前正在运行的扫描器名称
+    int filesScanned = 0;        // 当前扫描器已扫描的文件数
     bool isRunning = false;      // 是否正在扫描
 };
 

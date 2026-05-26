@@ -5,6 +5,7 @@
 #include "gui/controls/CircularProgress.h"
 #include "models/ScanResult.h"
 #include "models/OperationRecord.h"
+#include "core/scanner/ScannerAggregator.h"
 
 namespace IceClean::Gui {
 
@@ -25,6 +26,8 @@ public:
     // 更新扫描进度（扫描过程中实时调用）
     void UpdateScanProgress(int completedScanners, int totalScanners,
                             const std::wstring& currentScanner);
+    // 更新扫描进度（使用完整的 ScanProgressInfo，包含文件数）
+    void UpdateScanProgress(const IceClean::Core::Scanner::ScanProgressInfo& info);
 
     // 恢复磁盘信息显示（扫描完成后调用）
     void RestoreDiskInfo();

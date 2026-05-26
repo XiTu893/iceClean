@@ -9,7 +9,8 @@ public:
     std::wstring GetDescription() const override { return L"扫描Windows Update下载缓存和传递优化文件"; }
     Models::SafetyRating GetSafetyRating() const override { return Models::SafetyRating::Safe; }
     std::wstring GetIcon() const override { return L"windows_update"; }
-    Models::ScanCategory Scan() override;
+    Models::ScanCategory Scan(const std::atomic<bool>* stopFlag = nullptr,
+                               ScanProgressCallback progressCb = nullptr) override;
     bool IsAvailable() const override;
 };
 

@@ -267,6 +267,26 @@ void DashboardPanel::UpdateScanProgress(int completedScanners, int totalScanners
     }
 }
 
+void DashboardPanel::UpdateScanProgress(const IceClean::Core::Scanner::ScanProgressInfo& info) {
+    if (info.totalScanners <= 0) return;
+
+    int percent = (info.completedScanners * 100) / info.totalScanners;
+    m_progressCtrl->SetValue(percent);
+    m_progressCtrl->SetLabel(wxString::Format(L"%d%%", percent));
+    m_progressCtrl->SetSubLabel(L"扫描中");
+
+    // 显示当前正在扫描的项目和文件数
+    wxString scannerName(info.currentScanner);
+    if (!scannerName.IsEmpty()) {
+        if (info.filesScanned > 0) {
+            m_diskInfoLabel->SetLabel(wxString::Format(L"正在扫描: %s (%d 个文件)",
+                scannerName, info.filesScanned));
+        } else {
+            m_diskInfoLabel->SetLabel(L"正在扫描: " + scannerName);
+        }
+    }
+}
+
 void DashboardPanel::RestoreDiskInfo() {
     // 恢复 CircularProgress 为磁盘使用率模式
     int percent = 0;

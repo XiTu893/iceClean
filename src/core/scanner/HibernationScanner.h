@@ -9,7 +9,8 @@ public:
     std::wstring GetDescription() const override { return L"扫描系统休眠文件(hiberfil.sys)"; }
     Models::SafetyRating GetSafetyRating() const override { return Models::SafetyRating::Caution; }
     std::wstring GetIcon() const override { return L"hibernation"; }
-    Models::ScanCategory Scan() override;
+    Models::ScanCategory Scan(const std::atomic<bool>* stopFlag = nullptr,
+                               ScanProgressCallback progressCb = nullptr) override;
     bool IsAvailable() const override;
 };
 

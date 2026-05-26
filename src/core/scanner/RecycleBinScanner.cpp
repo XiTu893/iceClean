@@ -4,7 +4,7 @@
 
 namespace IceClean::Core::Scanner {
 
-Models::ScanCategory RecycleBinScanner::Scan() {
+Models::ScanCategory RecycleBinScanner::Scan(const std::atomic<bool>* stopFlag, ScanProgressCallback progressCb) {
     Models::ScanCategory category;
     category.name = GetName();
     category.description = GetDescription();
@@ -14,6 +14,8 @@ Models::ScanCategory RecycleBinScanner::Scan() {
 
     // 使用 Shell API 获取回收站大小
     uint64_t recycleBinSize = Utils::ShellUtil::GetRecycleBinSize();
+
+    if (stopFlag && stopFlag->load()) return category;
 
     if (recycleBinSize > 0) {
         // 创建一个虚拟文件项来表示回收站内容

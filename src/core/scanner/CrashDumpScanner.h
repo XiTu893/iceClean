@@ -9,7 +9,8 @@ public:
     std::wstring GetDescription() const override { return L"扫描系统崩溃转储和小内存转储文件"; }
     Models::SafetyRating GetSafetyRating() const override { return Models::SafetyRating::Safe; }
     std::wstring GetIcon() const override { return L"crash_dump"; }
-    Models::ScanCategory Scan() override;
+    Models::ScanCategory Scan(const std::atomic<bool>* stopFlag = nullptr,
+                               ScanProgressCallback progressCb = nullptr) override;
     bool IsAvailable() const override;
 };
 

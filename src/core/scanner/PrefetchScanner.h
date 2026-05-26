@@ -9,7 +9,8 @@ public:
     std::wstring GetDescription() const override { return L"扫描Windows预读取缓存文件(.pf)"; }
     Models::SafetyRating GetSafetyRating() const override { return Models::SafetyRating::Safe; }
     std::wstring GetIcon() const override { return L"prefetch"; }
-    Models::ScanCategory Scan() override;
+    Models::ScanCategory Scan(const std::atomic<bool>* stopFlag = nullptr,
+                               ScanProgressCallback progressCb = nullptr) override;
     bool IsAvailable() const override;
 };
 

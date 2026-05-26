@@ -9,7 +9,8 @@ public:
     std::wstring GetDescription() const override { return L"扫描用户临时文件夹和系统临时文件夹中的可清理文件"; }
     Models::SafetyRating GetSafetyRating() const override { return Models::SafetyRating::Safe; }
     std::wstring GetIcon() const override { return L"temp"; }
-    Models::ScanCategory Scan() override;
+    Models::ScanCategory Scan(const std::atomic<bool>* stopFlag = nullptr,
+                               ScanProgressCallback progressCb = nullptr) override;
     bool IsAvailable() const override;
 };
 

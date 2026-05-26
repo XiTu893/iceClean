@@ -4,7 +4,7 @@
 
 namespace IceClean::Core::Scanner {
 
-Models::ScanCategory CrashDumpScanner::Scan() {
+Models::ScanCategory CrashDumpScanner::Scan(const std::atomic<bool>* stopFlag, ScanProgressCallback progressCb) {
     Models::ScanCategory category;
     category.name = GetName();
     category.description = GetDescription();
@@ -15,7 +15,7 @@ Models::ScanCategory CrashDumpScanner::Scan() {
     // 扫描 C:\Windows\Minidump
     std::wstring minidumpPath = Utils::Win32Util::ExpandEnvVars(L"%SystemRoot%\\Minidump");
     if (Utils::FileUtil::Exists(minidumpPath)) {
-        ScanDirectory(minidumpPath, L"*.dmp", false, false, category);
+        ScanDirectory(minidumpPath, L"*.dmp", false, false, category, stopFlag, progressCb);
     }
 
     // 扫描 C:\Windows\MEMORY.DMP
@@ -38,7 +38,7 @@ Models::ScanCategory CrashDumpScanner::Scan() {
     // 扫描 C:\Windows\LiveKernelReports
     std::wstring liveKernelPath = Utils::Win32Util::ExpandEnvVars(L"%SystemRoot%\\LiveKernelReports");
     if (Utils::FileUtil::Exists(liveKernelPath)) {
-        ScanDirectory(liveKernelPath, L"*.dmp", true, false, category);
+        ScanDirectory(liveKernelPath, L"*.dmp", true, false, category, stopFlag, progressCb);
     }
 
     return category;

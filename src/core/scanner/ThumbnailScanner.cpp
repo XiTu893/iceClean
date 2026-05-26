@@ -5,7 +5,7 @@
 
 namespace IceClean::Core::Scanner {
 
-Models::ScanCategory ThumbnailScanner::Scan() {
+Models::ScanCategory ThumbnailScanner::Scan(const std::atomic<bool>* stopFlag, ScanProgressCallback progressCb) {
     Models::ScanCategory category;
     category.name = GetName();
     category.description = GetDescription();
@@ -16,6 +16,8 @@ Models::ScanCategory ThumbnailScanner::Scan() {
     // 扫描 %LocalAppData%\Microsoft\Windows\Explorer\thumbcache_*
     std::wstring explorerPath = Utils::Win32Util::GetSpecialFolder(CSIDL_LOCAL_APPDATA);
     if (!explorerPath.empty()) {
+        if (stopFlag && stopFlag->load()) return category;
+
         std::wstring thumbPath = explorerPath + L"\\Microsoft\\Windows\\Explorer";
         if (Utils::FileUtil::Exists(thumbPath)) {
             // 扫描 thumbcache_* 文件

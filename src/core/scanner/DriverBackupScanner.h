@@ -9,7 +9,8 @@ public:
     std::wstring GetDescription() const override { return L"扫描驱动存储中的旧驱动备份文件"; }
     Models::SafetyRating GetSafetyRating() const override { return Models::SafetyRating::Safe; }
     std::wstring GetIcon() const override { return L"driver"; }
-    Models::ScanCategory Scan() override;
+    Models::ScanCategory Scan(const std::atomic<bool>* stopFlag = nullptr,
+                               ScanProgressCallback progressCb = nullptr) override;
     bool IsAvailable() const override;
 };
 

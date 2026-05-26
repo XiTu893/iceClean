@@ -4,7 +4,7 @@
 
 namespace IceClean::Core::Scanner {
 
-Models::ScanCategory DriverBackupScanner::Scan() {
+Models::ScanCategory DriverBackupScanner::Scan(const std::atomic<bool>* stopFlag, ScanProgressCallback progressCb) {
     Models::ScanCategory category;
     category.name = GetName();
     category.description = GetDescription();
@@ -18,6 +18,8 @@ Models::ScanCategory DriverBackupScanner::Scan() {
         L"%SystemRoot%\\System32\\DriverStore\\FileRepository");
 
     if (Utils::FileUtil::Exists(driverStorePath)) {
+        if (stopFlag && stopFlag->load()) return category;
+
         // 获取整个 DriverStore 的大小
         uint64_t driverStoreSize = Utils::FileUtil::GetFolderSize(driverStorePath);
 

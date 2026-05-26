@@ -4,7 +4,7 @@
 
 namespace IceClean::Core::Scanner {
 
-Models::ScanCategory WindowsUpdateScanner::Scan() {
+Models::ScanCategory WindowsUpdateScanner::Scan(const std::atomic<bool>* stopFlag, ScanProgressCallback progressCb) {
     Models::ScanCategory category;
     category.name = GetName();
     category.description = GetDescription();
@@ -16,14 +16,14 @@ Models::ScanCategory WindowsUpdateScanner::Scan() {
     std::wstring downloadPath = Utils::Win32Util::ExpandEnvVars(
         L"%SystemRoot%\\SoftwareDistribution\\Download");
     if (Utils::FileUtil::Exists(downloadPath)) {
-        ScanDirectory(downloadPath, L"*", true, true, category);
+        ScanDirectory(downloadPath, L"*", true, true, category, stopFlag, progressCb);
     }
 
     // 扫描传递优化缓存
     std::wstring deliveryPath = Utils::Win32Util::ExpandEnvVars(
         L"%SystemRoot%\\SoftwareDistribution\\DeliveryOptimization");
     if (Utils::FileUtil::Exists(deliveryPath)) {
-        ScanDirectory(deliveryPath, L"*", true, true, category);
+        ScanDirectory(deliveryPath, L"*", true, true, category, stopFlag, progressCb);
     }
 
     return category;

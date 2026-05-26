@@ -4,7 +4,7 @@
 
 namespace IceClean::Core::Scanner {
 
-Models::ScanCategory LogScanner::Scan() {
+Models::ScanCategory LogScanner::Scan(const std::atomic<bool>* stopFlag, ScanProgressCallback progressCb) {
     Models::ScanCategory category;
     category.name = GetName();
     category.description = GetDescription();
@@ -15,14 +15,16 @@ Models::ScanCategory LogScanner::Scan() {
     // 扫描 C:\Windows\Logs
     std::wstring logsPath = Utils::Win32Util::ExpandEnvVars(L"%SystemRoot%\\Logs");
     if (Utils::FileUtil::Exists(logsPath)) {
-        ScanDirectory(logsPath, L"*.log", true, true, category);
-        ScanDirectory(logsPath, L"*.etl", true, true, category);
+        ScanDirectory(logsPath, L"*.log", true, true, category, stopFlag, progressCb);
+        if (ShouldStop(stopFlag)) return category;
+        ScanDirectory(logsPath, L"*.etl", true, true, category, stopFlag, progressCb);
+        if (ShouldStop(stopFlag)) return category;
     }
 
     // 扫描 Windows 事件日志 .evtx 文件
     // 注意：.evtx 文件通常被系统锁定，但我们仍然报告大小
     std::wstring winevtPath = L"C:\\Windows\\System32\\winevt\\Logs";
-    if (Utils::FileUtil::Exists(winevtPath)) {
+    if (Utils::FileUtil::Exists(winevtPath) && !ShouldStop(stopFlag)) {
         // 扫描 .evtx 文件（不跳过锁定文件，因为需要报告大小）
         std::wstring searchPath = winevtPath;
         if (!searchPath.empty() && searchPath.back() != L'\\') {
@@ -34,6 +36,10 @@ Models::ScanCategory LogScanner::Scan() {
         HANDLE hFind = FindFirstFileW(searchPath.c_str(), &findData);
         if (hFind != INVALID_HANDLE_VALUE) {
             do {
+                if (ShouldStop(stopFlag)) {
+                    FindClose(hFind);
+                    return category;
+                }
                 if (!(findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
                     std::wstring fullPath = winevtPath + L"\\" + findData.cFileName;
 
@@ -58,14 +64,14 @@ Models::ScanCategory LogScanner::Scan() {
 
     // 扫描 CBS 日志
     std::wstring cbsPath = Utils::Win32Util::ExpandEnvVars(L"%SystemRoot%\\Logs\\CBS");
-    if (Utils::FileUtil::Exists(cbsPath)) {
-        ScanDirectory(cbsPath, L"*.log", false, true, category);
+    if (Utils::FileUtil::Exists(cbsPath) && !ShouldStop(stopFlag)) {
+        ScanDirectory(cbsPath, L"*.log", false, true, category, stopFlag, progressCb);
     }
 
     // 扫描 DISM 日志
     std::wstring dismPath = Utils::Win32Util::ExpandEnvVars(L"%SystemRoot%\\Logs\\DISM");
-    if (Utils::FileUtil::Exists(dismPath)) {
-        ScanDirectory(dismPath, L"*.log", false, true, category);
+    if (Utils::FileUtil::Exists(dismPath) && !ShouldStop(stopFlag)) {
+        ScanDirectory(dismPath, L"*.log", false, true, category, stopFlag, progressCb);
     }
 
     return category;

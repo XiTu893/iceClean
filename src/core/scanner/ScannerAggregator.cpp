@@ -88,8 +88,23 @@ Models::ScanResult ScannerAggregator::ScanAll(wxEvtHandler* evtHandler) {
                 wxQueueEvent(evtHandler, event);
             }
 
-            // 执行扫描
-            Models::ScanCategory category = scanner->Scan();
+            // 执行扫描，传入停止标志和进度回调
+            auto progressCallback = [evtHandler, scanner, totalScanners, &completedCount](int filesScanned) {
+                if (evtHandler) {
+                    ScanProgressInfo progress;
+                    progress.completedScanners = completedCount.load();
+                    progress.totalScanners = totalScanners;
+                    progress.currentScanner = scanner->GetName();
+                    progress.filesScanned = filesScanned;
+                    progress.isRunning = true;
+
+                    wxThreadEvent* event = new wxThreadEvent(IceClean::Gui::wxEVT_SCAN_PROGRESS_UPDATE);
+                    event->SetPayload(progress);
+                    wxQueueEvent(evtHandler, event);
+                }
+            };
+
+            Models::ScanCategory category = scanner->Scan(&m_stopRequested, progressCallback);
 
             // 保存结果
             {

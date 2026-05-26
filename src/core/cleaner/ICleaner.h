@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <functional>
+#include <atomic>
 #include "models/CleanItem.h"
 
 namespace IceClean::Core::Cleaner {
@@ -15,7 +16,8 @@ public:
 
     // Clean the specified items
     virtual Models::CleanResult Clean(const std::vector<std::wstring>& paths,
-                                       std::function<void(const Models::CleanProgress&)> progressCallback = nullptr) = 0;
+                                       std::function<void(const Models::CleanProgress&)> progressCallback = nullptr,
+                                       const std::atomic<bool>* cancelFlag = nullptr) = 0;
 };
 
 } // namespace IceClean::Core::Cleaner

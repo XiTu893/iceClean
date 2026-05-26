@@ -2,6 +2,8 @@
 #include "gui/controls/SafetyBadge.h"
 #include "gui/dialogs/ConfirmDialog.h"
 #include "gui/Events.h"
+#include "core/cleaner/RegistryCleaner.h"
+#include <thread>
 
 namespace IceClean::Gui {
 
@@ -191,22 +193,57 @@ void DeepCleanPanel::CreateSystemCleanTab(wxWindow* parent) {
 
 void DeepCleanPanel::CreateRegistryCleanTab(wxWindow* parent) {
     auto* sizer = new wxBoxSizer(wxVERTICAL);
-    sizer->AddSpacer(16);
+    sizer->AddSpacer(8);
 
-    auto* placeholder = new wxStaticText(parent, wxID_ANY,
-        L"注册表清理功能开发中...\n\n"
-        L"计划支持:\n"
-        L"  • 清理无效的注册表键值\n"
-        L"  • 删除残留的程序注册信息\n"
-        L"  • 修复损坏的文件关联\n"
-        L"  • 清理无用的启动项注册表项\n\n"
-        L"清理前将自动备份注册表。");
-    placeholder->SetFont(wxFont(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
-                                false, L"微软雅黑"));
-    placeholder->SetForegroundColour(wxColour(0x99, 0x99, 0x99));
-    sizer->Add(placeholder, 0, wxLEFT | wxRIGHT, 12);
+    // 顶部按钮区域
+    auto* topSizer = new wxBoxSizer(wxHORIZONTAL);
 
-    sizer->AddStretchSpacer();
+    m_registryScanButton = new wxButton(parent, wxID_ANY, L"扫描注册表",
+                                         wxDefaultPosition, wxSize(120, 36));
+    m_registryScanButton->SetFont(wxFont(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+                                          false, L"微软雅黑"));
+    m_registryScanButton->Bind(wxEVT_BUTTON, &DeepCleanPanel::OnRegistryScan, this);
+    topSizer->Add(m_registryScanButton, 0, wxRIGHT, 12);
+
+    m_registryCleanButton = new wxButton(parent, wxID_ANY, L"清理选中项",
+                                          wxDefaultPosition, wxSize(120, 36));
+    m_registryCleanButton->SetFont(wxFont(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+                                           false, L"微软雅黑"));
+    m_registryCleanButton->Enable(false);
+    m_registryCleanButton->Bind(wxEVT_BUTTON, &DeepCleanPanel::OnRegistryClean, this);
+    topSizer->Add(m_registryCleanButton, 0, wxRIGHT, 12);
+
+    m_registrySelectAllCheck = new wxCheckBox(parent, wxID_ANY, L"全选");
+    m_registrySelectAllCheck->SetFont(wxFont(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+                                              false, L"微软雅黑"));
+    m_registrySelectAllCheck->Enable(false);
+    m_registrySelectAllCheck->Bind(wxEVT_CHECKBOX, &DeepCleanPanel::OnRegistrySelectAll, this);
+    topSizer->Add(m_registrySelectAllCheck, 0, wxALIGN_CENTER_VERTICAL);
+
+    topSizer->AddStretchSpacer();
+
+    m_registryStatusLabel = new wxStaticText(parent, wxID_ANY, L"");
+    m_registryStatusLabel->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+                                           false, L"微软雅黑"));
+    m_registryStatusLabel->SetForegroundColour(wxColour(0x99, 0x99, 0x99));
+    topSizer->Add(m_registryStatusLabel, 0, wxALIGN_CENTER_VERTICAL);
+
+    sizer->Add(topSizer, 0, wxLEFT | wxRIGHT | wxBOTTOM, 12);
+
+    // 列表控件
+    m_registryList = new wxListCtrl(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+                                     wxLC_REPORT | wxBORDER_SIMPLE);
+    m_registryList->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+                                    false, L"微软雅黑"));
+
+    // 添加列
+    m_registryList->AppendColumn(L"类型", wxLIST_FORMAT_LEFT, 120);
+    m_registryList->AppendColumn(L"注册表路径", wxLIST_FORMAT_LEFT, 300);
+    m_registryList->AppendColumn(L"描述", wxLIST_FORMAT_LEFT, 200);
+
+    sizer->Add(m_registryList, 1, wxEXPAND | wxLEFT | wxRIGHT, 12);
+    sizer->AddSpacer(8);
+
     parent->SetSizer(sizer);
 }
 
@@ -321,6 +358,103 @@ std::vector<wxString> DeepCleanPanel::GetSelectedIds() const {
         }
     }
     return ids;
+}
+
+void DeepCleanPanel::OnRegistryScan(wxCommandEvent& event) {
+    m_registryScanButton->Enable(false);
+    m_registryStatusLabel->SetLabelText(L"正在扫描...");
+
+    // 在后台线程执行扫描
+    std::thread([this]() {
+        IceClean::Core::Cleaner::RegistryCleaner cleaner;
+        auto items = cleaner.ScanInvalidItems();
+
+        // 回到主线程更新UI
+        CallAfter([this, items = std::move(items)]() mutable {
+            m_registryItems = std::move(items);
+            m_registryList->DeleteAllItems();
+
+            for (int i = 0; i < static_cast<int>(m_registryItems.size()); ++i) {
+                const auto& item = m_registryItems[i];
+                long idx = m_registryList->InsertItem(i, GetTypeString(item.type));
+                m_registryList->SetItem(idx, 1, item.keyPath);
+                m_registryList->SetItem(idx, 2, item.description);
+            }
+
+            m_registryStatusLabel->SetLabelText(
+                wxString::Format(L"共发现 %d 个无效注册表项", static_cast<int>(m_registryItems.size())));
+            m_registryScanButton->Enable(true);
+            m_registryCleanButton->Enable(!m_registryItems.empty());
+            m_registrySelectAllCheck->Enable(!m_registryItems.empty());
+        });
+    }).detach();
+}
+
+void DeepCleanPanel::OnRegistryClean(wxCommandEvent& event) {
+    // 收集选中的项（使用选中行而非checkbox，wx3.3不支持wxLC_CHECKBOX）
+    std::vector<IceClean::Core::Cleaner::RegistryInvalidItem> selectedItems;
+    for (int i = 0; i < static_cast<int>(m_registryItems.size()); ++i) {
+        if (m_registryList->GetItemState(i, wxLIST_STATE_SELECTED) & wxLIST_STATE_SELECTED) {
+            selectedItems.push_back(m_registryItems[i]);
+        }
+    }
+
+    if (selectedItems.empty()) {
+        wxMessageBox(L"请至少选择一项要清理的注册表项。\n(点击行可选中)", L"IceClean", wxOK | wxICON_WARNING, this);
+        return;
+    }
+
+    ConfirmDialog dlg(this, L"确认注册表清理",
+        wxString::Format(L"即将清理 %d 个无效注册表项。\n\n清理前将自动备份注册表，确认继续？",
+                          static_cast<int>(selectedItems.size())),
+        ConfirmDialog::DangerLevel::Caution, L"确认清理", L"取消");
+
+    if (dlg.ShowModal() != wxID_OK) {
+        return;
+    }
+
+    m_registryCleanButton->Enable(false);
+    m_registryStatusLabel->SetLabelText(L"正在清理...");
+
+    // 在后台线程执行清理
+    std::thread([this, selectedItems = std::move(selectedItems)]() mutable {
+        IceClean::Core::Cleaner::RegistryCleaner cleaner;
+        auto result = cleaner.Clean(selectedItems, L"", nullptr);
+
+        CallAfter([this, result = std::move(result)]() mutable {
+            m_registryStatusLabel->SetLabelText(
+                wxString::Format(L"清理完成，共处理 %d 项", result.cleanedFileCount));
+            m_registryCleanButton->Enable(true);
+
+            // 触发重新扫描
+            wxCommandEvent scanEvt(wxEVT_BUTTON, m_registryScanButton->GetId());
+            m_registryScanButton->GetEventHandler()->AddPendingEvent(scanEvt);
+        });
+    }).detach();
+}
+
+void DeepCleanPanel::OnRegistrySelectAll(wxCommandEvent& event) {
+    bool select = m_registrySelectAllCheck->GetValue();
+    for (int i = 0; i < m_registryList->GetItemCount(); ++i) {
+        if (select) {
+            m_registryList->SetItemState(i, wxLIST_STATE_SELECTED, wxLIST_STATE_SELECTED);
+        } else {
+            m_registryList->SetItemState(i, 0, wxLIST_STATE_SELECTED);
+        }
+    }
+}
+
+wxString DeepCleanPanel::GetTypeString(IceClean::Core::Cleaner::RegistryInvalidItem::Type type) const {
+    switch (type) {
+        case IceClean::Core::Cleaner::RegistryInvalidItem::Type::InvalidUninstall:
+            return L"无效卸载信息";
+        case IceClean::Core::Cleaner::RegistryInvalidItem::Type::InvalidStartup:
+            return L"无效启动项";
+        case IceClean::Core::Cleaner::RegistryInvalidItem::Type::InvalidFileAssoc:
+            return L"无效文件关联";
+        default:
+            return L"其他";
+    }
 }
 
 } // namespace IceClean::Gui

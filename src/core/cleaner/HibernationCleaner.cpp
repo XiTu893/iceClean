@@ -6,7 +6,8 @@
 namespace IceClean::Core::Cleaner {
 
 Models::CleanResult HibernationCleaner::Clean(const std::vector<std::wstring>& paths,
-                                               std::function<void(const Models::CleanProgress&)> progressCallback) {
+                                               std::function<void(const Models::CleanProgress&)> progressCallback,
+                                               const std::atomic<bool>* cancelFlag) {
     Models::CleanResult result;
 
     // 检查管理员权限

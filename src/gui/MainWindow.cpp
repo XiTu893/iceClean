@@ -16,6 +16,7 @@
 #include "core/cleaner/BrowserCleaner.h"
 #include "core/cleaner/HibernationCleaner.h"
 #include "core/cleaner/DismCleaner.h"
+#include "core/cleaner/PrivacyCleaner.h"
 #include "core/migrator/LargeFolderDetector.h"
 #include "core/migrator/FolderMigrator.h"
 #include "core/migrator/WeChatMigrator.h"
@@ -239,8 +240,7 @@ void MainWindow::OnScanRequest(wxThreadEvent& event)
 void MainWindow::OnScanProgressUpdate(wxThreadEvent& event)
 {
     auto progress = event.GetPayload<IceClean::Core::Scanner::ScanProgressInfo>();
-    m_dashboardPanel->UpdateScanProgress(progress.completedScanners, progress.totalScanners,
-                                          progress.currentScanner);
+    m_dashboardPanel->UpdateScanProgress(progress);
 }
 
 void MainWindow::OnScanStop(wxThreadEvent& event)
@@ -471,6 +471,27 @@ void MainWindow::StartDeepClean(const std::vector<wxString>& selectedIds)
                 auto result = fileCleaner.Clean(oldWinPaths);
                 totalFreed += result.totalCleanedSize;
             }
+        }
+
+        // 处理隐私清理项
+        std::vector<IceClean::Core::Cleaner::PrivacyType> privacyTypes;
+        for (const auto& id : selectedIds) {
+            if (id == L"cookies") {
+                privacyTypes.push_back(IceClean::Core::Cleaner::PrivacyType::Cookies);
+            }
+            else if (id == L"history") {
+                privacyTypes.push_back(IceClean::Core::Cleaner::PrivacyType::History);
+            }
+            else if (id == L"formData") {
+                privacyTypes.push_back(IceClean::Core::Cleaner::PrivacyType::FormData);
+            }
+        }
+        if (!privacyTypes.empty()) {
+            IceClean::Core::Cleaner::PrivacyCleaner privacyCleaner;
+            auto privacyResult = privacyCleaner.CleanPrivacy(privacyTypes, [](const IceClean::Models::CleanProgress& progress) {
+                // 进度回调
+            });
+            totalFreed += privacyResult.totalCleanedSize;
         }
 
         // 记录操作日志

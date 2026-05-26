@@ -11,11 +11,20 @@ uint64_t ScannerBase::CalculateTotalSize(const std::vector<Models::ScanFileItem>
     return total;
 }
 
+bool ScannerBase::ShouldStop(const std::atomic<bool>* stopFlag) {
+    return stopFlag && stopFlag->load(std::memory_order_relaxed);
+}
+
 void ScannerBase::ScanDirectory(const std::wstring& directoryPath,
                                  const std::wstring& pattern,
                                  bool recursive,
                                  bool skipLocked,
-                                 Models::ScanCategory& category) {
+                                 Models::ScanCategory& category,
+                                 const std::atomic<bool>* stopFlag,
+                                 ScanProgressCallback progressCb) {
+    // 检查停止标志
+    if (ShouldStop(stopFlag)) return;
+
     // 展开环境变量
     std::wstring expandedPath = Utils::Win32Util::ExpandEnvVars(directoryPath);
 
@@ -34,7 +43,15 @@ void ScannerBase::ScanDirectory(const std::wstring& directoryPath,
     HANDLE hFind = FindFirstFileW(searchPath.c_str(), &findData);
     if (hFind == INVALID_HANDLE_VALUE) return;
 
+    int filesScanned = 0;
+
     do {
+        // 每50次迭代检查一次停止标志
+        if (filesScanned > 0 && (filesScanned % 50 == 0) && ShouldStop(stopFlag)) {
+            FindClose(hFind);
+            return;
+        }
+
         if (wcscmp(findData.cFileName, L".") == 0 ||
             wcscmp(findData.cFileName, L"..") == 0) {
             continue;
@@ -47,10 +64,11 @@ void ScannerBase::ScanDirectory(const std::wstring& directoryPath,
         fullPath += findData.cFileName;
 
         if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-            // 递归扫描子目录
+            // 递归扫描子目录前检查停止标志
             if (recursive &&
-                !(findData.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)) {
-                ScanDirectory(fullPath, pattern, recursive, skipLocked, category);
+                !(findData.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) &&
+                !ShouldStop(stopFlag)) {
+                ScanDirectory(fullPath, pattern, recursive, skipLocked, category, stopFlag, progressCb);
             }
         } else {
             // 跳过白名单路径
@@ -72,10 +90,22 @@ void ScannerBase::ScanDirectory(const std::wstring& directoryPath,
 
             category.items.push_back(item);
             category.totalSize += item.size;
+
+            filesScanned++;
+
+            // 每100个文件调用一次进度回调
+            if (progressCb && (filesScanned % 100 == 0)) {
+                progressCb(filesScanned);
+            }
         }
     } while (FindNextFileW(hFind, &findData));
 
     FindClose(hFind);
+
+    // 最终进度回调
+    if (progressCb && filesScanned > 0 && (filesScanned % 100 != 0)) {
+        progressCb(filesScanned);
+    }
 }
 
 bool ScannerBase::IsWhitelisted(const std::wstring& path) const {

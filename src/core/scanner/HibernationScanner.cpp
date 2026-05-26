@@ -4,7 +4,7 @@
 
 namespace IceClean::Core::Scanner {
 
-Models::ScanCategory HibernationScanner::Scan() {
+Models::ScanCategory HibernationScanner::Scan(const std::atomic<bool>* stopFlag, ScanProgressCallback progressCb) {
     Models::ScanCategory category;
     category.name = GetName();
     category.description = GetDescription();
@@ -15,6 +15,8 @@ Models::ScanCategory HibernationScanner::Scan() {
 
     // 检查 C:\hiberfil.sys 是否存在
     std::wstring hiberfilPath = L"C:\\hiberfil.sys";
+
+    if (stopFlag && stopFlag->load()) return category;
 
     // hiberfil.sys 是系统隐藏文件，需要特殊方式获取大小
     // 使用 GetCompressedFileSizeW 可以获取压缩文件大小

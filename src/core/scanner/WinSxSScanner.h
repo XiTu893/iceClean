@@ -9,7 +9,8 @@ public:
     std::wstring GetDescription() const override { return L"扫描WinSxS组件存储大小（仅报告，清理需使用DISM）"; }
     Models::SafetyRating GetSafetyRating() const override { return Models::SafetyRating::Caution; }
     std::wstring GetIcon() const override { return L"winsxs"; }
-    Models::ScanCategory Scan() override;
+    Models::ScanCategory Scan(const std::atomic<bool>* stopFlag = nullptr,
+                               ScanProgressCallback progressCb = nullptr) override;
     bool IsAvailable() const override;
 };
 
