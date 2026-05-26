@@ -57,6 +57,7 @@ MainWindow::MainWindow()
 
     // 绑定面板事件到 m_contentBook（面板的 GetParent() 返回 m_contentBook）
     m_contentBook->Bind(wxEVT_SCAN_REQUEST, &MainWindow::OnScanRequest, this);
+    m_contentBook->Bind(wxEVT_SCAN_STOP, &MainWindow::OnScanStop, this);
     m_contentBook->Bind(wxEVT_CLEAN_PROGRESS, &MainWindow::OnCleanRequest, this);
     m_contentBook->Bind(wxEVT_MIGRATE_PROGRESS, &MainWindow::OnMigrateRequest, this);
 
@@ -242,6 +243,15 @@ void MainWindow::OnScanProgressUpdate(wxThreadEvent& event)
                                           progress.currentScanner);
 }
 
+void MainWindow::OnScanStop(wxThreadEvent& event)
+{
+    // 请求当前扫描器停止
+    std::lock_guard<std::mutex> lock(m_aggregatorMutex);
+    if (m_currentAggregator) {
+        m_currentAggregator->RequestStop();
+    }
+}
+
 void MainWindow::StartScan(int scanType)
 {
     std::lock_guard<std::mutex> lock(m_workerMutex);
@@ -258,7 +268,15 @@ void MainWindow::StartScan(int scanType)
         if (scanType == 0) {
             // ── 普通垃圾扫描 ──
             IceClean::Core::Scanner::ScannerAggregator aggregator;
+            {
+                std::lock_guard<std::mutex> lock(m_aggregatorMutex);
+                m_currentAggregator = &aggregator;
+            }
             auto result = aggregator.ScanAll(this);
+            {
+                std::lock_guard<std::mutex> lock(m_aggregatorMutex);
+                m_currentAggregator = nullptr;
+            }
 
             // 发送完成事件
             wxThreadEvent* completeEvt = new wxThreadEvent(wxEVT_SCAN_COMPLETE);
@@ -332,8 +350,10 @@ void MainWindow::OnScanComplete(wxThreadEvent& event)
         // 将结果传递给扫描结果面板
         m_scanResultPanel->SetScanResult(result);
 
-        // 切换到扫描结果面板
-        SwitchPanel(1);
+        // 如果有结果（包括被停止的部分结果），切换到结果面板
+        if (!result.categories.empty()) {
+            SwitchPanel(1);
+        }
     }
     else if (scanType == 1) {
         // 迁移扫描完成

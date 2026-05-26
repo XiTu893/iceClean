@@ -49,6 +49,7 @@ struct ScanResult {
     int totalFileCount = 0;             // 总文件数
     int selectedFileCount = 0;          // 选中文件数
     double scanDurationMs = 0;          // 扫描耗时(毫秒)
+    bool wasStopped = false;            // 是否被用户停止
 };
 
 } // namespace IceClean::Models

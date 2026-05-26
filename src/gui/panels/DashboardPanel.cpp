@@ -60,7 +60,7 @@ void DashboardPanel::CreateControls() {
     mainSizer->Add(healthCard, 0, wxEXPAND | wxLEFT | wxRIGHT, 20);
     mainSizer->AddSpacer(16);
 
-    // ── 一键扫描按钮 ──
+    // ── 一键扫描/停止按钮 ──
     auto* scanSizer = new wxBoxSizer(wxHORIZONTAL);
     scanSizer->AddStretchSpacer();
 
@@ -72,6 +72,16 @@ void DashboardPanel::CreateControls() {
     m_scanButton->SetCursor(wxCURSOR_HAND);
     m_scanButton->Bind(wxEVT_BUTTON, &DashboardPanel::OnScanButton, this);
     scanSizer->Add(m_scanButton, 0);
+
+    m_stopButton = new wxButton(this, wxID_ANY, L"停止扫描", wxDefaultPosition, wxSize(120, 48));
+    m_stopButton->SetFont(wxFont(12, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD,
+                                  false, L"微软雅黑"));
+    m_stopButton->SetBackgroundColour(wxColour(0xE8, 0x11, 0x23));
+    m_stopButton->SetForegroundColour(*wxWHITE);
+    m_stopButton->SetCursor(wxCURSOR_HAND);
+    m_stopButton->Bind(wxEVT_BUTTON, &DashboardPanel::OnStopButton, this);
+    m_stopButton->Hide();
+    scanSizer->Add(m_stopButton, 0, wxLEFT, 10);
 
     scanSizer->AddStretchSpacer();
     mainSizer->Add(scanSizer, 0, wxEXPAND);
@@ -224,17 +234,20 @@ void DashboardPanel::UpdateRecentOperations(const std::vector<IceClean::Models::
 
 void DashboardPanel::SetScanning(bool scanning) {
     if (scanning) {
-        m_scanButton->SetLabel(L"扫描中...");
-        m_scanButton->Disable();
+        m_scanButton->Hide();
+        m_stopButton->Show();
+        m_stopButton->Enable();
         // 切换 CircularProgress 为扫描进度模式
         m_progressCtrl->SetValue(0);
         m_progressCtrl->SetLabel(L"0%");
         m_progressCtrl->SetSubLabel(L"扫描中");
         m_progressCtrl->SetProgressColor(wxColour(0x00, 0x78, 0xD4));
         m_diskInfoLabel->SetLabel(L"准备扫描...");
+        Layout();
     } else {
-        m_scanButton->SetLabel(L"一键扫描");
-        m_scanButton->Enable();
+        m_scanButton->Show();
+        m_stopButton->Hide();
+        Layout();
     }
 }
 
@@ -287,6 +300,15 @@ void DashboardPanel::OnScanButton(wxCommandEvent& event) {
     wxThreadEvent scanEvt(wxEVT_SCAN_REQUEST);
     scanEvt.SetInt(0);
     wxPostEvent(GetParent(), scanEvt);
+}
+
+void DashboardPanel::OnStopButton(wxCommandEvent& event) {
+    m_stopButton->Disable();
+    m_stopButton->SetLabel(L"正在停止...");
+    m_diskInfoLabel->SetLabel(L"正在停止扫描...");
+    // 发送停止扫描请求事件
+    wxThreadEvent stopEvt(wxEVT_SCAN_STOP);
+    wxPostEvent(GetParent(), stopEvt);
 }
 
 void DashboardPanel::OnQuickAccessCard(wxCommandEvent& event) {

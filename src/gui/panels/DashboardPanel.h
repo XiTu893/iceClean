@@ -38,6 +38,7 @@ private:
     CircularProgress* m_progressCtrl = nullptr;
     wxStaticText* m_diskInfoLabel = nullptr;
     wxButton* m_scanButton = nullptr;
+    wxButton* m_stopButton = nullptr;
     wxListCtrl* m_recentList = nullptr;
 
     // 快捷卡片
@@ -52,6 +53,7 @@ private:
 
     // 事件处理
     void OnScanButton(wxCommandEvent& event);
+    void OnStopButton(wxCommandEvent& event);
     void OnQuickAccessCard(wxCommandEvent& event);
 
     wxDECLARE_EVENT_TABLE();

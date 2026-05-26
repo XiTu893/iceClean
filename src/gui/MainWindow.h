@@ -10,6 +10,10 @@
 #include "models/MigrationItem.h"
 #include "models/StartupItem.h"
 
+namespace IceClean::Core::Scanner {
+class ScannerAggregator;
+}
+
 namespace IceClean::Gui {
 
 // Forward declarations for panels
@@ -45,6 +49,7 @@ private:
     // 面板事件处理
     void OnScanRequest(wxThreadEvent& event);
     void OnScanProgressUpdate(wxThreadEvent& event);
+    void OnScanStop(wxThreadEvent& event);
     void OnCleanRequest(wxThreadEvent& event);
     void OnMigrateRequest(wxThreadEvent& event);
 
@@ -84,6 +89,10 @@ private:
     std::thread m_workerThread;
     std::atomic<bool> m_workerRunning{false};
     std::mutex m_workerMutex;
+
+    // 扫描器指针（用于停止扫描）
+    IceClean::Core::Scanner::ScannerAggregator* m_currentAggregator = nullptr;
+    std::mutex m_aggregatorMutex;
 
     // 扫描结果缓存
     IceClean::Models::ScanResult m_lastScanResult;

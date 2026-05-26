@@ -3,6 +3,7 @@
 #include <memory>
 #include <functional>
 #include <mutex>
+#include <atomic>
 #include "IScanner.h"
 #include "models/ScanResult.h"
 #include "gui/Events.h"
@@ -29,6 +30,12 @@ public:
     // wxEvtHandler 用于发送 wxThreadEvent 进度通知
     Models::ScanResult ScanAll(wxEvtHandler* evtHandler = nullptr);
 
+    // 请求停止扫描
+    void RequestStop();
+
+    // 是否已被请求停止
+    bool IsStopRequested() const;
+
     // 获取所有已注册的扫描器
     const std::vector<std::unique_ptr<IScanner>>& GetScanners() const;
 
@@ -37,6 +44,7 @@ public:
 
 private:
     std::vector<std::unique_ptr<IScanner>> m_scanners;
+    std::atomic<bool> m_stopRequested{false};
 };
 
 } // namespace IceClean::Core::Scanner

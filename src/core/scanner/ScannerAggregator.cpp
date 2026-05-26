@@ -40,6 +40,7 @@ void ScannerAggregator::RegisterBuiltinScanners() {
 
 Models::ScanResult ScannerAggregator::ScanAll(wxEvtHandler* evtHandler) {
     Models::ScanResult result;
+    m_stopRequested = false;
 
     auto startTime = std::chrono::high_resolution_clock::now();
 
@@ -69,6 +70,9 @@ Models::ScanResult ScannerAggregator::ScanAll(wxEvtHandler* evtHandler) {
 
     for (int i = 0; i < totalScanners; ++i) {
         threads.emplace_back([&, i]() {
+            // 检查是否已请求停止
+            if (m_stopRequested.load()) return;
+
             IScanner* scanner = availableScanners[i];
 
             // 发送进度事件 - 开始扫描
@@ -96,7 +100,7 @@ Models::ScanResult ScannerAggregator::ScanAll(wxEvtHandler* evtHandler) {
             int completed = completedCount.fetch_add(1) + 1;
 
             // 发送进度事件 - 完成扫描
-            if (evtHandler) {
+            if (evtHandler && !m_stopRequested.load()) {
                 ScanProgressInfo progress;
                 progress.completedScanners = completed;
                 progress.totalScanners = totalScanners;
@@ -115,12 +119,11 @@ Models::ScanResult ScannerAggregator::ScanAll(wxEvtHandler* evtHandler) {
         thread.join();
     }
 
-    // 汇总结果
+    // 汇总已完成的结果
     for (auto& category : categories) {
         result.totalSize += category.totalSize;
         result.totalFileCount += static_cast<int>(category.items.size());
 
-        // 计算选中项的大小
         for (const auto& item : category.items) {
             if (item.selected) {
                 result.selectedSize += item.size;
@@ -131,10 +134,20 @@ Models::ScanResult ScannerAggregator::ScanAll(wxEvtHandler* evtHandler) {
         result.categories.push_back(std::move(category));
     }
 
+    result.wasStopped = m_stopRequested.load();
+
     auto endTime = std::chrono::high_resolution_clock::now();
     result.scanDurationMs = std::chrono::duration<double, std::milli>(endTime - startTime).count();
 
     return result;
+}
+
+void ScannerAggregator::RequestStop() {
+    m_stopRequested = true;
+}
+
+bool ScannerAggregator::IsStopRequested() const {
+    return m_stopRequested.load();
 }
 
 const std::vector<std::unique_ptr<IScanner>>& ScannerAggregator::GetScanners() const {

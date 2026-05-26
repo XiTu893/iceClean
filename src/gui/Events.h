@@ -11,6 +11,8 @@ namespace IceClean::Gui {
 wxDECLARE_EVENT(wxEVT_SCAN_REQUEST, wxThreadEvent);
 // 扫描进度更新事件（由扫描器发出，通知UI更新进度）
 wxDECLARE_EVENT(wxEVT_SCAN_PROGRESS_UPDATE, wxThreadEvent);
+// 停止扫描请求事件（由面板发出，请求停止扫描）
+wxDECLARE_EVENT(wxEVT_SCAN_STOP, wxThreadEvent);
 // 扫描完成事件
 wxDECLARE_EVENT(wxEVT_SCAN_COMPLETE, wxThreadEvent);
 // 清理完成事件
