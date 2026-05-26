@@ -226,16 +226,65 @@ void DashboardPanel::SetScanning(bool scanning) {
     if (scanning) {
         m_scanButton->SetLabel(L"扫描中...");
         m_scanButton->Disable();
+        // 切换 CircularProgress 为扫描进度模式
+        m_progressCtrl->SetValue(0);
+        m_progressCtrl->SetLabel(L"0%");
+        m_progressCtrl->SetSubLabel(L"扫描中");
+        m_progressCtrl->SetProgressColor(wxColour(0x00, 0x78, 0xD4));
+        m_diskInfoLabel->SetLabel(L"准备扫描...");
     } else {
         m_scanButton->SetLabel(L"一键扫描");
         m_scanButton->Enable();
     }
 }
 
+void DashboardPanel::UpdateScanProgress(int completedScanners, int totalScanners,
+                                         const std::wstring& currentScanner) {
+    if (totalScanners <= 0) return;
+
+    int percent = (completedScanners * 100) / totalScanners;
+    m_progressCtrl->SetValue(percent);
+    m_progressCtrl->SetLabel(wxString::Format(L"%d%%", percent));
+    m_progressCtrl->SetSubLabel(L"扫描中");
+
+    // 显示当前正在扫描的项目
+    wxString scannerName(currentScanner);
+    if (!scannerName.IsEmpty()) {
+        m_diskInfoLabel->SetLabel(L"正在扫描: " + scannerName);
+    }
+}
+
+void DashboardPanel::RestoreDiskInfo() {
+    // 恢复 CircularProgress 为磁盘使用率模式
+    int percent = 0;
+    if (m_totalBytes > 0) {
+        percent = static_cast<int>((m_usedBytes * 100) / m_totalBytes);
+    }
+    m_progressCtrl->SetValue(percent);
+    m_progressCtrl->SetLabel(wxString::Format(L"%d%%", percent));
+    m_progressCtrl->SetSubLabel(L"已使用");
+
+    // 恢复颜色
+    if (percent > 90) {
+        m_progressCtrl->SetProgressColor(wxColour(0xE8, 0x11, 0x23));
+    } else if (percent > 75) {
+        m_progressCtrl->SetProgressColor(wxColour(0xFF, 0x8C, 0x00));
+    } else {
+        m_progressCtrl->SetProgressColor(wxColour(0x00, 0x78, 0xD4));
+    }
+
+    // 恢复磁盘信息文字
+    using namespace IceClean::Utils;
+    wxString info = wxString::Format(L"%s / %s",
+        FormatUtil::FormatFileSize(m_usedBytes),
+        FormatUtil::FormatFileSize(m_totalBytes));
+    m_diskInfoLabel->SetLabel(info);
+}
+
 void DashboardPanel::OnScanButton(wxCommandEvent& event) {
     SetScanning(true);
-    // 发送扫描开始事件，由MainWindow处理
-    wxThreadEvent scanEvt(wxEVT_SCAN_PROGRESS);
+    // 发送扫描请求事件，由MainWindow处理
+    wxThreadEvent scanEvt(wxEVT_SCAN_REQUEST);
     scanEvt.SetInt(0);
     wxPostEvent(GetParent(), scanEvt);
 }

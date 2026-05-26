@@ -56,7 +56,7 @@ MainWindow::MainWindow()
     LayoutControls();
 
     // 绑定面板事件到 m_contentBook（面板的 GetParent() 返回 m_contentBook）
-    m_contentBook->Bind(wxEVT_SCAN_PROGRESS, &MainWindow::OnScanRequest, this);
+    m_contentBook->Bind(wxEVT_SCAN_REQUEST, &MainWindow::OnScanRequest, this);
     m_contentBook->Bind(wxEVT_CLEAN_PROGRESS, &MainWindow::OnCleanRequest, this);
     m_contentBook->Bind(wxEVT_MIGRATE_PROGRESS, &MainWindow::OnMigrateRequest, this);
 
@@ -64,6 +64,9 @@ MainWindow::MainWindow()
     Bind(wxEVT_SCAN_COMPLETE, &MainWindow::OnScanComplete, this);
     Bind(wxEVT_CLEAN_COMPLETE, &MainWindow::OnCleanComplete, this);
     Bind(wxEVT_MIGRATE_COMPLETE, &MainWindow::OnMigrateComplete, this);
+
+    // 绑定扫描进度更新事件
+    Bind(wxEVT_SCAN_PROGRESS_UPDATE, &MainWindow::OnScanProgressUpdate, this);
 
     // 延迟初始化（等窗口显示后）
     CallAfter([this]() { InitializeApp(); });
@@ -232,6 +235,13 @@ void MainWindow::OnScanRequest(wxThreadEvent& event)
     StartScan(scanType);
 }
 
+void MainWindow::OnScanProgressUpdate(wxThreadEvent& event)
+{
+    auto progress = event.GetPayload<IceClean::Core::Scanner::ScanProgressInfo>();
+    m_dashboardPanel->UpdateScanProgress(progress.completedScanners, progress.totalScanners,
+                                          progress.currentScanner);
+}
+
 void MainWindow::StartScan(int scanType)
 {
     std::lock_guard<std::mutex> lock(m_workerMutex);
@@ -314,6 +324,7 @@ void MainWindow::OnScanComplete(wxThreadEvent& event)
     if (scanType == 0) {
         // 普通扫描完成
         m_dashboardPanel->SetScanning(false);
+        m_dashboardPanel->RestoreDiskInfo();  // 恢复磁盘信息显示
 
         auto result = event.GetPayload<IceClean::Models::ScanResult>();
         m_lastScanResult = result;

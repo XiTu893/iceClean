@@ -188,7 +188,7 @@ void MigrationPanel::OnScanButton(wxCommandEvent& event) {
     m_scanButton->SetLabel(L"扫描中...");
 
     // 发送扫描事件，由MainWindow处理
-    wxThreadEvent scanEvt(wxEVT_SCAN_PROGRESS);
+    wxThreadEvent scanEvt(wxEVT_SCAN_REQUEST);
     scanEvt.SetInt(1); // 1 = 迁移扫描
     wxPostEvent(GetParent(), scanEvt);
 }

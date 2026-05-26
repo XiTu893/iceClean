@@ -22,6 +22,13 @@ public:
     // 设置扫描按钮状态
     void SetScanning(bool scanning);
 
+    // 更新扫描进度（扫描过程中实时调用）
+    void UpdateScanProgress(int completedScanners, int totalScanners,
+                            const std::wstring& currentScanner);
+
+    // 恢复磁盘信息显示（扫描完成后调用）
+    void RestoreDiskInfo();
+
 private:
     // C盘信息
     uint64_t m_usedBytes = 0;

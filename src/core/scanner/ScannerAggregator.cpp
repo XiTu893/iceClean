@@ -79,7 +79,7 @@ Models::ScanResult ScannerAggregator::ScanAll(wxEvtHandler* evtHandler) {
                 progress.currentScanner = scanner->GetName();
                 progress.isRunning = true;
 
-                wxThreadEvent* event = new wxThreadEvent(IceClean::Gui::wxEVT_SCAN_PROGRESS);
+                wxThreadEvent* event = new wxThreadEvent(IceClean::Gui::wxEVT_SCAN_PROGRESS_UPDATE);
                 event->SetPayload(progress);
                 wxQueueEvent(evtHandler, event);
             }
@@ -103,7 +103,7 @@ Models::ScanResult ScannerAggregator::ScanAll(wxEvtHandler* evtHandler) {
                 progress.currentScanner = scanner->GetName();
                 progress.isRunning = (completed < totalScanners);
 
-                wxThreadEvent* event = new wxThreadEvent(IceClean::Gui::wxEVT_SCAN_PROGRESS);
+                wxThreadEvent* event = new wxThreadEvent(IceClean::Gui::wxEVT_SCAN_PROGRESS_UPDATE);
                 event->SetPayload(progress);
                 wxQueueEvent(evtHandler, event);
             }

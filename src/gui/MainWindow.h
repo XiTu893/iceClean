@@ -44,6 +44,7 @@ private:
 
     // 面板事件处理
     void OnScanRequest(wxThreadEvent& event);
+    void OnScanProgressUpdate(wxThreadEvent& event);
     void OnCleanRequest(wxThreadEvent& event);
     void OnMigrateRequest(wxThreadEvent& event);
 

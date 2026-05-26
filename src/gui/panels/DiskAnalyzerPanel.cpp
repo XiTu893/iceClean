@@ -375,7 +375,7 @@ void DiskAnalyzerPanel::OnScanButton(wxCommandEvent& event) {
     m_scanButton->SetLabel(L"扫描中...");
 
     // 发送扫描事件
-    wxThreadEvent scanEvt(wxEVT_SCAN_PROGRESS);
+    wxThreadEvent scanEvt(wxEVT_SCAN_REQUEST);
     scanEvt.SetInt(3); // 3 = 磁盘分析扫描
     wxPostEvent(GetParent(), scanEvt);
 }
