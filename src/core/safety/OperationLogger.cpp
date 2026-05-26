@@ -96,7 +96,7 @@ std::vector<Models::OperationRecord> OperationLogger::GetRecentOperations(int co
     if (!logData.is_array()) return records;
 
     // 从最新的记录开始读取
-    int startIdx = std::max(0, static_cast<int>(logData.size()) - count);
+    int startIdx = (std::max)(0, static_cast<int>(logData.size()) - count);
     for (int i = startIdx; i < static_cast<int>(logData.size()); ++i) {
         const auto& entry = logData[i];
 

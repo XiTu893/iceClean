@@ -369,7 +369,7 @@ void MainWindow::StartClean(int cleanType, const std::vector<std::wstring>& path
     m_workerRunning = true;
 
     // 创建还原点
-    IceClean::Safety::RestorePointManager::CreateRestorePoint(L"IceClean 清理操作前自动还原点");
+    IceClean::Core::Safety::RestorePointManager::CreateRestorePoint(L"IceClean 清理操作前自动还原点");
 
     m_workerThread = std::thread([this, cleanType, paths]() {
         uint64_t totalFreed = 0;
@@ -379,7 +379,7 @@ void MainWindow::StartClean(int cleanType, const std::vector<std::wstring>& path
         auto fileResult = fileCleaner.Clean(paths, [](const IceClean::Models::CleanProgress& progress) {
             // 进度回调
         });
-        totalFreed += fileResult.freedBytes;
+        totalFreed += fileResult.totalCleanedSize;
 
         // 记录操作日志
         IceClean::Models::OperationRecord record;
@@ -388,7 +388,7 @@ void MainWindow::StartClean(int cleanType, const std::vector<std::wstring>& path
         record.size = totalFreed;
         record.timestamp = std::chrono::system_clock::now();
         record.success = fileResult.success;
-        IceClean::Safety::OperationLogger::LogOperation(record);
+        IceClean::Core::Safety::OperationLogger::LogOperation(record);
 
         wxThreadEvent* completeEvt = new wxThreadEvent(wxEVT_CLEAN_COMPLETE);
         completeEvt->SetInt(cleanType);
@@ -408,7 +408,7 @@ void MainWindow::StartDeepClean(const std::vector<wxString>& selectedIds)
     m_workerRunning = true;
 
     // 创建还原点
-    IceClean::Safety::RestorePointManager::CreateRestorePoint(L"IceClean 深度清理前自动还原点");
+    IceClean::Core::Safety::RestorePointManager::CreateRestorePoint(L"IceClean 深度清理前自动还原点");
 
     m_workerThread = std::thread([this, selectedIds]() {
         uint64_t totalFreed = 0;
@@ -417,17 +417,17 @@ void MainWindow::StartDeepClean(const std::vector<wxString>& selectedIds)
             if (id == L"winSxS") {
                 IceClean::Core::Cleaner::DismCleaner dismCleaner;
                 auto result = dismCleaner.Clean({L"WinSxS"});
-                totalFreed += result.freedBytes;
+                totalFreed += result.totalCleanedSize;
             }
             else if (id == L"compactOS") {
                 IceClean::Core::Cleaner::DismCleaner dismCleaner;
                 auto result = dismCleaner.Clean({L"CompactOS"});
-                totalFreed += result.freedBytes;
+                totalFreed += result.totalCleanedSize;
             }
             else if (id == L"hibernation") {
                 IceClean::Core::Cleaner::HibernationCleaner hibCleaner;
                 auto result = hibCleaner.Clean({});
-                totalFreed += result.freedBytes;
+                totalFreed += result.totalCleanedSize;
             }
             else if (id == L"oldWindows") {
                 // 删除旧Windows安装文件
@@ -438,7 +438,7 @@ void MainWindow::StartDeepClean(const std::vector<wxString>& selectedIds)
                 };
                 IceClean::Core::Cleaner::FileCleaner fileCleaner;
                 auto result = fileCleaner.Clean(oldWinPaths);
-                totalFreed += result.freedBytes;
+                totalFreed += result.totalCleanedSize;
             }
         }
 
@@ -449,7 +449,7 @@ void MainWindow::StartDeepClean(const std::vector<wxString>& selectedIds)
         record.size = totalFreed;
         record.timestamp = std::chrono::system_clock::now();
         record.success = true;
-        IceClean::Safety::OperationLogger::LogOperation(record);
+        IceClean::Core::Safety::OperationLogger::LogOperation(record);
 
         wxThreadEvent* completeEvt = new wxThreadEvent(wxEVT_CLEAN_COMPLETE);
         completeEvt->SetInt(1);  // 1=深度清理
@@ -467,7 +467,7 @@ void MainWindow::StartDeepClean(const std::vector<wxString>& selectedIds)
 void MainWindow::OnCleanComplete(wxThreadEvent& event)
 {
     int cleanType = event.GetInt();
-    auto freedBytes = event.GetPayload<uint64_t>();
+    auto totalCleanedSize = event.GetPayload<uint64_t>();
 
     // 刷新磁盘信息
     RefreshDiskInfo();
@@ -477,7 +477,7 @@ void MainWindow::OnCleanComplete(wxThreadEvent& event)
 
     // 显示结果
     wxString msg = wxString::Format(L"清理完成！共释放 %s 空间。",
-        IceClean::Utils::FormatUtil::FormatFileSize(freedBytes));
+        IceClean::Utils::FormatUtil::FormatFileSize(totalCleanedSize));
     wxMessageBox(msg, L"IceClean", wxOK | wxICON_INFORMATION, this);
 }
 
@@ -501,7 +501,7 @@ void MainWindow::StartMigration(const std::vector<IceClean::Models::MigrationIte
     m_workerRunning = true;
 
     // 创建还原点
-    IceClean::Safety::RestorePointManager::CreateRestorePoint(L"IceClean 迁移操作前自动还原点");
+    IceClean::Core::Safety::RestorePointManager::CreateRestorePoint(L"IceClean 迁移操作前自动还原点");
 
     auto targetDriveW = targetDrive.ToStdWstring();
     auto itemsCopy = items;
@@ -549,7 +549,7 @@ void MainWindow::StartMigration(const std::vector<IceClean::Models::MigrationIte
         record.size = totalMigrated;
         record.timestamp = std::chrono::system_clock::now();
         record.success = (successCount > 0);
-        IceClean::Safety::OperationLogger::LogOperation(record);
+        IceClean::Core::Safety::OperationLogger::LogOperation(record);
 
         wxThreadEvent* completeEvt = new wxThreadEvent(wxEVT_MIGRATE_COMPLETE);
         completeEvt->SetPayload(totalMigrated);
@@ -613,7 +613,7 @@ void MainWindow::StartStartupOptimize(const std::vector<IceClean::Models::Startu
         record.size = 0;
         record.timestamp = std::chrono::system_clock::now();
         record.success = (disabledCount > 0);
-        IceClean::Safety::OperationLogger::LogOperation(record);
+        IceClean::Core::Safety::OperationLogger::LogOperation(record);
 
         wxThreadEvent* completeEvt = new wxThreadEvent(wxEVT_CLEAN_COMPLETE);
         completeEvt->SetInt(2);  // 2=启动优化
@@ -660,7 +660,7 @@ void MainWindow::RefreshDiskInfo()
 
 void MainWindow::RefreshRecentOperations()
 {
-    auto records = IceClean::Safety::OperationLogger::GetRecentOperations(20);
+    auto records = IceClean::Core::Safety::OperationLogger::GetRecentOperations(20);
     m_dashboardPanel->UpdateRecentOperations(records);
 }
 

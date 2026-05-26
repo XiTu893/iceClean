@@ -3,13 +3,6 @@
 #include "resource.h"
 #include <winver.h>
 
-// ── 应用清单 ──
-#ifndef RT_MANIFEST
-#define RT_MANIFEST 24
-#endif
-
-1   RT_MANIFEST   "app.manifest"
-
 // ── 图标 ──
 // IDI_APP_ICON    ICON    "app.ico"
 

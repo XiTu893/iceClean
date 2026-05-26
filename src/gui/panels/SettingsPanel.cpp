@@ -3,6 +3,7 @@
 #include "utils/JsonUtil.h"
 #include <nlohmann/json.hpp>
 #include <wx/filename.h>
+#include <wx/statline.h>
 
 namespace IceClean::Gui {
 

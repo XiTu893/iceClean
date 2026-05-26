@@ -1,7 +1,8 @@
 #pragma once
 #include <wx/wx.h>
-#include "gui/controls/CircularProgress.h"
+#include <wx/listctrl.h>
 #include "gui/controls/CardPanel.h"
+#include "gui/controls/CircularProgress.h"
 #include "models/ScanResult.h"
 #include "models/OperationRecord.h"
 

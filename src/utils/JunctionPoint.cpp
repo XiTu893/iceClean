@@ -1,12 +1,13 @@
 #include "JunctionPoint.h"
 #include <windows.h>
 #include <cstring>
+#include <vector>
 
 namespace IceClean::Utils {
 
 // REPARSE_POINT结构定义(用于Junction)
 #pragma pack(push, 1)
-struct REPARSE_DATA_BUFFER {
+struct JUNCTION_REPARSE_DATA_BUFFER {
     ULONG ReparseTag;
     USHORT ReparseDataLength;
     USHORT Reserved;
@@ -26,7 +27,7 @@ struct REPARSE_DATA_BUFFER {
             USHORT PrintNameLength;
             WCHAR PathBuffer[1];
         } MountPointReparseBuffer;
-    } DUMMYUNIONNAME;
+    } u;
 };
 #pragma pack(pop)
 
@@ -94,14 +95,14 @@ bool JunctionPoint::Create(const std::wstring& junctionPath, const std::wstring&
     USHORT reparseDataLength = sizeof(ULONG) + sizeof(USHORT) * 5 +
                                substituteNameLength + printNameLength;
 
-    std::vector<BYTE> buffer(sizeof(REPARSE_DATA_BUFFER) + substituteNameLength + printNameLength, 0);
-    auto* reparseData = reinterpret_cast<REPARSE_DATA_BUFFER*>(buffer.data());
+    std::vector<BYTE> buffer(sizeof(JUNCTION_REPARSE_DATA_BUFFER) + substituteNameLength + printNameLength, 0);
+    auto* reparseData = reinterpret_cast<JUNCTION_REPARSE_DATA_BUFFER*>(buffer.data());
 
     reparseData->ReparseTag = IO_REPARSE_TAG_MOUNT_POINT;
     reparseData->ReparseDataLength = reparseDataLength;
     reparseData->Reserved = 0;
 
-    auto& mountPoint = reparseData->DUMMYUNIONNAME.MountPointReparseBuffer;
+    auto& mountPoint = reparseData->u.MountPointReparseBuffer;
     mountPoint.SubstituteNameOffset = 0;
     mountPoint.SubstituteNameLength = substituteNameLength;
     mountPoint.PrintNameOffset = substituteNameLength;
@@ -149,7 +150,7 @@ bool JunctionPoint::Remove(const std::wstring& junctionPath) {
     if (hDir == INVALID_HANDLE_VALUE) return false;
 
     // 准备删除重解析点的缓冲区
-    REPARSE_DATA_BUFFER reparseData = {};
+    JUNCTION_REPARSE_DATA_BUFFER reparseData = {};
     reparseData.ReparseTag = IO_REPARSE_TAG_MOUNT_POINT;
     reparseData.ReparseDataLength = 0;
 
@@ -199,7 +200,7 @@ std::wstring JunctionPoint::GetTarget(const std::wstring& junctionPath) {
 
     // 分配足够大的缓冲区
     std::vector<BYTE> buffer(MAXIMUM_REPARSE_DATA_BUFFER_SIZE, 0);
-    auto* reparseData = reinterpret_cast<REPARSE_DATA_BUFFER*>(buffer.data());
+    auto* reparseData = reinterpret_cast<JUNCTION_REPARSE_DATA_BUFFER*>(buffer.data());
 
     DWORD bytesReturned = 0;
     BOOL success = DeviceIoControl(
@@ -219,7 +220,7 @@ std::wstring JunctionPoint::GetTarget(const std::wstring& junctionPath) {
         return L"";
     }
 
-    auto& mountPoint = reparseData->DUMMYUNIONNAME.MountPointReparseBuffer;
+    auto& mountPoint = reparseData->u.MountPointReparseBuffer;
 
     // 读取替代名称(实际路径)
     std::wstring substituteName(

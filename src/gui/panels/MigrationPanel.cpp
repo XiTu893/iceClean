@@ -233,7 +233,7 @@ void MigrationPanel::OnItemChecked(wxListEvent& event) {
     long idx = event.GetIndex();
     if (idx >= 0 && static_cast<size_t>(idx) < m_items.size()) {
         m_items[idx].selected = !m_items[idx].selected;
-        m_fileList->SetItemText(idx, 0, m_items[idx].selected ? L"✓" : L"");
+        m_fileList->SetItem(idx, 0, m_items[idx].selected ? L"✓" : L"");
     }
 }
 

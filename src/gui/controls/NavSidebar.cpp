@@ -72,7 +72,7 @@ void NavSidebar::OnPaint(wxPaintEvent& /*event*/)
     }
 
     gc->SetBrush(gc->CreateBrush(wxBrush(m_bgColor)));
-    gc->DrawRectangle(wxRect(0, 0, GetSize().x, GetSize().y));
+    gc->DrawRectangle(wxRect2DDouble(0, 0, GetSize().x, GetSize().y));
 
     // Draw app title at the top
     gc->SetFont(wxFont(14, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD), wxColour(255, 255, 255));
@@ -119,7 +119,7 @@ void NavSidebar::OnPaint(wxPaintEvent& /*event*/)
         }
 
         gc->SetBrush(gc->CreateBrush(wxBrush(indicatorColor)));
-        gc->SetPen(wxTRANSPARENT_PEN);
+        gc->SetPen(*wxTRANSPARENT_PEN);
         gc->DrawEllipse(circleX, circleY, ICON_SIZE, ICON_SIZE);
 
         // Draw short text label inside the circle

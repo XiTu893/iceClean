@@ -100,7 +100,7 @@ std::vector<std::wstring> RegistryUtil::EnumValues(HKEY rootKey, const std::wstr
 
     while (true) {
         DWORD nameSize = MAX_PATH;
-        result = RegEnumValueW(hKey, index, valueName, &nameSize, nullptr, nullptr, nullptr);
+        result = RegEnumValueW(hKey, index, valueName, &nameSize, nullptr, nullptr, nullptr, nullptr);
         if (result != ERROR_SUCCESS) break;
 
         values.push_back(valueName);

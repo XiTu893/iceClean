@@ -1,4 +1,5 @@
 #include "SafetyBadge.h"
+#include <wx/dcbuffer.h>
 
 namespace IceClean::Gui {
 

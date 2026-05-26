@@ -68,7 +68,7 @@ void CardPanel::OnPaint(wxPaintEvent& /*event*/)
 
     // Clear background with parent color
     gc->SetBrush(gc->CreateBrush(wxBrush(GetParent()->GetBackgroundColour())));
-    gc->DrawRectangle(wxRect(wxPoint(0, 0), GetSize()));
+    gc->DrawRectangle(wxRect2DDouble(0, 0, GetSize().GetWidth(), GetSize().GetHeight()));
 
     auto rect = GetClientRect();
 

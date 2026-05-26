@@ -1,5 +1,6 @@
 #include "MigrationProgressDlg.h"
 #include "utils/FormatUtil.h"
+#include <algorithm>
 
 namespace IceClean::Gui {
 
@@ -73,7 +74,7 @@ void MigrationProgressDlg::SetCurrentFile(const wxString& file) {
 }
 
 void MigrationProgressDlg::SetProgress(int percent) {
-    m_progressBar->SetValue(wxClamp(percent, 0, 100));
+    m_progressBar->SetValue(std::clamp(percent, 0, 100));
 }
 
 void MigrationProgressDlg::SetSpeed(const wxString& speed) {
@@ -101,10 +102,10 @@ void MigrationProgressDlg::SetCompleted(bool success, const wxString& message) {
     m_cancelButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { EndModal(wxID_OK); });
 
     if (success) {
-        m_fileLabel->SetLabel(message.IsEmpty() ? L"迁移完成！" : message);
+        m_fileLabel->SetLabel(message.IsEmpty() ? wxString(L"迁移完成！") : message);
         m_fileLabel->SetForegroundColour(wxColour(0x10, 0x7C, 0x10));
     } else {
-        m_fileLabel->SetLabel(message.IsEmpty() ? L"迁移失败" : message);
+        m_fileLabel->SetLabel(message.IsEmpty() ? wxString(L"迁移失败") : message);
         m_fileLabel->SetForegroundColour(wxColour(0xE8, 0x11, 0x23));
     }
     m_speedLabel->SetLabel(L"速度: --");

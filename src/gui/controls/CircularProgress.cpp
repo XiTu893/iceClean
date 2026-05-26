@@ -4,10 +4,13 @@
 #define _USE_MATH_DEFINES
 #endif
 #include <cmath>
+#include <algorithm>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
+
+#include <wx/dcbuffer.h>
 
 namespace IceClean::Gui {
 
@@ -25,7 +28,7 @@ CircularProgress::CircularProgress(wxWindow* parent, wxWindowID id,
 }
 
 void CircularProgress::SetValue(int value) {
-    m_value = wxClamp(value, 0, 100);
+    m_value = std::clamp(value, 0, 100);
     Refresh();
 }
 

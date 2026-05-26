@@ -1,6 +1,9 @@
 #include "DiskAnalyzerPanel.h"
 #include "gui/Events.h"
 #include "utils/FormatUtil.h"
+#include <wx/dcbuffer.h>
+#include <algorithm>
+#include <cwctype>
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -221,28 +224,29 @@ wxColour DiskAnalyzerPanel::GetNodeColor(const std::shared_ptr<IceClean::Models:
     if (!node) return wxColour(0xCC, 0xCC, 0xCC);
 
     // 根据扩展名分配颜色
-    wxString name = node->name.Lower();
-    if (name.EndsWith(L".mp4") || name.EndsWith(L".mkv") || name.EndsWith(L".avi") ||
-        name.EndsWith(L".mov") || name.EndsWith(L".wmv")) {
+    std::wstring name = node->name;
+    std::transform(name.begin(), name.end(), name.begin(), ::towlower);
+    if (name.ends_with(L".mp4") || name.ends_with(L".mkv") || name.ends_with(L".avi") ||
+        name.ends_with(L".mov") || name.ends_with(L".wmv")) {
         return wxColour(0x4C, 0xAF, 0x50); // 绿色 - 视频
     }
-    if (name.EndsWith(L".mp3") || name.EndsWith(L".flac") || name.EndsWith(L".wav") ||
-        name.EndsWith(L".aac")) {
+    if (name.ends_with(L".mp3") || name.ends_with(L".flac") || name.ends_with(L".wav") ||
+        name.ends_with(L".aac")) {
         return wxColour(0xFF, 0x98, 0x00); // 橙色 - 音频
     }
-    if (name.EndsWith(L".jpg") || name.EndsWith(L".png") || name.EndsWith(L".gif") ||
-        name.EndsWith(L".bmp") || name.EndsWith(L".svg")) {
+    if (name.ends_with(L".jpg") || name.ends_with(L".png") || name.ends_with(L".gif") ||
+        name.ends_with(L".bmp") || name.ends_with(L".svg")) {
         return wxColour(0xE9, 0x1E, 0x63); // 粉色 - 图片
     }
-    if (name.EndsWith(L".doc") || name.EndsWith(L".docx") || name.EndsWith(L".pdf") ||
-        name.EndsWith(L".txt") || name.EndsWith(L".xlsx")) {
+    if (name.ends_with(L".doc") || name.ends_with(L".docx") || name.ends_with(L".pdf") ||
+        name.ends_with(L".txt") || name.ends_with(L".xlsx")) {
         return wxColour(0x21, 0x96, 0xF3); // 蓝色 - 文档
     }
-    if (name.EndsWith(L".zip") || name.EndsWith(L".rar") || name.EndsWith(L".7z") ||
-        name.EndsWith(L".tar") || name.EndsWith(L".gz")) {
+    if (name.ends_with(L".zip") || name.ends_with(L".rar") || name.ends_with(L".7z") ||
+        name.ends_with(L".tar") || name.ends_with(L".gz")) {
         return wxColour(0x9C, 0x27, 0xB0); // 紫色 - 压缩包
     }
-    if (name.EndsWith(L".exe") || name.EndsWith(L".msi") || name.EndsWith(L".dll")) {
+    if (name.ends_with(L".exe") || name.ends_with(L".msi") || name.ends_with(L".dll")) {
         return wxColour(0xFF, 0x57, 0x22); // 红橙 - 应用程序
     }
 

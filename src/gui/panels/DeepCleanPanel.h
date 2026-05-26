@@ -1,5 +1,6 @@
 #pragma once
 #include <wx/wx.h>
+#include <wx/notebook.h>
 #include <vector>
 
 namespace IceClean::Gui {

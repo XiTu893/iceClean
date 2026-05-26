@@ -153,7 +153,7 @@ void ScanResultPanel::BuildCategoryList() {
         detailSizer->AddSpacer(4);
 
         // 分类描述
-        if (!cat.description.IsEmpty()) {
+        if (!cat.description.empty()) {
             auto* descLabel = new wxStaticText(ui.detailPanel, wxID_ANY, cat.description);
             descLabel->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
                                       false, L"微软雅黑"));

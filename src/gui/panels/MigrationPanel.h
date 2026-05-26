@@ -1,5 +1,6 @@
 #pragma once
 #include <wx/wx.h>
+#include <wx/listctrl.h>
 #include <vector>
 #include "models/MigrationItem.h"
 
