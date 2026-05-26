@@ -11,6 +11,7 @@ enum class MigrationType {
     WeChatCache,       // 微信缓存
     QQCache,           // QQ缓存
     CustomFolder,      // 自定义文件夹
+    DevCache,          // 开发工具缓存
     LargeSoftware      // 大型软件
 };
 

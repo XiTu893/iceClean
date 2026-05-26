@@ -11,6 +11,7 @@
 #include "DriverBackupScanner.h"
 #include "HibernationScanner.h"
 #include "WinSxSScanner.h"
+#include "DevCacheScanner.h"
 #include <thread>
 #include <mutex>
 #include <chrono>
@@ -36,6 +37,7 @@ void ScannerAggregator::RegisterBuiltinScanners() {
     m_scanners.push_back(std::make_unique<DriverBackupScanner>());
     m_scanners.push_back(std::make_unique<HibernationScanner>());
     m_scanners.push_back(std::make_unique<WinSxSScanner>());
+    m_scanners.push_back(std::make_unique<DevCacheScanner>());
 }
 
 Models::ScanResult ScannerAggregator::ScanAll(wxEvtHandler* evtHandler) {
@@ -88,14 +90,25 @@ Models::ScanResult ScannerAggregator::ScanAll(wxEvtHandler* evtHandler) {
                 wxQueueEvent(evtHandler, event);
             }
 
-            // 执行扫描，传入停止标志和进度回调
-            auto progressCallback = [evtHandler, scanner, totalScanners, &completedCount](int filesScanned) {
+            // 执行扫描，传入停止标志和进度回调（带100ms时间节流）
+            auto lastProgressTime = std::make_shared<std::chrono::steady_clock::time_point>(
+                std::chrono::steady_clock::now());
+            auto progressCallback = [evtHandler, scanner, totalScanners, &completedCount,
+                                      lastProgressTime](int filesScanned, const std::wstring& currentFile) {
                 if (evtHandler) {
+                    // 时间节流：距上次发送不足100ms则跳过
+                    auto now = std::chrono::steady_clock::now();
+                    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        now - *lastProgressTime).count();
+                    if (elapsed < 100) return;
+                    *lastProgressTime = now;
+
                     ScanProgressInfo progress;
                     progress.completedScanners = completedCount.load();
                     progress.totalScanners = totalScanners;
                     progress.currentScanner = scanner->GetName();
                     progress.filesScanned = filesScanned;
+                    progress.currentFile = currentFile;
                     progress.isRunning = true;
 
                     wxThreadEvent* event = new wxThreadEvent(IceClean::Gui::wxEVT_SCAN_PROGRESS_UPDATE);

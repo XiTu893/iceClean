@@ -23,6 +23,7 @@
 #include "core/migrator/QQMigrator.h"
 #include "core/migrator/SteamMigrator.h"
 #include "core/migrator/UserFolderMigrator.h"
+#include "core/migrator/DevCacheMigrator.h"
 #include "core/optimizer/StartupOptimizer.h"
 #include "core/optimizer/ServiceOptimizer.h"
 #include "core/analyzer/DiskSpaceAnalyzer.h"
@@ -577,6 +578,9 @@ void MainWindow::StartMigration(const std::vector<IceClean::Models::MigrationIte
                     break;
                 case IceClean::Models::MigrationType::QQCache:
                     migrator = std::make_unique<IceClean::Core::Migrator::QQMigrator>();
+                    break;
+                case IceClean::Models::MigrationType::DevCache:
+                    migrator = std::make_unique<IceClean::Core::Migrator::DevCacheMigrator>();
                     break;
                 case IceClean::Models::MigrationType::CustomFolder:
                 case IceClean::Models::MigrationType::LargeSoftware:

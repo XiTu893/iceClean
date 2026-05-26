@@ -12,7 +12,7 @@ uint64_t ScannerBase::CalculateTotalSize(const std::vector<Models::ScanFileItem>
 }
 
 bool ScannerBase::ShouldStop(const std::atomic<bool>* stopFlag) {
-    return stopFlag && stopFlag->load(std::memory_order_relaxed);
+    return stopFlag && stopFlag->load(std::memory_order_acquire);
 }
 
 void ScannerBase::ScanDirectory(const std::wstring& directoryPath,
@@ -46,8 +46,8 @@ void ScannerBase::ScanDirectory(const std::wstring& directoryPath,
     int filesScanned = 0;
 
     do {
-        // 每50次迭代检查一次停止标志
-        if (filesScanned > 0 && (filesScanned % 50 == 0) && ShouldStop(stopFlag)) {
+        // 每次迭代都检查停止标志（atomic load 开销极小）
+        if (ShouldStop(stopFlag)) {
             FindClose(hFind);
             return;
         }
@@ -64,10 +64,9 @@ void ScannerBase::ScanDirectory(const std::wstring& directoryPath,
         fullPath += findData.cFileName;
 
         if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-            // 递归扫描子目录前检查停止标志
+            // 递归扫描子目录
             if (recursive &&
-                !(findData.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) &&
-                !ShouldStop(stopFlag)) {
+                !(findData.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)) {
                 ScanDirectory(fullPath, pattern, recursive, skipLocked, category, stopFlag, progressCb);
             }
         } else {
@@ -93,18 +92,18 @@ void ScannerBase::ScanDirectory(const std::wstring& directoryPath,
 
             filesScanned++;
 
-            // 每100个文件调用一次进度回调
-            if (progressCb && (filesScanned % 100 == 0)) {
-                progressCb(filesScanned);
+            // 每10个文件调用一次进度回调，传递当前文件路径
+            if (progressCb && (filesScanned % 10 == 0)) {
+                progressCb(filesScanned, fullPath);
             }
         }
     } while (FindNextFileW(hFind, &findData));
 
     FindClose(hFind);
 
-    // 最终进度回调
-    if (progressCb && filesScanned > 0 && (filesScanned % 100 != 0)) {
-        progressCb(filesScanned);
+    // 最终进度回调（处理不足10个文件的尾部）
+    if (progressCb && filesScanned > 0 && (filesScanned % 10 != 0)) {
+        progressCb(filesScanned, L"");
     }
 }
 

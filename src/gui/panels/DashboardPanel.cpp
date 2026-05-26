@@ -275,10 +275,31 @@ void DashboardPanel::UpdateScanProgress(const IceClean::Core::Scanner::ScanProgr
     m_progressCtrl->SetLabel(wxString::Format(L"%d%%", percent));
     m_progressCtrl->SetSubLabel(L"扫描中");
 
-    // 显示当前正在扫描的项目和文件数
+    // 显示当前正在扫描的项目和文件名
     wxString scannerName(info.currentScanner);
     if (!scannerName.IsEmpty()) {
-        if (info.filesScanned > 0) {
+        wxString fileDetail;
+        if (!info.currentFile.empty()) {
+            // 截取文件名部分（取最后两级路径）
+            wxString filePath(info.currentFile);
+            int pos1 = filePath.Find(L'\\', true);  // 从后找
+            if (pos1 != wxNOT_FOUND) {
+                wxString rest = filePath.Left(pos1);
+                int pos2 = rest.Find(L'\\', true);
+                if (pos2 != wxNOT_FOUND) {
+                    fileDetail = filePath.Mid(pos2 + 1);
+                } else {
+                    fileDetail = filePath;
+                }
+            } else {
+                fileDetail = filePath;
+            }
+        }
+
+        if (!fileDetail.IsEmpty()) {
+            m_diskInfoLabel->SetLabel(wxString::Format(L"正在扫描: %s → %s",
+                scannerName, fileDetail));
+        } else if (info.filesScanned > 0) {
             m_diskInfoLabel->SetLabel(wxString::Format(L"正在扫描: %s (%d 个文件)",
                 scannerName, info.filesScanned));
         } else {

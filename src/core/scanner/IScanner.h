@@ -8,8 +8,8 @@
 
 namespace IceClean::Core::Scanner {
 
-// 扫描进度回调类型：参数为已扫描文件数
-using ScanProgressCallback = std::function<void(int filesScanned)>;
+// 扫描进度回调类型：参数为已扫描文件数和当前文件路径
+using ScanProgressCallback = std::function<void(int filesScanned, const std::wstring& currentFile)>;
 
 class IScanner {
 public:
