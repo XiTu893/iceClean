@@ -1,0 +1,97 @@
+{
+  "app": {
+    "name": "IceClean - Smart C: Drive Cleaner & Migrator",
+    "description": "Smart C: Drive Cleaner & Migration Tool"
+  },
+  "nav": {
+    "home": "Home",
+    "deep_clean": "Deep Clean",
+    "migrate": "Migrate",
+    "speedup": "Speed Up",
+    "software": "Software",
+    "disk_analyze": "Disk Analysis",
+    "driver": "Drivers",
+    "duplicate": "Duplicates",
+    "network": "Network",
+    "backup": "Backup",
+    "security": "Security",
+    "settings": "Settings",
+    "about": "About"
+  },
+  "dashboard": {
+    "scan": "Scan Now",
+    "scanning": "Scanning...",
+    "scan_complete": "Scan Complete",
+    "clean": "Clean Now",
+    "cleaning": "Cleaning...",
+    "clean_complete": "Clean Complete",
+    "disk_used": "C: Drive Used",
+    "total_junk": "Junk Found",
+    "health_score": "Health Score"
+  },
+  "dialog": {
+    "confirm_delete": "Are you sure you want to delete the selected items?",
+    "confirm_clean": "Are you sure you want to clean the selected items? This cannot be undone.",
+    "confirm_disable": "Are you sure you want to disable this item?",
+    "operation_success": "Operation Successful",
+    "operation_failed": "Operation Failed",
+    "please_wait": "Please wait...",
+    "yes": "Yes",
+    "no": "No",
+    "ok": "OK",
+    "cancel": "Cancel",
+    "close": "Close"
+  },
+  "settings": {
+    "general": "General",
+    "auto_restore": "Auto-create restore point before cleaning",
+    "minimize_tray": "Minimize to system tray on close",
+    "clean_rules": "Clean Rules",
+    "scheduled_clean": "Scheduled Cleaning",
+    "context_menu": "Context Menu Manager",
+    "whitelist": "Whitelist Manager",
+    "operation_log": "Operation Log",
+    "check_update": "Check for Updates",
+    "checking_update": "Checking for updates...",
+    "update_available": "Update Available",
+    "up_to_date": "Up to Date",
+    "update_failed": "Update Check Failed"
+  },
+  "cleaner": {
+    "temp_files": "Temporary Files",
+    "windows_update": "Windows Update Cache",
+    "browser_cache": "Browser Cache",
+    "thumbnail_cache": "Thumbnail Cache",
+    "prefetch": "Prefetch Files",
+    "crash_dump": "Crash Dumps",
+    "recycle_bin": "Recycle Bin",
+    "delivery_optimization": "Delivery Optimization",
+    "system_log": "System Logs",
+    "driver_backup": "Driver Backups",
+    "hibernation": "Hibernation File",
+    "old_windows": "Old Windows Installation"
+  },
+  "safety": {
+    "safe": "Safe",
+    "caution": "Caution",
+    "dangerous": "Dangerous",
+    "restore_point_created": "Restore point created successfully",
+    "whitelist_protected": "Whitelist protected path"
+  },
+  "update": {
+    "new_version_available": "New version available: {0}",
+    "current_version": "Current version: {0}",
+    "latest_version": "Latest version: {0}",
+    "download_now": "Download Now",
+    "skip_version": "Skip This Version",
+    "remind_later": "Remind Me Later"
+  },
+  "report": {
+    "title": "Diagnostic Report",
+    "generate": "Generate Report",
+    "system_info": "System Information",
+    "disk_info": "Disk Information",
+    "recent_operations": "Recent Operations",
+    "export": "Export Report"
+  }
+}

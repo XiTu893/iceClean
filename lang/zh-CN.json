@@ -1,0 +1,97 @@
+{
+  "app": {
+    "name": "IceClean - 智能C盘清理与迁移工具",
+    "description": "智能C盘清理与迁移工具"
+  },
+  "nav": {
+    "home": "首页",
+    "deep_clean": "深度清理",
+    "migrate": "迁移",
+    "speedup": "加速",
+    "software": "软件管理",
+    "disk_analyze": "大文件",
+    "driver": "驱动管理",
+    "duplicate": "重复文件",
+    "network": "网络优化",
+    "backup": "系统备份",
+    "security": "安全防护",
+    "settings": "设置",
+    "about": "关于"
+  },
+  "dashboard": {
+    "scan": "一键扫描",
+    "scanning": "正在扫描...",
+    "scan_complete": "扫描完成",
+    "clean": "立即清理",
+    "cleaning": "正在清理...",
+    "clean_complete": "清理完成",
+    "disk_used": "C盘已用",
+    "total_junk": "发现垃圾",
+    "health_score": "健康评分"
+  },
+  "dialog": {
+    "confirm_delete": "确定要删除选中的项目吗？",
+    "confirm_clean": "确定要清理选中的项目吗？此操作不可恢复。",
+    "confirm_disable": "确定要禁用此项吗？",
+    "operation_success": "操作成功",
+    "operation_failed": "操作失败",
+    "please_wait": "请稍候...",
+    "yes": "是",
+    "no": "否",
+    "ok": "确定",
+    "cancel": "取消",
+    "close": "关闭"
+  },
+  "settings": {
+    "general": "常规设置",
+    "auto_restore": "清理前自动创建系统还原点",
+    "minimize_tray": "关闭时最小化到系统托盘",
+    "clean_rules": "清理规则",
+    "scheduled_clean": "定时清理",
+    "context_menu": "右键菜单管理",
+    "whitelist": "白名单管理",
+    "operation_log": "操作日志",
+    "check_update": "检查更新",
+    "checking_update": "正在检查更新...",
+    "update_available": "发现新版本",
+    "up_to_date": "当前已是最新版本",
+    "update_failed": "检查更新失败"
+  },
+  "cleaner": {
+    "temp_files": "系统临时文件",
+    "windows_update": "Windows更新缓存",
+    "browser_cache": "浏览器缓存",
+    "thumbnail_cache": "缩略图缓存",
+    "prefetch": "预取文件",
+    "crash_dump": "错误报告/内存转储",
+    "recycle_bin": "回收站",
+    "delivery_optimization": "传递优化文件",
+    "system_log": "系统日志",
+    "driver_backup": "旧驱动备份",
+    "hibernation": "休眠文件",
+    "old_windows": "旧Windows安装"
+  },
+  "safety": {
+    "safe": "安全",
+    "caution": "谨慎",
+    "dangerous": "危险",
+    "restore_point_created": "还原点创建成功",
+    "whitelist_protected": "白名单保护的路径"
+  },
+  "update": {
+    "new_version_available": "发现新版本: {0}",
+    "current_version": "当前版本: {0}",
+    "latest_version": "最新版本: {0}",
+    "download_now": "立即下载",
+    "skip_version": "跳过此版本",
+    "remind_later": "稍后提醒"
+  },
+  "report": {
+    "title": "诊断报告",
+    "generate": "生成报告",
+    "system_info": "系统信息",
+    "disk_info": "磁盘信息",
+    "recent_operations": "最近操作",
+    "export": "导出报告"
+  }
+}

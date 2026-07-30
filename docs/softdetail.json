@@ -1,0 +1,1204 @@
+{
+  "version": 1,
+  "updated_at": "2026-07-30",
+  "description": "IceClean 流氓软件特征规则库 - 针对中国区常见流氓/捆绑/弹窗软件",
+  "rules": [
+    {
+      "id": "rogue-2345-safe",
+      "name": "2345 安全卫士",
+      "aliases": ["2345安全卫士", "2345卫士", "2345SafeGuard"],
+      "category": "adware",
+      "safety_level": "dangerous",
+      "indicators": {
+        "processes": ["2345Safe.exe", "2345Guard.exe", "2345Svc.exe", "2345SoftMgr.exe", "2345MP.exe"],
+        "registry": [
+          "HKLM\\SOFTWARE\\2345\\SafeGuard",
+          "HKCU\\Software\\2345\\SafeGuard",
+          "HKLM\\SOFTWARE\\WOW6432Node\\2345\\SafeGuard"
+        ],
+        "files": [
+          "%ProgramFiles%\\2345\\SafeGuard",
+          "%ProgramFiles(x86)%\\2345\\SafeGuard",
+          "%AppData%\\2345\\SafeGuard"
+        ],
+        "services": ["2345SafeSvc", "2345GuardSvc"],
+        "scheduled_tasks": ["2345SafeGuardUpdate", "2345SafeGuardAutoRun"]
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": true,
+        "delete_registry": true,
+        "delete_files": true
+      },
+      "description": "2345旗下安全软件，常通过软件捆绑安装，后台进程多，弹窗频繁，卸载困难"
+    },
+    {
+      "id": "rogue-2345-browser",
+      "name": "2345 浏览器",
+      "aliases": ["2345加速浏览器", "2345浏览器"],
+      "category": "browser_hijack",
+      "safety_level": "dangerous",
+      "indicators": {
+        "processes": ["2345Explorer.exe", "2345Browser.exe", "2345BrowserUpdate.exe"],
+        "registry": [
+          "HKLM\\SOFTWARE\\2345\\2345Explorer",
+          "HKCU\\Software\\2345\\2345Explorer",
+          "HKLM\\SOFTWARE\\WOW6432Node\\2345\\2345Explorer"
+        ],
+        "files": [
+          "%ProgramFiles%\\2345\\2345Explorer",
+          "%ProgramFiles(x86)%\\2345\\2345Explorer",
+          "%AppData%\\2345\\2345Explorer"
+        ],
+        "services": [],
+        "scheduled_tasks": ["2345ExplorerUpdate"],
+        "browser_hijack": {
+          "homepage": ["2345.com", "hao.2345.com", "www.2345.com"],
+          "search_engine": ["2345.com", "so.2345.com", "zhidao.2345.com"]
+        }
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": false,
+        "delete_registry": true,
+        "delete_files": true,
+        "restore_browser": true
+      },
+      "description": "2345旗下浏览器，常强制设为默认浏览器并锁定主页为2345导航，篡改浏览器设置"
+    },
+    {
+      "id": "rogue-2345-zip",
+      "name": "2345 好压",
+      "aliases": ["好压", "HaoZip", "2345好压"],
+      "category": "bundled_software",
+      "safety_level": "caution",
+      "indicators": {
+        "processes": ["HaoZip.exe", "HaoZipUpdate.exe", "HaoZipService.exe"],
+        "registry": [
+          "HKLM\\SOFTWARE\\2345\\HaoZip",
+          "HKCU\\Software\\2345\\HaoZip",
+          "HKLM\\SOFTWARE\\WOW6432Node\\2345\\HaoZip"
+        ],
+        "files": [
+          "%ProgramFiles%\\2345\\HaoZip",
+          "%ProgramFiles(x86)%\\2345\\HaoZip",
+          "%AppData%\\2345\\HaoZip"
+        ],
+        "services": ["HaoZipService"],
+        "scheduled_tasks": ["HaoZipUpdate"]
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": true,
+        "delete_registry": true,
+        "delete_files": true
+      },
+      "description": "2345旗下压缩软件，通过下载站捆绑安装，含弹窗广告和后台更新服务"
+    },
+    {
+      "id": "rogue-2345-pic",
+      "name": "2345 看图王",
+      "aliases": ["2345看图王", "2345Pic", "2345看图"],
+      "category": "adware",
+      "safety_level": "caution",
+      "indicators": {
+        "processes": ["2345PicViewer.exe", "2345PicUpdate.exe"],
+        "registry": [
+          "HKLM\\SOFTWARE\\2345\\2345Pic",
+          "HKCU\\Software\\2345\\2345Pic"
+        ],
+        "files": [
+          "%ProgramFiles%\\2345\\2345Pic",
+          "%ProgramFiles(x86)%\\2345\\2345Pic"
+        ],
+        "services": [],
+        "scheduled_tasks": ["2345PicUpdate"]
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": false,
+        "delete_registry": true,
+        "delete_files": true
+      },
+      "description": "2345旗下图片查看器，常通过图片文件关联自动安装，含弹窗推广"
+    },
+    {
+      "id": "rogue-2345-input",
+      "name": "2345 输入法",
+      "aliases": ["2345输入法"],
+      "category": "adware",
+      "safety_level": "caution",
+      "indicators": {
+        "processes": ["2345Input.exe", "2345InputUpdate.exe"],
+        "registry": [
+          "HKLM\\SOFTWARE\\2345\\2345Input",
+          "HKCU\\Software\\2345\\2345Input"
+        ],
+        "files": [
+          "%ProgramFiles%\\2345\\2345Input",
+          "%ProgramFiles(x86)%\\2345\\2345Input",
+          "%AppData%\\2345\\2345Input"
+        ],
+        "services": ["2345InputService"],
+        "scheduled_tasks": ["2345InputUpdate"]
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": true,
+        "delete_registry": true,
+        "delete_files": true
+      },
+      "description": "2345旗下输入法，常被捆绑安装，后台联网推送广告"
+    },
+    {
+      "id": "rogue-pps",
+      "name": "PPS 影音",
+      "aliases": ["PPS", "PPS网络电视", "PPStream", "PPS影音"],
+      "category": "adware",
+      "safety_level": "dangerous",
+      "indicators": {
+        "processes": ["pps.exe", "ppsap.exe", "PPStream.exe", "PPSUpdate.exe", "PPSAd.exe"],
+        "registry": [
+          "HKLM\\SOFTWARE\\PPS",
+          "HKCU\\Software\\PPStream",
+          "HKLM\\SOFTWARE\\WOW6432Node\\PPS"
+        ],
+        "files": [
+          "%ProgramFiles%\\PPS",
+          "%ProgramFiles(x86)%\\PPS",
+          "%AppData%\\PPS",
+          "%AppData%\\PPStream"
+        ],
+        "services": ["PPSService", "PPSStreaming", "PPSUpdateSvc"],
+        "scheduled_tasks": ["PPSUpdate"],
+        "browser_hijack": {
+          "homepage": ["www.pps.tv", "v.pps.tv"]
+        }
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": true,
+        "delete_registry": true,
+        "delete_files": true,
+        "restore_browser": true
+      },
+      "description": "PPS网络电视播放器，包含大量弹窗广告、后台进程和浏览器劫持行为"
+    },
+    {
+      "id": "rogue-flash",
+      "name": "Flash 中国特供版",
+      "aliases": ["Flash中国版", "Flash Helper", "Flash中心", "Flash中国特供版"],
+      "category": "adware",
+      "safety_level": "dangerous",
+      "indicators": {
+        "processes": ["FlashHelperService.exe", "FlashUtil.exe", "FlashCenter.exe", "FlashInstall.exe", "FlashService.exe"],
+        "registry": [
+          "HKLM\\SOFTWARE\\Macromedia\\FlashPlayer",
+          "HKCU\\Software\\FlashHelper",
+          "HKLM\\SOFTWARE\\WOW6432Node\\Macromedia\\FlashPlayer",
+          "HKLM\\SOFTWARE\\FlashCenter"
+        ],
+        "files": [
+          "%ProgramFiles%\\FlashHelper",
+          "%ProgramFiles(x86)%\\FlashHelper",
+          "%AppData%\\Macromedia\\FlashPlayer",
+          "%AppData%\\FlashHelper",
+          "%SystemRoot%\\System32\\Macromed\\Flash"
+        ],
+        "services": ["FlashHelperService", "FlashCenterSvc"],
+        "scheduled_tasks": ["FlashHelperUpdate", "FlashCenterUpdate"]
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": true,
+        "delete_registry": true,
+        "delete_files": true
+      },
+      "description": "Adobe Flash Player中国特供版，由重橙网络代理，含广告弹窗、后台服务和系统驻留"
+    },
+    {
+      "id": "rogue-drivergenius",
+      "name": "驱动精灵",
+      "aliases": ["DriverGenius", "驱动精灵"],
+      "category": "bundled_software",
+      "safety_level": "caution",
+      "indicators": {
+        "processes": ["DriverGenius.exe", "DrvGenius.exe", "DrvSetup.exe", "DriverGeniusUpdate.exe", "DGService.exe"],
+        "registry": [
+          "HKLM\\SOFTWARE\\DriverGenius",
+          "HKLM\\SOFTWARE\\WOW6432Node\\DriverGenius"
+        ],
+        "files": [
+          "%ProgramFiles%\\DriverGenius",
+          "%ProgramFiles(x86)%\\DriverGenius"
+        ],
+        "services": ["DriverGeniusSvc", "DGService"],
+        "scheduled_tasks": ["DriverGeniusUpdate", "DriverGeniusAutoRun"]
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": true,
+        "delete_registry": true,
+        "delete_files": true
+      },
+      "description": "驱动管理工具，常通过下载站捆绑安装，含弹窗推广和后台驻留进程"
+    },
+    {
+      "id": "rogue-driverlife",
+      "name": "驱动人生",
+      "aliases": ["驱动人生", "DriverLife"],
+      "category": "bundled_software",
+      "safety_level": "caution",
+      "indicators": {
+        "processes": ["DriverLife.exe", "DriverLifeUpdate.exe", "DrvLifeService.exe"],
+        "registry": [
+          "HKLM\\SOFTWARE\\DriverLife",
+          "HKLM\\SOFTWARE\\WOW6432Node\\DriverLife"
+        ],
+        "files": [
+          "%ProgramFiles%\\DriverLife",
+          "%ProgramFiles(x86)%\\DriverLife"
+        ],
+        "services": ["DriverLifeSvc"],
+        "scheduled_tasks": ["DriverLifeUpdate", "DriverLifeAutoRun"]
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": true,
+        "delete_registry": true,
+        "delete_files": true
+      },
+      "description": "与驱动精灵类似的驱动管理工具，常被捆绑安装，含弹窗推广和驻留服务"
+    },
+    {
+      "id": "rogue-ludashi",
+      "name": "鲁大师",
+      "aliases": ["LuDaShi", "鲁大师"],
+      "category": "adware",
+      "safety_level": "caution",
+      "indicators": {
+        "processes": ["LDS.exe", "LuDaShi.exe", "LDSUpdate.exe", "LDSMain.exe", "LDSAppBox.exe"],
+        "registry": [
+          "HKLM\\SOFTWARE\\LDS",
+          "HKLM\\SOFTWARE\\WOW6432Node\\LDS",
+          "HKCU\\Software\\LDS"
+        ],
+        "files": [
+          "%ProgramFiles%\\LDS",
+          "%ProgramFiles(x86)%\\LDS",
+          "%AppData%\\LDS"
+        ],
+        "services": ["LDSSvc"],
+        "scheduled_tasks": ["LDSUpdate", "LDSAutoRun"]
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": true,
+        "delete_registry": true,
+        "delete_files": true
+      },
+      "description": "硬件检测和系统优化工具，含大量弹窗广告、软件推广和后台驻留服务"
+    },
+    {
+      "id": "rogue-360-popup",
+      "name": "360 安全卫士弹窗",
+      "aliases": ["360弹窗", "360安全卫士弹窗", "360Safe Popup"],
+      "category": "popup",
+      "safety_level": "caution",
+      "indicators": {
+        "processes": ["360pop.exe", "360Notify.exe", "360SoftMgr.exe", "360Safe.exe", "360Tray.exe", "360Speed.exe"],
+        "registry": [
+          "HKLM\\SOFTWARE\\360\\360Safe",
+          "HKCU\\Software\\360\\360Safe"
+        ],
+        "files": [],
+        "services": [],
+        "scheduled_tasks": ["360SafeUpdate"]
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": false,
+        "delete_registry": false,
+        "delete_files": false
+      },
+      "description": "360安全卫士的弹窗广告进程，含软件推荐、天气、热点等弹窗，不影响主防功能"
+    },
+    {
+      "id": "rogue-360-browser-popup",
+      "name": "360 浏览器弹窗",
+      "aliases": ["360浏览器弹窗"],
+      "category": "popup",
+      "safety_level": "caution",
+      "indicators": {
+        "processes": ["360Browser.exe", "360BrowserUpdate.exe", "360Bp.exe"],
+        "registry": [],
+        "files": [],
+        "services": [],
+        "scheduled_tasks": []
+      },
+      "cleanup_actions": {
+        "kill_process": false,
+        "stop_service": false,
+        "delete_registry": false,
+        "delete_files": false
+      },
+      "description": "360浏览器的资讯弹窗和推广弹窗"
+    },
+    {
+      "id": "rogue-kingsoft",
+      "name": "金山毒霸",
+      "aliases": ["金山毒霸", "Kingsoft Antivirus", "KSDA"],
+      "category": "adware",
+      "safety_level": "caution",
+      "indicators": {
+        "processes": ["kxetray.exe", "kxescore.exe", "KSafe.exe", "KSafeSvc.exe", "KAVUpdate.exe"],
+        "registry": [
+          "HKLM\\SOFTWARE\\Kingsoft\\KSafe",
+          "HKLM\\SOFTWARE\\WOW6432Node\\Kingsoft\\KSafe",
+          "HKCU\\Software\\Kingsoft\\KSafe"
+        ],
+        "files": [
+          "%ProgramFiles%\\Kingsoft\\KSafe",
+          "%ProgramFiles(x86)%\\Kingsoft\\KSafe",
+          "%AppData%\\Kingsoft\\KSafe"
+        ],
+        "services": ["KSafeSvc", "KSafeSvc64"],
+        "scheduled_tasks": ["KSafeUpdate", "KSafeAutoRun"]
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": true,
+        "delete_registry": true,
+        "delete_files": true
+      },
+      "description": "金山旗下安全软件，含大量弹窗推广，常捆绑安装金山系其他产品"
+    },
+    {
+      "id": "rogue-rising",
+      "name": "瑞星杀毒",
+      "aliases": ["瑞星", "瑞星杀毒", "Rising", "Rising Antivirus"],
+      "category": "adware",
+      "safety_level": "caution",
+      "indicators": {
+        "processes": ["RavMon.exe", "RavMon64.exe", "RavTask.exe", "RavUpdate.exe", "RavStub.exe"],
+        "registry": [
+          "HKLM\\SOFTWARE\\Rising\\Rav",
+          "HKLM\\SOFTWARE\\WOW6432Node\\Rising\\Rav"
+        ],
+        "files": [
+          "%ProgramFiles%\\Rising\\Rav",
+          "%ProgramFiles(x86)%\\Rising\\Rav"
+        ],
+        "services": ["RavService", "RavUpdateSvc"],
+        "scheduled_tasks": ["RavUpdate", "RavAutoRun"]
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": true,
+        "delete_registry": true,
+        "delete_files": true
+      },
+      "description": "瑞星杀毒软件，含弹窗推广和系统驻留，卸载流程复杂"
+    },
+    {
+      "id": "rogue-qq-pcmanager-popup",
+      "name": "腾讯电脑管家弹窗",
+      "aliases": ["腾讯电脑管家弹窗", "QQ电脑管家弹窗", "Tencent PC Manager"],
+      "category": "popup",
+      "safety_level": "safe",
+      "indicators": {
+        "processes": ["QQPCTray.exe", "QQPCNotify.exe", "QQPCMgr.exe"],
+        "registry": [],
+        "files": [],
+        "services": [],
+        "scheduled_tasks": []
+      },
+      "cleanup_actions": {
+        "kill_process": false,
+        "stop_service": false,
+        "delete_registry": false,
+        "delete_files": false
+      },
+      "description": "腾讯电脑管家的资讯弹窗和推广弹窗，不影响主程序功能"
+    },
+    {
+      "id": "rogue-kuaizip",
+      "name": "快压",
+      "aliases": ["KuaiZip", "快压"],
+      "category": "adware",
+      "safety_level": "dangerous",
+      "indicators": {
+        "processes": ["KuaiZip.exe", "KuaiZipUpdate.exe", "KuaiZipService.exe"],
+        "registry": [
+          "HKLM\\SOFTWARE\\KuaiZip",
+          "HKLM\\SOFTWARE\\WOW6432Node\\KuaiZip",
+          "HKCU\\Software\\KuaiZip"
+        ],
+        "files": [
+          "%ProgramFiles%\\KuaiZip",
+          "%ProgramFiles(x86)%\\KuaiZip",
+          "%AppData%\\KuaiZip"
+        ],
+        "services": ["KuaiZipService"],
+        "scheduled_tasks": ["KuaiZipUpdate"]
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": true,
+        "delete_registry": true,
+        "delete_files": true
+      },
+      "description": "压缩软件，常通过下载站捆绑安装。含弹窗广告、浏览器主页篡改行为，卸载困难"
+    },
+    {
+      "id": "rogue-xiaoniao-wallpaper",
+      "name": "小鸟壁纸",
+      "aliases": ["小鸟壁纸", "小鳥壁纸"],
+      "category": "adware",
+      "safety_level": "dangerous",
+      "indicators": {
+        "processes": ["XiaoNiao.exe", "XiaoNiaoWallpaper.exe", "XNService.exe", "XiaoNiaoUpdate.exe"],
+        "registry": [
+          "HKLM\\SOFTWARE\\XiaoNiao",
+          "HKCU\\Software\\XiaoNiao"
+        ],
+        "files": [
+          "%ProgramFiles%\\XiaoNiao",
+          "%ProgramFiles(x86)%\\XiaoNiao",
+          "%AppData%\\XiaoNiao"
+        ],
+        "services": ["XNService"],
+        "scheduled_tasks": ["XiaoNiaoUpdate", "XiaoNiaoAutoRun"]
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": true,
+        "delete_registry": true,
+        "delete_files": true
+      },
+      "description": "壁纸类软件，常通过下载站捆绑安装。大量弹窗广告、浏览器主页篡改、后台驻留，属于典型流氓软件"
+    },
+    {
+      "id": "rogue-huoying-wallpaper",
+      "name": "火萤壁纸",
+      "aliases": ["火萤壁纸", "Huoying Wallpaper"],
+      "category": "adware",
+      "safety_level": "caution",
+      "indicators": {
+        "processes": ["Huoying.exe", "HuoyingWallpaper.exe", "HuoyingService.exe", "HuoyingUpdate.exe"],
+        "registry": [
+          "HKLM\\SOFTWARE\\Huoying",
+          "HKCU\\Software\\Huoying"
+        ],
+        "files": [
+          "%ProgramFiles%\\Huoying",
+          "%ProgramFiles(x86)%\\Huoying",
+          "%AppData%\\Huoying"
+        ],
+        "services": ["HuoyingService"],
+        "scheduled_tasks": ["HuoyingUpdate"]
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": true,
+        "delete_registry": true,
+        "delete_files": true
+      },
+      "description": "动态壁纸软件，含弹窗推广和后台驻留服务"
+    },
+    {
+      "id": "rogue-dandan-wallpaper",
+      "name": "弹弹壁纸",
+      "aliases": ["弹弹壁纸", "DDWallpaper"],
+      "category": "adware",
+      "safety_level": "dangerous",
+      "indicators": {
+        "processes": ["DDWallpaper.exe", "DDService.exe", "DDUpdate.exe"],
+        "registry": [
+          "HKLM\\SOFTWARE\\DDWallpaper",
+          "HKCU\\Software\\DDWallpaper"
+        ],
+        "files": [
+          "%ProgramFiles%\\DDWallpaper",
+          "%ProgramFiles(x86)%\\DDWallpaper",
+          "%AppData%\\DDWallpaper"
+        ],
+        "services": ["DDService"],
+        "scheduled_tasks": ["DDWallpaperUpdate"]
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": true,
+        "delete_registry": true,
+        "delete_files": true
+      },
+      "description": "壁纸类软件，弹窗频繁，常篡改浏览器主页，卸载困难"
+    },
+    {
+      "id": "rogue-moguyu",
+      "name": "墨鱼丸",
+      "aliases": ["墨鱼丸", "MoYuWan"],
+      "category": "adware",
+      "safety_level": "caution",
+      "indicators": {
+        "processes": ["MoYuWan.exe", "MoYuWanService.exe", "MYWUpdate.exe"],
+        "registry": [
+          "HKLM\\SOFTWARE\\MoYuWan",
+          "HKCU\\Software\\MoYuWan"
+        ],
+        "files": [
+          "%ProgramFiles%\\MoYuWan",
+          "%ProgramFiles(x86)%\\MoYuWan",
+          "%AppData%\\MoYuWan"
+        ],
+        "services": ["MoYuWanSvc"],
+        "scheduled_tasks": ["MoYuWanUpdate"]
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": true,
+        "delete_registry": true,
+        "delete_files": true
+      },
+      "description": "短视频/壁纸类软件，常通过捆绑安装，含弹窗广告"
+    },
+    {
+      "id": "rogue-sogou-input-popup",
+      "name": "搜狗输入法弹窗",
+      "aliases": ["搜狗输入法弹窗", "SogouInput Popup"],
+      "category": "popup",
+      "safety_level": "safe",
+      "indicators": {
+        "processes": ["SogouCloud.exe", "SogouUpdate.exe", "SogouPopup.exe", "SGTool.exe"],
+        "registry": [],
+        "files": [],
+        "services": ["SogouUpdateSvc"],
+        "scheduled_tasks": ["SogouUpdate"]
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": false,
+        "delete_registry": false,
+        "delete_files": false
+      },
+      "description": "搜狗输入法的弹窗广告和资讯推送，含搜索热点弹窗和皮肤推荐"
+    },
+    {
+      "id": "rogue-wps-popup",
+      "name": "WPS Office 弹窗",
+      "aliases": ["WPS弹窗", "WPS Office Popup"],
+      "category": "popup",
+      "safety_level": "safe",
+      "indicators": {
+        "processes": ["wpsnotify.exe", "wpsupdate.exe", "wpsoffice.exe", "wpscenter.exe", "wpscloudsvr.exe"],
+        "registry": [],
+        "files": [],
+        "services": ["WPSUpdateSvc"],
+        "scheduled_tasks": ["WPSUpdate"]
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": false,
+        "delete_registry": false,
+        "delete_files": false
+      },
+      "description": "WPS Office的广告弹窗和会员推广，含启动时广告和后台推送"
+    },
+    {
+      "id": "rogue-thunder-popup",
+      "name": "迅雷弹窗",
+      "aliases": ["迅雷弹窗", "Thunder Popup", "迅雷"],
+      "category": "popup",
+      "safety_level": "safe",
+      "indicators": {
+        "processes": ["Thunder.exe", "ThunderPlatform.exe", "ThunderUpdate.exe", "XLServicePlatform.exe", "ThunderNews.exe"],
+        "registry": [],
+        "files": [],
+        "services": ["XLServicePlatform"],
+        "scheduled_tasks": ["ThunderUpdate"]
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": false,
+        "delete_registry": false,
+        "delete_files": false
+      },
+      "description": "迅雷下载工具的广告弹窗和资讯推送，含影视推荐和会员推广"
+    },
+    {
+      "id": "rogue-iqiyi-popup",
+      "name": "爱奇艺客户端弹窗",
+      "aliases": ["爱奇艺弹窗", "iQIYI Popup"],
+      "category": "popup",
+      "safety_level": "safe",
+      "indicators": {
+        "processes": ["iQIYI.exe", "iQIYIUpdate.exe", "QyClient.exe", "QyService.exe"],
+        "registry": [],
+        "files": [],
+        "services": ["QyService"],
+        "scheduled_tasks": ["iQIYIUpdate"]
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": false,
+        "delete_registry": false,
+        "delete_files": false
+      },
+      "description": "爱奇艺PC客户端的广告弹窗和内容推广"
+    },
+    {
+      "id": "rogue-kugou-popup",
+      "name": "酷狗音乐弹窗",
+      "aliases": ["酷狗弹窗", "KuGou Popup"],
+      "category": "popup",
+      "safety_level": "safe",
+      "indicators": {
+        "processes": ["KuGou.exe", "KuGouUpdate.exe", "KuGouLive.exe", "KGService.exe"],
+        "registry": [],
+        "files": [],
+        "services": ["KGService"],
+        "scheduled_tasks": ["KuGouUpdate"]
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": false,
+        "delete_registry": false,
+        "delete_files": false
+      },
+      "description": "酷狗音乐客户端的广告弹窗和直播推广"
+    },
+    {
+      "id": "rogue-kuwo-popup",
+      "name": "酷我音乐弹窗",
+      "aliases": ["酷我弹窗", "KuWo Popup"],
+      "category": "popup",
+      "safety_level": "safe",
+      "indicators": {
+        "processes": ["KuWo.exe", "KuWoUpdate.exe", "KuWoService.exe"],
+        "registry": [],
+        "files": [],
+        "services": ["KuWoSvc"],
+        "scheduled_tasks": ["KuWoUpdate"]
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": false,
+        "delete_registry": false,
+        "delete_files": false
+      },
+      "description": "酷我音乐客户端的广告弹窗和内容推广"
+    },
+    {
+      "id": "rogue-baofeng",
+      "name": "暴风影音",
+      "aliases": ["暴风影音", "暴风", "BaoFeng", "StormPlayer"],
+      "category": "adware",
+      "safety_level": "caution",
+      "indicators": {
+        "processes": ["StormPlayer.exe", "BFUpdate.exe", "BfService.exe", "StormLive.exe", "StormPlayerService.exe"],
+        "registry": [
+          "HKLM\\SOFTWARE\\StormPlayer",
+          "HKLM\\SOFTWARE\\WOW6432Node\\StormPlayer",
+          "HKCU\\Software\\StormPlayer"
+        ],
+        "files": [
+          "%ProgramFiles%\\StormPlayer",
+          "%ProgramFiles(x86)%\\StormPlayer",
+          "%AppData%\\StormPlayer"
+        ],
+        "services": ["StormPlayerSvc", "BfService"],
+        "scheduled_tasks": ["StormPlayerUpdate", "StormPlayerAutoRun"]
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": true,
+        "delete_registry": true,
+        "delete_files": true
+      },
+      "description": "暴风影音播放器，含大量弹窗广告、直播推广和后台驻留服务"
+    },
+    {
+      "id": "rogue-pinduoduo-desktop",
+      "name": "拼多多桌面版",
+      "aliases": ["拼多多", "拼多多桌面版", "Pinduoduo"],
+      "category": "bundled_software",
+      "safety_level": "caution",
+      "indicators": {
+        "processes": ["Pinduoduo.exe", "PDDUpdate.exe", "PDDService.exe"],
+        "registry": [
+          "HKLM\\SOFTWARE\\Pinduoduo",
+          "HKCU\\Software\\Pinduoduo"
+        ],
+        "files": [
+          "%ProgramFiles%\\Pinduoduo",
+          "%ProgramFiles(x86)%\\Pinduoduo",
+          "%AppData%\\Pinduoduo"
+        ],
+        "services": ["PDDService"],
+        "scheduled_tasks": ["PDDUpdate"]
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": true,
+        "delete_registry": true,
+        "delete_files": true
+      },
+      "description": "拼多多桌面客户端，常通过其他软件捆绑安装，含弹窗推广"
+    },
+    {
+      "id": "rogue-jd-desktop",
+      "name": "京东桌面版",
+      "aliases": ["京东桌面版", "京东", "JD Desktop"],
+      "category": "bundled_software",
+      "safety_level": "caution",
+      "indicators": {
+        "processes": ["JD.exe", "JDUpdate.exe", "JDService.exe"],
+        "registry": [
+          "HKLM\\SOFTWARE\\JD",
+          "HKCU\\Software\\JD"
+        ],
+        "files": [
+          "%ProgramFiles%\\JD",
+          "%ProgramFiles(x86)%\\JD",
+          "%AppData%\\JD"
+        ],
+        "services": [],
+        "scheduled_tasks": ["JDUpdate"]
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": false,
+        "delete_registry": true,
+        "delete_files": true
+      },
+      "description": "京东桌面客户端，常通过其他软件捆绑安装"
+    },
+    {
+      "id": "rogue-wukong-input",
+      "name": "悟空输入法",
+      "aliases": ["悟空输入法", "WuKong Input"],
+      "category": "adware",
+      "safety_level": "dangerous",
+      "indicators": {
+        "processes": ["WuKongInput.exe", "WuKongUpdate.exe", "WuKongService.exe"],
+        "registry": [
+          "HKLM\\SOFTWARE\\WuKongInput",
+          "HKCU\\Software\\WuKongInput"
+        ],
+        "files": [
+          "%ProgramFiles%\\WuKongInput",
+          "%ProgramFiles(x86)%\\WuKongInput",
+          "%AppData%\\WuKongInput"
+        ],
+        "services": ["WuKongInputSvc"],
+        "scheduled_tasks": ["WuKongInputUpdate"]
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": true,
+        "delete_registry": true,
+        "delete_files": true
+      },
+      "description": "输入法软件，常通过捆绑安装，含弹窗广告和浏览器主页篡改行为"
+    },
+    {
+      "id": "rogue-xiaohei-notepad",
+      "name": "小黑记事本",
+      "aliases": ["小黑记事本", "XiaoHei Note"],
+      "category": "adware",
+      "safety_level": "dangerous",
+      "indicators": {
+        "processes": ["XiaoHei.exe", "XiaoHeiUpdate.exe"],
+        "registry": [
+          "HKLM\\SOFTWARE\\XiaoHei",
+          "HKCU\\Software\\XiaoHei"
+        ],
+        "files": [
+          "%ProgramFiles%\\XiaoHei",
+          "%ProgramFiles(x86)%\\XiaoHei",
+          "%AppData%\\XiaoHei"
+        ],
+        "services": [],
+        "scheduled_tasks": ["XiaoHeiUpdate"]
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": false,
+        "delete_registry": true,
+        "delete_files": true
+      },
+      "description": "简易记事本软件，常通过下载站捆绑安装，含弹窗和主页篡改"
+    },
+    {
+      "id": "rogue-fengsoft-series",
+      "name": "风云软件系列",
+      "aliases": ["风云文件管理", "风云音频", "风云视频", "风云PDF", "风云软件"],
+      "category": "adware",
+      "safety_level": "caution",
+      "indicators": {
+        "processes": ["FengYun.exe", "FengYunUpdate.exe", "FengYunService.exe"],
+        "registry": [
+          "HKLM\\SOFTWARE\\FengYun",
+          "HKCU\\Software\\FengYun"
+        ],
+        "files": [
+          "%ProgramFiles%\\FengYun",
+          "%ProgramFiles(x86)%\\FengYun"
+        ],
+        "services": [],
+        "scheduled_tasks": ["FengYunUpdate"]
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": false,
+        "delete_registry": true,
+        "delete_files": true
+      },
+      "description": "风云系列软件（文件管理/音视频转换等），常通过下载站捆绑安装，含弹窗推广"
+    },
+    {
+      "id": "rogue-hige-series",
+      "name": "嗨格式系列",
+      "aliases": ["嗨格式录屏", "嗨格式PDF", "嗨格式数据恢复", "嗨格式"],
+      "category": "adware",
+      "safety_level": "caution",
+      "indicators": {
+        "processes": ["HiGe.exe", "HiGeUpdate.exe", "HiGeService.exe"],
+        "registry": [
+          "HKLM\\SOFTWARE\\HiGe",
+          "HKCU\\Software\\HiGe"
+        ],
+        "files": [
+          "%ProgramFiles%\\HiGe",
+          "%ProgramFiles(x86)%\\HiGe"
+        ],
+        "services": [],
+        "scheduled_tasks": ["HiGeUpdate"]
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": false,
+        "delete_registry": true,
+        "delete_files": true
+      },
+      "description": "嗨格式系列工具（录屏/PDF/恢复等），常通过下载站推广，含试用限制弹窗"
+    },
+    {
+      "id": "rogue-bitcomet-bundle",
+      "name": "比特彗星捆绑",
+      "aliases": ["BitComet", "比特彗星"],
+      "category": "bundled_software",
+      "safety_level": "safe",
+      "indicators": {
+        "processes": ["BitComet.exe", "BitCometUpdate.exe"],
+        "registry": [
+          "HKCU\\Software\\BitComet"
+        ],
+        "files": [
+          "%ProgramFiles%\\BitComet",
+          "%ProgramFiles(x86)%\\BitComet",
+          "%AppData%\\BitComet"
+        ],
+        "services": [],
+        "scheduled_tasks": ["BitCometUpdate"]
+      },
+      "cleanup_actions": {
+        "kill_process": false,
+        "stop_service": false,
+        "delete_registry": true,
+        "delete_files": true
+      },
+      "description": "BT下载工具，安装时可能捆绑第三方推广软件，主程序本身无恶意行为"
+    },
+    {
+      "id": "rogue-sohu-popup",
+      "name": "搜狐视频弹窗",
+      "aliases": ["搜狐视频弹窗", "搜狐影音", "Sohu Video"],
+      "category": "popup",
+      "safety_level": "safe",
+      "indicators": {
+        "processes": ["SohuVideo.exe", "SohuUpdate.exe", "SohuService.exe"],
+        "registry": [],
+        "files": [],
+        "services": ["SohuSvc"],
+        "scheduled_tasks": ["SohuUpdate"]
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": false,
+        "delete_registry": false,
+        "delete_files": false
+      },
+      "description": "搜狐视频/影音客户端的广告弹窗和内容推广"
+    },
+    {
+      "id": "rogue-youku-popup",
+      "name": "优酷客户端弹窗",
+      "aliases": ["优酷弹窗", "优酷客户端", "Youku"],
+      "category": "popup",
+      "safety_level": "safe",
+      "indicators": {
+        "processes": ["Youku.exe", "YoukuUpdate.exe", "YoukuService.exe"],
+        "registry": [],
+        "files": [],
+        "services": ["YoukuSvc"],
+        "scheduled_tasks": ["YoukuUpdate"]
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": false,
+        "delete_registry": false,
+        "delete_files": false
+      },
+      "description": "优酷PC客户端的广告弹窗和内容推荐"
+    },
+    {
+      "id": "rogue-qq-popup",
+      "name": "QQ 弹窗",
+      "aliases": ["QQ弹窗", "腾讯QQ弹窗", "QQ News Popup"],
+      "category": "popup",
+      "safety_level": "safe",
+      "indicators": {
+        "processes": ["QQ.exe", "QQUpdate.exe", "QQNews.exe", "QQPopMgr.exe", "TXPlatform.exe"],
+        "registry": [],
+        "files": [],
+        "services": [],
+        "scheduled_tasks": ["QQUpdate"]
+      },
+      "cleanup_actions": {
+        "kill_process": false,
+        "stop_service": false,
+        "delete_registry": false,
+        "delete_files": false
+      },
+      "description": "腾讯QQ的资讯弹窗（腾讯新闻/奥运/游戏推广等），可通过设置关闭"
+    },
+    {
+      "id": "rogue-lenovo-pcmanager",
+      "name": "联想电脑管家",
+      "aliases": ["联想电脑管家", "Lenovo PC Manager"],
+      "category": "bundled_software",
+      "safety_level": "safe",
+      "indicators": {
+        "processes": ["LenovoPCManager.exe", "LenovoUpdate.exe", "LenovoService.exe", "LenovoTray.exe"],
+        "registry": [
+          "HKLM\\SOFTWARE\\Lenovo\\PCManager",
+          "HKCU\\Software\\Lenovo\\PCManager"
+        ],
+        "files": [
+          "%ProgramFiles%\\Lenovo\\PCManager",
+          "%ProgramFiles(x86)%\\Lenovo\\PCManager",
+          "%AppData%\\Lenovo\\PCManager"
+        ],
+        "services": ["LenovoPcManagerSvc"],
+        "scheduled_tasks": ["LenovoPCManagerUpdate"]
+      },
+      "cleanup_actions": {
+        "kill_process": false,
+        "stop_service": false,
+        "delete_registry": false,
+        "delete_files": false
+      },
+      "description": "联想品牌预装的安全管理软件，联想电脑出厂自带。功能类似360安全卫士精简版，含弹窗推广"
+    },
+    {
+      "id": "rogue-huawei-pcmanager",
+      "name": "华为电脑管家",
+      "aliases": ["华为电脑管家", "Huawei PC Manager"],
+      "category": "bundled_software",
+      "safety_level": "safe",
+      "indicators": {
+        "processes": ["HuaweiPCManager.exe", "HwPCService.exe", "HwUpdate.exe"],
+        "registry": [
+          "HKLM\\SOFTWARE\\Huawei\\PCManager",
+          "HKCU\\Software\\Huawei\\PCManager"
+        ],
+        "files": [
+          "%ProgramFiles%\\Huawei\\PCManager",
+          "%AppData%\\Huawei\\PCManager"
+        ],
+        "services": ["HwPCService"],
+        "scheduled_tasks": ["HuaweiPCManagerUpdate"]
+      },
+      "cleanup_actions": {
+        "kill_process": false,
+        "stop_service": false,
+        "delete_registry": false,
+        "delete_files": false
+      },
+      "description": "华为品牌预装的管理软件，用于多屏协同等生态功能。含非华为电脑安装的推广版，有弹窗行为"
+    },
+    {
+      "id": "rogue-xiaomi-pcmanager",
+      "name": "小米电脑管家",
+      "aliases": ["小米电脑管家", "Xiaomi PC Manager"],
+      "category": "bundled_software",
+      "safety_level": "safe",
+      "indicators": {
+        "processes": ["XiaomiPCManager.exe", "XmPCService.exe", "XmUpdate.exe"],
+        "registry": [
+          "HKLM\\SOFTWARE\\Xiaomi\\PCManager",
+          "HKCU\\Software\\Xiaomi\\PCManager"
+        ],
+        "files": [
+          "%ProgramFiles%\\Xiaomi\\PCManager",
+          "%AppData%\\Xiaomi\\PCManager"
+        ],
+        "services": ["XmPCService"],
+        "scheduled_tasks": ["XiaomiPCManagerUpdate"]
+      },
+      "cleanup_actions": {
+        "kill_process": false,
+        "stop_service": false,
+        "delete_registry": false,
+        "delete_files": false
+      },
+      "description": "小米品牌生态管理软件，用于互联互通功能。非小米电脑安装版含推广弹窗"
+    },
+    {
+      "id": "rogue-lenovo-browser",
+      "name": "联想浏览器",
+      "aliases": ["联想浏览器", "Lenovo Browser"],
+      "category": "browser_hijack",
+      "safety_level": "caution",
+      "indicators": {
+        "processes": ["LenovoBrowser.exe", "LenovoBrowserUpdate.exe"],
+        "registry": [
+          "HKLM\\SOFTWARE\\Lenovo\\LenovoBrowser",
+          "HKCU\\Software\\Lenovo\\LenovoBrowser"
+        ],
+        "files": [
+          "%ProgramFiles%\\Lenovo\\LenovoBrowser",
+          "%AppData%\\Lenovo\\LenovoBrowser"
+        ],
+        "services": [],
+        "scheduled_tasks": ["LenovoBrowserUpdate"],
+        "browser_hijack": {
+          "homepage": ["lenovomm.com", "browser.lenovo.com.cn"]
+        }
+      },
+      "cleanup_actions": {
+        "kill_process": false,
+        "stop_service": false,
+        "delete_registry": true,
+        "delete_files": true,
+        "restore_browser": true
+      },
+      "description": "联想品牌浏览器，联想电脑预装。非联想电脑也可能通过捆绑安装，默认主页为联想导航"
+    },
+    {
+      "id": "rogue-toolbar-hao123",
+      "name": "hao123 工具条",
+      "aliases": ["hao123", "好123", "hao123工具栏", "hao123 Toolbar"],
+      "category": "browser_hijack",
+      "safety_level": "dangerous",
+      "indicators": {
+        "processes": ["hao123.exe", "hao123Toolbar.exe"],
+        "registry": [
+          "HKLM\\SOFTWARE\\hao123",
+          "HKCU\\Software\\hao123",
+          "HKLM\\SOFTWARE\\Microsoft\\Internet Explorer\\Toolbar\\{xxx}"
+        ],
+        "files": [
+          "%ProgramFiles%\\hao123",
+          "%ProgramFiles(x86)%\\hao123"
+        ],
+        "services": [],
+        "scheduled_tasks": ["hao123Update"],
+        "browser_hijack": {
+          "homepage": ["hao123.com", "www.hao123.com"],
+          "search_engine": ["hao123.com", "www.hao123.com"]
+        }
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": false,
+        "delete_registry": true,
+        "delete_files": true,
+        "restore_browser": true
+      },
+      "description": "hao123导航工具条，常通过下载站捆绑安装，深度篡改浏览器主页和搜索引擎，难以彻底清除"
+    },
+    {
+      "id": "rogue-toolbar-360",
+      "name": "360 搜索工具条",
+      "aliases": ["360工具条", "360 Toolbar", "360搜索工具条"],
+      "category": "browser_hijack",
+      "safety_level": "caution",
+      "indicators": {
+        "processes": ["360Toolbar.exe", "360ToolbarUpdate.exe"],
+        "registry": [
+          "HKLM\\SOFTWARE\\360\\Toolbar",
+          "HKCU\\Software\\360\\Toolbar"
+        ],
+        "files": [
+          "%ProgramFiles%\\360\\Toolbar",
+          "%ProgramFiles(x86)%\\360\\Toolbar"
+        ],
+        "services": [],
+        "scheduled_tasks": ["360ToolbarUpdate"],
+        "browser_hijack": {
+          "search_engine": ["so.com", "360.cn", "www.so.com"]
+        }
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": false,
+        "delete_registry": true,
+        "delete_files": true,
+        "restore_browser": true
+      },
+      "description": "360搜索工具条，影响浏览器搜索引擎设置"
+    },
+    {
+      "id": "rogue-adobe-reader-bundle",
+      "name": "Adobe Reader 中国版",
+      "aliases": ["Adobe Reader中国版", "Adobe Acrobat Reader DC中国版"],
+      "category": "bundled_software",
+      "safety_level": "caution",
+      "indicators": {
+        "processes": ["AdobeReader.exe", "AdobeARM.exe", "AdobeUpdate.exe"],
+        "registry": [],
+        "files": [],
+        "services": ["AdobeARMservice"],
+        "scheduled_tasks": ["AdobeUpdate"]
+      },
+      "cleanup_actions": {
+        "kill_process": false,
+        "stop_service": false,
+        "delete_registry": false,
+        "delete_files": false
+      },
+      "description": "Adobe Reader中国特供版，安装时可能捆绑推广软件（如Flash中国版、驱动精灵等）"
+    },
+    {
+      "id": "rogue-common-adware-processes",
+      "name": "常见广告弹窗进程",
+      "aliases": ["广告弹窗进程", "Ad Popup Processes"],
+      "category": "popup",
+      "safety_level": "caution",
+      "indicators": {
+        "processes": [
+          "AdPopup.exe", "AdService.exe", "AdUpdate.exe",
+          "PopAd.exe", "advnotify.exe", "advertising.exe",
+          "browerad.exe", "iead.exe", "popup.exe",
+          "news.exe", "newsad.exe", "safenotify.exe",
+          "softnotify.exe", "softad.exe", "pushad.exe",
+          "tpopup.exe", "popwnd.exe", "interstitial.exe",
+          "banner.exe", "AdBox.exe", "AdCenter.exe"
+        ],
+        "registry": [],
+        "files": [],
+        "services": [],
+        "scheduled_tasks": []
+      },
+      "cleanup_actions": {
+        "kill_process": true,
+        "stop_service": false,
+        "delete_registry": false,
+        "delete_files": false
+      },
+      "description": "通用广告弹窗进程规则，匹配常见广告进程名模式。用于弹窗拦截功能"
+    }
+  ]
+}

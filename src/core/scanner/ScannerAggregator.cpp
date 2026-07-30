@@ -12,6 +12,8 @@
 #include "HibernationScanner.h"
 #include "WinSxSScanner.h"
 #include "DevCacheScanner.h"
+#include "SoftwareCacheScanner.h"
+#include "AppDataScanner.h"
 #include <thread>
 #include <mutex>
 #include <chrono>
@@ -38,6 +40,8 @@ void ScannerAggregator::RegisterBuiltinScanners() {
     m_scanners.push_back(std::make_unique<HibernationScanner>());
     m_scanners.push_back(std::make_unique<WinSxSScanner>());
     m_scanners.push_back(std::make_unique<DevCacheScanner>());
+    m_scanners.push_back(std::make_unique<SoftwareCacheScanner>());
+    m_scanners.push_back(std::make_unique<AppDataScanner>());
 }
 
 Models::ScanResult ScannerAggregator::ScanAll(wxEvtHandler* evtHandler) {
