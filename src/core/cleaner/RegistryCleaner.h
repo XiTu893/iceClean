@@ -12,7 +12,20 @@ struct RegistryInvalidItem {
     std::wstring valueName;     // 值名称（空表示键本身无效）
     std::wstring invalidValue;  // 无效的值数据
     std::wstring description;   // 描述
-    enum class Type { InvalidUninstall, InvalidStartup, InvalidFileAssoc };
+    enum class Type {
+        InvalidUninstall,       // 无效卸载信息
+        InvalidStartup,         // 无效启动项
+        InvalidFileAssoc,       // 无效文件关联
+        InvalidSharedDLL,       // 无效共享DLL
+        InvalidFont,            // 无效字体引用
+        InvalidHelpFile,        // 无效帮助文件引用
+        InvalidAppPath,         // 无效应用程序路径
+        InvalidCOM,             // 无效COM/ActiveX组件
+        InvalidMUI,             // 无效MUI缓存
+        InvalidEnvVar,          // 环境变量中的无效路径
+        InvalidTrayNotify,      // 无效托盘通知缓存
+        InvalidSound,           // 无效声音/事件关联
+    };
     Type type;
 };
 
@@ -42,6 +55,33 @@ private:
 
     // 扫描无效的启动项
     void ScanInvalidStartup(std::vector<RegistryInvalidItem>& items);
+
+    // 扫描无效的共享DLL
+    void ScanInvalidSharedDLL(std::vector<RegistryInvalidItem>& items);
+
+    // 扫描无效的字体引用
+    void ScanInvalidFonts(std::vector<RegistryInvalidItem>& items);
+
+    // 扫描无效的帮助文件引用
+    void ScanInvalidHelpFiles(std::vector<RegistryInvalidItem>& items);
+
+    // 扫描无效的应用程序路径
+    void ScanInvalidAppPaths(std::vector<RegistryInvalidItem>& items);
+
+    // 扫描无效的COM/ActiveX组件
+    void ScanInvalidCOM(std::vector<RegistryInvalidItem>& items);
+
+    // 扫描无效的MUI缓存
+    void ScanInvalidMUI(std::vector<RegistryInvalidItem>& items);
+
+    // 扫描环境变量中的无效路径
+    void ScanInvalidEnvVars(std::vector<RegistryInvalidItem>& items);
+
+    // 扫描无效的托盘通知缓存
+    void ScanInvalidTrayNotify(std::vector<RegistryInvalidItem>& items);
+
+    // 扫描无效的声音/事件关联
+    void ScanInvalidSound(std::vector<RegistryInvalidItem>& items);
 
     // 检查路径是否存在
     bool PathExists(const std::wstring& path) const;

@@ -8,7 +8,7 @@ class ConfirmDialog : public wxDialog {
 public:
     enum class DangerLevel {
         Caution,   // 橙色 - 谨慎操作
-        Dangerous  // 红色 - 危险操作
+        Dangerous  // 红色 - 危险操作（3秒倒计时）
     };
 
     ConfirmDialog(wxWindow* parent,
@@ -22,13 +22,18 @@ public:
 
 private:
     wxString m_description;
+    wxString m_confirmText;
     DangerLevel m_level;
+    wxButton* m_confirmButton = nullptr;
+    wxTimer* m_countdownTimer = nullptr;
+    int m_countdown = 0;
 
     void CreateControls(const wxString& confirmText, const wxString& cancelText);
     wxColour GetAccentColor() const;
 
     void OnConfirm(wxCommandEvent& event);
     void OnCancel(wxCommandEvent& event);
+    void OnCountdown(wxTimerEvent& event);
 };
 
 } // namespace IceClean::Gui

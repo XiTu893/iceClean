@@ -16,6 +16,7 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 find_package(wxWidgets REQUIRED COMPONENTS core base adv aui html xml net richtext)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
+find_package(unofficial-sqlite3 CONFIG REQUIRED)
 
 # ── Windows 系统库 ──
 set(SYSTEM_LIBS
@@ -26,6 +27,12 @@ set(SYSTEM_LIBS
     OleAut32
     Taskschd
     Version
+    Iphlpapi
+    Ws2_32
+    Crypt32
+    Advapi32
+    Shell32
+    Winhttp
 )
 
 # ── MSVC 专用设置 ──
@@ -42,3 +49,9 @@ endif()
 
 # ── 子目录 ──
 add_subdirectory(src)
+
+# ── 测试（可选）──
+option(BUILD_TESTS "Build unit tests" OFF)
+if(BUILD_TESTS)
+    add_subdirectory(tests)
+endif()

@@ -73,9 +73,9 @@ Models::CleanResult RegistryCleaner::Clean(const std::vector<std::wstring>& path
                 // remaining 整体作为子键路径
                 // 使用 RegDeleteKey 删除
                 HKEY hKey;
-                if (RegOpenKeyExW(rootKey, remaining.c_str(), 0, KEY_READ | KEY_WRITE, &hKey) == ERROR_SUCCESS) {
+                if (RegOpenKeyExW(rootKey, remaining.c_str(), 0, KEY_READ | KEY_WRITE | KEY_WOW64_64KEY, &hKey) == ERROR_SUCCESS) {
                     RegCloseKey(hKey);
-                    if (RegDeleteKeyW(rootKey, remaining.c_str()) == ERROR_SUCCESS) {
+                    if (RegDeleteTreeW(rootKey, remaining.c_str()) == ERROR_SUCCESS) {
                         deleted = true;
                     }
                 }
@@ -112,6 +112,15 @@ std::vector<RegistryInvalidItem> RegistryCleaner::ScanInvalidItems() {
 
     ScanInvalidUninstall(items);
     ScanInvalidStartup(items);
+    ScanInvalidSharedDLL(items);
+    ScanInvalidFonts(items);
+    ScanInvalidHelpFiles(items);
+    ScanInvalidAppPaths(items);
+    ScanInvalidCOM(items);
+    ScanInvalidMUI(items);
+    ScanInvalidEnvVars(items);
+    ScanInvalidTrayNotify(items);
+    ScanInvalidSound(items);
 
     return items;
 }
@@ -227,8 +236,405 @@ void RegistryCleaner::ScanInvalidStartup(std::vector<RegistryInvalidItem>& items
 }
 
 // ============================================================================
-// 检查路径是否存在（展开环境变量）
+// 扫描无效的共享DLL引用
+// HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\SharedDLLs
+// 每个值指向一个文件路径，如果文件不存在则无效
 // ============================================================================
+
+void RegistryCleaner::ScanInvalidSharedDLL(std::vector<RegistryInvalidItem>& items) {
+    const std::wstring sharedDllKey = L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\SharedDLLs";
+    auto valueNames = RegistryUtil::EnumValues(HKEY_LOCAL_MACHINE, sharedDllKey);
+
+    for (const auto& valueName : valueNames) {
+        // SharedDLLs中值名就是文件路径
+        std::wstring filePath = Win32Util::ExpandEnvVars(valueName);
+        if (filePath.empty()) continue;
+
+        if (!PathExists(filePath)) {
+            RegistryInvalidItem item;
+            item.keyPath = L"HKLM\\" + sharedDllKey;
+            item.valueName = valueName;
+            item.invalidValue = filePath;
+            item.description = L"无效的共享DLL引用: " + valueName;
+            item.type = RegistryInvalidItem::Type::InvalidSharedDLL;
+            items.push_back(item);
+        }
+    }
+}
+
+// ============================================================================
+// 扫描无效的字体引用
+// HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts
+// 检查字体文件路径是否存在
+// ============================================================================
+
+void RegistryCleaner::ScanInvalidFonts(std::vector<RegistryInvalidItem>& items) {
+    const std::wstring fontsKey = L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Fonts";
+    auto valueNames = RegistryUtil::EnumValues(HKEY_LOCAL_MACHINE, fontsKey);
+
+    for (const auto& valueName : valueNames) {
+        std::wstring fontPath = RegistryUtil::ReadStringValue(HKEY_LOCAL_MACHINE, fontsKey, valueName);
+        if (fontPath.empty()) continue;
+
+        std::wstring expandedPath = Win32Util::ExpandEnvVars(fontPath);
+
+        // 字体可能使用相对路径（相对于字体目录）
+        if (!PathExists(expandedPath)) {
+            // 尝试在Windows\Fonts目录下查找
+            wchar_t fontsDir[MAX_PATH] = {};
+            if (GetWindowsDirectoryW(fontsDir, MAX_PATH)) {
+                std::wstring fullFontPath = std::wstring(fontsDir) + L"\\Fonts\\" + fontPath;
+                if (PathExists(fullFontPath)) {
+                    continue; // 在字体目录中找到了
+                }
+            }
+
+            RegistryInvalidItem item;
+            item.keyPath = L"HKLM\\" + fontsKey;
+            item.valueName = valueName;
+            item.invalidValue = fontPath;
+            item.description = L"无效的字体引用: " + valueName;
+            item.type = RegistryInvalidItem::Type::InvalidFont;
+            items.push_back(item);
+        }
+    }
+}
+
+// ============================================================================
+// 扫描无效的帮助文件引用
+// HKLM\SOFTWARE\Microsoft\Windows\HTML Help
+// 检查帮助文件路径是否存在
+// ============================================================================
+
+void RegistryCleaner::ScanInvalidHelpFiles(std::vector<RegistryInvalidItem>& items) {
+    const std::wstring helpKey = L"SOFTWARE\\Microsoft\\Windows\\HTML Help";
+    if (!RegistryUtil::KeyExists(HKEY_LOCAL_MACHINE, helpKey)) return;
+
+    auto valueNames = RegistryUtil::EnumValues(HKEY_LOCAL_MACHINE, helpKey);
+
+    for (const auto& valueName : valueNames) {
+        std::wstring helpPath = RegistryUtil::ReadStringValue(HKEY_LOCAL_MACHINE, helpKey, valueName);
+        if (helpPath.empty()) continue;
+
+        std::wstring expandedPath = Win32Util::ExpandEnvVars(helpPath);
+        if (!PathExists(expandedPath)) {
+            RegistryInvalidItem item;
+            item.keyPath = L"HKLM\\" + helpKey;
+            item.valueName = valueName;
+            item.invalidValue = helpPath;
+            item.description = L"无效的帮助文件引用: " + valueName;
+            item.type = RegistryInvalidItem::Type::InvalidHelpFile;
+            items.push_back(item);
+        }
+    }
+}
+
+// ============================================================================
+// 扫描无效的应用程序路径
+// HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\*
+// 检查Path值和默认值指向的文件是否存在
+// ============================================================================
+
+void RegistryCleaner::ScanInvalidAppPaths(std::vector<RegistryInvalidItem>& items) {
+    const std::wstring appPathsKey = L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths";
+    auto subKeys = RegistryUtil::EnumSubKeys(HKEY_LOCAL_MACHINE, appPathsKey);
+
+    for (const auto& appName : subKeys) {
+        std::wstring fullKey = appPathsKey + L"\\" + appName;
+
+        // 检查默认值（可执行文件路径）
+        std::wstring defaultPath = RegistryUtil::ReadStringValue(HKEY_LOCAL_MACHINE, fullKey, L"");
+        if (!defaultPath.empty()) {
+            std::wstring expandedPath = Win32Util::ExpandEnvVars(defaultPath);
+            // 提取路径中的可执行文件
+            std::wstring exePath = ExtractFilePath(expandedPath);
+            if (!exePath.empty() && !PathExists(exePath)) {
+                RegistryInvalidItem item;
+                item.keyPath = L"HKLM\\" + fullKey;
+                item.valueName = L"";
+                item.invalidValue = defaultPath;
+                item.description = L"无效的应用程序路径: " + appName;
+                item.type = RegistryInvalidItem::Type::InvalidAppPath;
+                items.push_back(item);
+                continue; // 已经标记了该键，跳过Path值检查
+            }
+        }
+
+        // 检查Path值（搜索路径）
+        std::wstring pathValue = RegistryUtil::ReadStringValue(HKEY_LOCAL_MACHINE, fullKey, L"Path");
+        if (!pathValue.empty()) {
+            // Path值可能包含多个路径，用分号分隔
+            std::wstring expanded = Win32Util::ExpandEnvVars(pathValue);
+            size_t start = 0;
+            bool hasInvalidPath = false;
+            while (start < expanded.size()) {
+                size_t sep = expanded.find(L';', start);
+                std::wstring singlePath = (sep != std::wstring::npos)
+                    ? expanded.substr(start, sep - start) : expanded.substr(start);
+                // 去除首尾空格
+                size_t b = singlePath.find_first_not_of(L" \t");
+                size_t e = singlePath.find_last_not_of(L" \t");
+                if (b != std::wstring::npos && e != std::wstring::npos) {
+                    singlePath = singlePath.substr(b, e - b + 1);
+                    if (!singlePath.empty() && !PathExists(singlePath)) {
+                        hasInvalidPath = true;
+                        break;
+                    }
+                }
+                if (sep == std::wstring::npos) break;
+                start = sep + 1;
+            }
+            if (hasInvalidPath) {
+                RegistryInvalidItem item;
+                item.keyPath = L"HKLM\\" + fullKey;
+                item.valueName = L"Path";
+                item.invalidValue = pathValue;
+                item.description = L"无效的应用程序搜索路径: " + appName;
+                item.type = RegistryInvalidItem::Type::InvalidAppPath;
+                items.push_back(item);
+            }
+        }
+    }
+}
+
+// ============================================================================
+// 扫描无效的COM/ActiveX组件
+// HKCR\CLSID\{GUID}\InprocServer32 或 LocalServer32 指向的文件不存在
+// 仅扫描有InprocServer32/LocalServer32的COM对象
+// ============================================================================
+
+void RegistryCleaner::ScanInvalidCOM(std::vector<RegistryInvalidItem>& items) {
+    const std::wstring clsidKey = L"SOFTWARE\\Classes\\CLSID";
+    auto subKeys = RegistryUtil::EnumSubKeys(HKEY_LOCAL_MACHINE, clsidKey);
+
+    for (const auto& guid : subKeys) {
+        // 只检查GUID格式的子键
+        if (guid.size() < 38 || guid.front() != L'{') continue;
+
+        std::wstring guidKey = clsidKey + L"\\" + guid;
+
+        // 检查 InprocServer32
+        std::wstring inprocKey = guidKey + L"\\InprocServer32";
+        std::wstring inprocPath = RegistryUtil::ReadStringValue(HKEY_LOCAL_MACHINE, inprocKey, L"");
+        if (!inprocPath.empty()) {
+            std::wstring expandedPath = Win32Util::ExpandEnvVars(inprocPath);
+            std::wstring dllPath = ExtractFilePath(expandedPath);
+            if (!dllPath.empty() && !PathExists(dllPath)) {
+                RegistryInvalidItem item;
+                item.keyPath = L"HKLM\\" + inprocKey;
+                item.valueName = L"";
+                item.invalidValue = inprocPath;
+                item.description = L"无效的COM组件: " + guid;
+                item.type = RegistryInvalidItem::Type::InvalidCOM;
+                items.push_back(item);
+                continue;
+            }
+        }
+
+        // 检查 LocalServer32
+        std::wstring localKey = guidKey + L"\\LocalServer32";
+        std::wstring localPath = RegistryUtil::ReadStringValue(HKEY_LOCAL_MACHINE, localKey, L"");
+        if (!localPath.empty()) {
+            std::wstring expandedPath = Win32Util::ExpandEnvVars(localPath);
+            std::wstring exePath = ExtractFilePath(expandedPath);
+            if (!exePath.empty() && !PathExists(exePath)) {
+                RegistryInvalidItem item;
+                item.keyPath = L"HKLM\\" + localKey;
+                item.valueName = L"";
+                item.invalidValue = localPath;
+                item.description = L"无效的COM本地服务: " + guid;
+                item.type = RegistryInvalidItem::Type::InvalidCOM;
+                items.push_back(item);
+            }
+        }
+    }
+}
+
+// ============================================================================
+// 扫描无效的MUI缓存
+// HKCU\SOFTWARE\Classes\Local Settings\MuiCache\*\*
+// 检查应用程序路径是否存在
+// ============================================================================
+
+void RegistryCleaner::ScanInvalidMUI(std::vector<RegistryInvalidItem>& items) {
+    const std::wstring muiCacheKey = L"SOFTWARE\\Classes\\Local Settings\\MuiCache";
+    auto subKeys1 = RegistryUtil::EnumSubKeys(HKEY_CURRENT_USER, muiCacheKey);
+
+    for (const auto& subKey1 : subKeys1) {
+        std::wstring level1Key = muiCacheKey + L"\\" + subKey1;
+        auto subKeys2 = RegistryUtil::EnumSubKeys(HKEY_CURRENT_USER, level1Key);
+
+        for (const auto& subKey2 : subKeys2) {
+            std::wstring level2Key = level1Key + L"\\" + subKey2;
+            auto valueNames = RegistryUtil::EnumValues(HKEY_CURRENT_USER, level2Key);
+
+            for (const auto& valueName : valueNames) {
+                // MUI缓存值名通常是 "应用程序路径,资源ID" 格式
+                size_t commaPos = valueName.find(L",");
+                std::wstring appPath = (commaPos != std::wstring::npos)
+                    ? valueName.substr(0, commaPos) : valueName;
+
+                // 提取可执行文件路径
+                std::wstring exePath = ExtractFilePath(Win32Util::ExpandEnvVars(appPath));
+                if (!exePath.empty() && !PathExists(exePath)) {
+                    RegistryInvalidItem item;
+                    item.keyPath = L"HKCU\\" + level2Key;
+                    item.valueName = valueName;
+                    item.invalidValue = appPath;
+                    item.description = L"无效的MUI缓存: " + appPath;
+                    item.type = RegistryInvalidItem::Type::InvalidMUI;
+                    items.push_back(item);
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// 扫描环境变量中的无效路径
+// HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment
+// HKCU\Environment
+// 检查PATH等路径变量中的目录是否存在
+// ============================================================================
+
+void RegistryCleaner::ScanInvalidEnvVars(std::vector<RegistryInvalidItem>& items) {
+    // 检查系统PATH
+    {
+        const std::wstring envKey = L"SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment";
+        std::wstring pathValue = RegistryUtil::ReadStringValue(HKEY_LOCAL_MACHINE, envKey, L"Path");
+        if (!pathValue.empty()) {
+            std::wstring expanded = Win32Util::ExpandEnvVars(pathValue);
+            size_t start = 0;
+            while (start < expanded.size()) {
+                size_t sep = expanded.find(L';', start);
+                std::wstring singlePath = (sep != std::wstring::npos)
+                    ? expanded.substr(start, sep - start) : expanded.substr(start);
+                size_t b = singlePath.find_first_not_of(L" \t");
+                size_t e = singlePath.find_last_not_of(L" \t");
+                if (b != std::wstring::npos && e != std::wstring::npos) {
+                    singlePath = singlePath.substr(b, e - b + 1);
+                    if (!singlePath.empty() && !PathExists(singlePath)) {
+                        RegistryInvalidItem item;
+                        item.keyPath = L"HKLM\\" + envKey;
+                        item.valueName = L"Path";
+                        item.invalidValue = singlePath;
+                        item.description = L"系统PATH中的无效路径: " + singlePath;
+                        item.type = RegistryInvalidItem::Type::InvalidEnvVar;
+                        items.push_back(item);
+                    }
+                }
+                if (sep == std::wstring::npos) break;
+                start = sep + 1;
+            }
+        }
+    }
+
+    // 检查用户PATH
+    {
+        const std::wstring envKey = L"Environment";
+        std::wstring pathValue = RegistryUtil::ReadStringValue(HKEY_CURRENT_USER, envKey, L"Path");
+        if (!pathValue.empty()) {
+            std::wstring expanded = Win32Util::ExpandEnvVars(pathValue);
+            size_t start = 0;
+            while (start < expanded.size()) {
+                size_t sep = expanded.find(L';', start);
+                std::wstring singlePath = (sep != std::wstring::npos)
+                    ? expanded.substr(start, sep - start) : expanded.substr(start);
+                size_t b = singlePath.find_first_not_of(L" \t");
+                size_t e = singlePath.find_last_not_of(L" \t");
+                if (b != std::wstring::npos && e != std::wstring::npos) {
+                    singlePath = singlePath.substr(b, e - b + 1);
+                    if (!singlePath.empty() && !PathExists(singlePath)) {
+                        RegistryInvalidItem item;
+                        item.keyPath = L"HKCU\\" + envKey;
+                        item.valueName = L"Path";
+                        item.invalidValue = singlePath;
+                        item.description = L"用户PATH中的无效路径: " + singlePath;
+                        item.type = RegistryInvalidItem::Type::InvalidEnvVar;
+                        items.push_back(item);
+                    }
+                }
+                if (sep == std::wstring::npos) break;
+                start = sep + 1;
+            }
+        }
+    }
+}
+
+// ============================================================================
+// 扫描无效的托盘通知缓存
+// HKCU\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\TrayNotify
+// 检查IconStreams和PastIconsStream中引用的程序
+// ============================================================================
+
+void RegistryCleaner::ScanInvalidTrayNotify(std::vector<RegistryInvalidItem>& items) {
+    const std::wstring trayKey = L"SOFTWARE\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\CurrentVersion\\TrayNotify";
+    if (!RegistryUtil::KeyExists(HKEY_CURRENT_USER, trayKey)) return;
+
+    // 读取UserAssist中的程序路径
+    // 检查已删除的托盘图标引用
+    auto valueNames = RegistryUtil::EnumValues(HKEY_CURRENT_USER, trayKey);
+    for (const auto& valueName : valueNames) {
+        // 只检查字符串类型的值
+        if (valueName == L"IconStreams" || valueName == L"PastIconsStream") {
+            // 这些是二进制数据，包含程序路径信息
+            // 简化处理：标记整个值为可清理
+            // 实际应用中需要解析二进制格式提取路径
+            continue;
+        }
+
+        std::wstring valueData = RegistryUtil::ReadStringValue(HKEY_CURRENT_USER, trayKey, valueName);
+        if (valueData.empty()) continue;
+
+        std::wstring expandedPath = Win32Util::ExpandEnvVars(valueData);
+        std::wstring exePath = ExtractFilePath(expandedPath);
+        if (!exePath.empty() && !PathExists(exePath)) {
+            RegistryInvalidItem item;
+            item.keyPath = L"HKCU\\" + trayKey;
+            item.valueName = valueName;
+            item.invalidValue = valueData;
+            item.description = L"无效的托盘通知缓存: " + valueName;
+            item.type = RegistryInvalidItem::Type::InvalidTrayNotify;
+            items.push_back(item);
+        }
+    }
+}
+
+// ============================================================================
+// 扫描无效的声音/事件关联
+// HKCU\AppEvents\Schemes\Apps\*\*\.Current
+// 检查声音文件路径是否存在
+// ============================================================================
+
+void RegistryCleaner::ScanInvalidSound(std::vector<RegistryInvalidItem>& items) {
+    const std::wstring appEventsKey = L"AppEvents\\Schemes\\Apps";
+    auto appSubKeys = RegistryUtil::EnumSubKeys(HKEY_CURRENT_USER, appEventsKey);
+
+    for (const auto& app : appSubKeys) {
+        std::wstring appKey = appEventsKey + L"\\" + app;
+        auto eventSubKeys = RegistryUtil::EnumSubKeys(HKEY_CURRENT_USER, appKey);
+
+        for (const auto& eventName : eventSubKeys) {
+            std::wstring eventKey = appKey + L"\\" + eventName + L"\\.Current";
+            std::wstring soundPath = RegistryUtil::ReadStringValue(HKEY_CURRENT_USER, eventKey, L"");
+            if (soundPath.empty()) continue;
+
+            // 空值或默认值（无声音）不算无效
+            if (soundPath == L"." || soundPath == L"") continue;
+
+            std::wstring expandedPath = Win32Util::ExpandEnvVars(soundPath);
+            if (!PathExists(expandedPath)) {
+                RegistryInvalidItem item;
+                item.keyPath = L"HKCU\\" + eventKey;
+                item.valueName = L"";
+                item.invalidValue = soundPath;
+                item.description = L"无效的声音关联: " + app + L" - " + eventName;
+                item.type = RegistryInvalidItem::Type::InvalidSound;
+                items.push_back(item);
+            }
+        }
+    }
+}
 
 bool RegistryCleaner::PathExists(const std::wstring& path) const {
     if (path.empty()) {
@@ -381,9 +787,9 @@ Models::CleanResult RegistryCleaner::Clean(const std::vector<RegistryInvalidItem
         if (item.valueName.empty()) {
             // 删除整个键
             HKEY hKey;
-            if (RegOpenKeyExW(rootKey, subKeyPath.c_str(), 0, KEY_READ | KEY_WRITE, &hKey) == ERROR_SUCCESS) {
+            if (RegOpenKeyExW(rootKey, subKeyPath.c_str(), 0, KEY_READ | KEY_WRITE | KEY_WOW64_64KEY, &hKey) == ERROR_SUCCESS) {
                 RegCloseKey(hKey);
-                if (RegDeleteKeyW(rootKey, subKeyPath.c_str()) == ERROR_SUCCESS) {
+                if (RegDeleteTreeW(rootKey, subKeyPath.c_str()) == ERROR_SUCCESS) {
                     deleted = true;
                 }
             }

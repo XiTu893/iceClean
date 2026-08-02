@@ -13,6 +13,7 @@
 #include "models/ScanResult.h"
 #include "models/MigrationItem.h"
 #include "models/CleanItem.h"
+#include "models/StartupItem.h"
 
 namespace IceClean::Gui {
 

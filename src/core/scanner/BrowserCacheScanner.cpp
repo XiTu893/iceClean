@@ -28,6 +28,7 @@ Models::ScanCategory BrowserCacheScanner::Scan(const std::atomic<bool>* stopFlag
         std::wstring chromeSWCache = localAppData + L"\\Google\\Chrome\\User Data\\Default\\Service Worker\\CacheStorage";
         ScanBrowserCache(chromeSWCache, category, stopFlag, progressCb);
     }
+    if (ShouldStop(stopFlag)) return category;
 
     // ---- Microsoft Edge ----
     if (!IsBrowserRunning(L"msedge.exe")) {
@@ -40,6 +41,7 @@ Models::ScanCategory BrowserCacheScanner::Scan(const std::atomic<bool>* stopFlag
         std::wstring edgeSWCache = localAppData + L"\\Microsoft\\Edge\\User Data\\Default\\Service Worker\\CacheStorage";
         ScanBrowserCache(edgeSWCache, category, stopFlag, progressCb);
     }
+    if (ShouldStop(stopFlag)) return category;
 
     // ---- Mozilla Firefox ----
     if (!IsBrowserRunning(L"firefox.exe")) {
@@ -56,6 +58,10 @@ Models::ScanCategory BrowserCacheScanner::Scan(const std::atomic<bool>* stopFlag
             HANDLE hFind = FindFirstFileW(searchPath.c_str(), &findData);
             if (hFind != INVALID_HANDLE_VALUE) {
                 do {
+                    if (ShouldStop(stopFlag)) {
+                        FindClose(hFind);
+                        return category;
+                    }
                     if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
                         if (wcscmp(findData.cFileName, L".") == 0 ||
                             wcscmp(findData.cFileName, L"..") == 0) continue;
@@ -69,6 +75,7 @@ Models::ScanCategory BrowserCacheScanner::Scan(const std::atomic<bool>* stopFlag
             }
         }
     }
+    if (ShouldStop(stopFlag)) return category;
 
     // ---- Opera ----
     if (!IsBrowserRunning(L"opera.exe")) {
@@ -78,6 +85,7 @@ Models::ScanCategory BrowserCacheScanner::Scan(const std::atomic<bool>* stopFlag
         ScanBrowserCache(operaBase + L"\\Code Cache", category, stopFlag, progressCb);
         ScanBrowserCache(operaBase + L"\\Service Worker\\CacheStorage", category, stopFlag, progressCb);
     }
+    if (ShouldStop(stopFlag)) return category;
 
     // ---- Brave ----
     if (!IsBrowserRunning(L"brave.exe")) {
@@ -86,6 +94,7 @@ Models::ScanCategory BrowserCacheScanner::Scan(const std::atomic<bool>* stopFlag
         ScanBrowserCache(braveBase + L"\\Default\\Code Cache", category, stopFlag, progressCb);
         ScanBrowserCache(braveBase + L"\\Default\\Service Worker\\CacheStorage", category, stopFlag, progressCb);
     }
+    if (ShouldStop(stopFlag)) return category;
 
     // ---- Vivaldi ----
     if (!IsBrowserRunning(L"vivaldi.exe")) {
@@ -94,6 +103,7 @@ Models::ScanCategory BrowserCacheScanner::Scan(const std::atomic<bool>* stopFlag
         ScanBrowserCache(vivaldiBase + L"\\Default\\Code Cache", category, stopFlag, progressCb);
         ScanBrowserCache(vivaldiBase + L"\\Default\\Service Worker\\CacheStorage", category, stopFlag, progressCb);
     }
+    if (ShouldStop(stopFlag)) return category;
 
     // ---- 360安全浏览器 ----
     if (!IsBrowserRunning(L"360se.exe")) {
@@ -102,6 +112,7 @@ Models::ScanCategory BrowserCacheScanner::Scan(const std::atomic<bool>* stopFlag
         ScanBrowserCache(se360Base + L"\\Default\\Cache", category, stopFlag, progressCb);
         ScanBrowserCache(se360Base + L"\\Default\\Code Cache", category, stopFlag, progressCb);
     }
+    if (ShouldStop(stopFlag)) return category;
 
     // ---- QQ浏览器 ----
     if (!IsBrowserRunning(L"QQBrowser.exe")) {

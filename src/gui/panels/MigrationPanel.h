@@ -25,15 +25,18 @@ private:
 
     // 控件
     wxButton* m_scanButton = nullptr;
+    wxButton* m_stopButton = nullptr;
     wxListCtrl* m_fileList = nullptr;
     wxChoice* m_targetDriveChoice = nullptr;
     wxButton* m_migrateButton = nullptr;
+    wxStaticText* m_statusLabel = nullptr;
 
     void CreateControls();
     void PopulateDriveList();
 
     // 事件处理
     void OnScanButton(wxCommandEvent& event);
+    void OnStopButton(wxCommandEvent& event);
     void OnMigrateButton(wxCommandEvent& event);
     void OnItemChecked(wxListEvent& event);
 

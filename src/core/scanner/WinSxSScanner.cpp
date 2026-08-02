@@ -18,11 +18,17 @@ Models::ScanCategory WinSxSScanner::Scan(const std::atomic<bool>* stopFlag, Scan
     if (Utils::FileUtil::Exists(winsxsPath)) {
         if (stopFlag && stopFlag->load()) return category;
 
+        // 通知进度
+        if (progressCb) progressCb(0, winsxsPath);
+
         // 使用 GetCompressedFileSize 获取 WinSxS 文件夹的压缩大小
         // 注意：WinSxS 包含大量硬链接，直接遍历会重复计算
         // 更准确的方式是使用 DISM /Online /Cleanup-Image /AnalyzeComponentStore
         // 这里我们使用文件夹大小作为估算值
         uint64_t winsxsSize = Utils::FileUtil::GetFolderSize(winsxsPath);
+
+        // 再次检查停止标志（GetFolderSize可能很慢）
+        if (stopFlag && stopFlag->load()) return category;
 
         if (winsxsSize > 0) {
             Models::ScanFileItem item;

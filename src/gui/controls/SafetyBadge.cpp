@@ -1,4 +1,5 @@
 #include "SafetyBadge.h"
+#include "ThemeManager.h"
 #include <wx/dcbuffer.h>
 
 namespace IceClean::Gui {
@@ -40,7 +41,8 @@ wxColour SafetyBadge::GetRatingColor(IceClean::Models::SafetyRating rating) {
 
 void SafetyBadge::OnPaint(wxPaintEvent& event) {
     wxAutoBufferedPaintDC dc(this);
-    dc.SetBackground(*wxWHITE_BRUSH);
+    const auto& colors = ThemeManager::Instance().GetColors();
+    dc.SetBackground(wxBrush(colors.surface));
     dc.Clear();
 
     const int w = GetSize().GetWidth();

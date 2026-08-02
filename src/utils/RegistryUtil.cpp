@@ -5,7 +5,7 @@ namespace IceClean::Utils {
 std::wstring RegistryUtil::ReadStringValue(HKEY rootKey, const std::wstring& subKey,
                                            const std::wstring& valueName) {
     HKEY hKey = nullptr;
-    LONG result = RegOpenKeyExW(rootKey, subKey.c_str(), 0, KEY_READ, &hKey);
+    LONG result = RegOpenKeyExW(rootKey, subKey.c_str(), 0, KEY_READ | KEY_WOW64_64KEY, &hKey);
     if (result != ERROR_SUCCESS) return L"";
 
     DWORD dataSize = 0;
@@ -34,7 +34,7 @@ std::wstring RegistryUtil::ReadStringValue(HKEY rootKey, const std::wstring& sub
 DWORD RegistryUtil::ReadDwordValue(HKEY rootKey, const std::wstring& subKey,
                                    const std::wstring& valueName) {
     HKEY hKey = nullptr;
-    LONG result = RegOpenKeyExW(rootKey, subKey.c_str(), 0, KEY_READ, &hKey);
+    LONG result = RegOpenKeyExW(rootKey, subKey.c_str(), 0, KEY_READ | KEY_WOW64_64KEY, &hKey);
     if (result != ERROR_SUCCESS) return 0;
 
     DWORD value = 0;
@@ -53,7 +53,7 @@ bool RegistryUtil::WriteStringValue(HKEY rootKey, const std::wstring& subKey,
                                     const std::wstring& valueName, const std::wstring& value) {
     HKEY hKey = nullptr;
     LONG result = RegCreateKeyExW(rootKey, subKey.c_str(), 0, nullptr,
-                                  REG_OPTION_NON_VOLATILE, KEY_WRITE, nullptr, &hKey, nullptr);
+                                  REG_OPTION_NON_VOLATILE, KEY_WRITE | KEY_WOW64_64KEY, nullptr, &hKey, nullptr);
     if (result != ERROR_SUCCESS) return false;
 
     // 包含null终止符的大小
@@ -69,7 +69,7 @@ std::vector<std::wstring> RegistryUtil::EnumSubKeys(HKEY rootKey, const std::wst
     std::vector<std::wstring> subKeys;
 
     HKEY hKey = nullptr;
-    LONG result = RegOpenKeyExW(rootKey, subKey.c_str(), 0, KEY_READ, &hKey);
+    LONG result = RegOpenKeyExW(rootKey, subKey.c_str(), 0, KEY_READ | KEY_WOW64_64KEY, &hKey);
     if (result != ERROR_SUCCESS) return subKeys;
 
     DWORD index = 0;
@@ -92,7 +92,7 @@ std::vector<std::wstring> RegistryUtil::EnumValues(HKEY rootKey, const std::wstr
     std::vector<std::wstring> values;
 
     HKEY hKey = nullptr;
-    LONG result = RegOpenKeyExW(rootKey, subKey.c_str(), 0, KEY_READ, &hKey);
+    LONG result = RegOpenKeyExW(rootKey, subKey.c_str(), 0, KEY_READ | KEY_WOW64_64KEY, &hKey);
     if (result != ERROR_SUCCESS) return values;
 
     DWORD index = 0;
@@ -114,7 +114,7 @@ std::vector<std::wstring> RegistryUtil::EnumValues(HKEY rootKey, const std::wstr
 bool RegistryUtil::DeleteValue(HKEY rootKey, const std::wstring& subKey,
                                const std::wstring& valueName) {
     HKEY hKey = nullptr;
-    LONG result = RegOpenKeyExW(rootKey, subKey.c_str(), 0, KEY_SET_VALUE, &hKey);
+    LONG result = RegOpenKeyExW(rootKey, subKey.c_str(), 0, KEY_SET_VALUE | KEY_WOW64_64KEY, &hKey);
     if (result != ERROR_SUCCESS) return false;
 
     result = RegDeleteValueW(hKey, valueName.c_str());
@@ -125,7 +125,7 @@ bool RegistryUtil::DeleteValue(HKEY rootKey, const std::wstring& subKey,
 
 bool RegistryUtil::KeyExists(HKEY rootKey, const std::wstring& subKey) {
     HKEY hKey = nullptr;
-    LONG result = RegOpenKeyExW(rootKey, subKey.c_str(), 0, KEY_READ, &hKey);
+    LONG result = RegOpenKeyExW(rootKey, subKey.c_str(), 0, KEY_READ | KEY_WOW64_64KEY, &hKey);
     if (result == ERROR_SUCCESS) {
         RegCloseKey(hKey);
         return true;

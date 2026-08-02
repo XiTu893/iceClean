@@ -18,10 +18,15 @@ public:
 private:
     void OnPaint(wxPaintEvent& event);
     void OnLeftDown(wxMouseEvent& event);
+    void OnLeftUp(wxMouseEvent& event);
+    void OnMouseEnter(wxMouseEvent& event);
+    void OnMouseLeave(wxMouseEvent& event);
 
     wxString m_title;
     wxSizer* m_cardSizer = nullptr;
     bool m_clickable = false;
+    bool m_isHovered = false;
+    bool m_isPressed = false;
 
     static const int CORNER_RADIUS = 8;
     static const int PADDING = 16;

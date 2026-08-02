@@ -1,5 +1,6 @@
 #include "DiskAnalyzerPanel.h"
 #include "gui/Events.h"
+#include "gui/controls/ThemeManager.h"
 #include "utils/FormatUtil.h"
 #include <wx/dcbuffer.h>
 #include <algorithm>
@@ -19,19 +20,20 @@ wxEND_EVENT_TABLE()
 DiskAnalyzerPanel::DiskAnalyzerPanel(wxWindow* parent, wxWindowID id)
     : wxPanel(parent, id)
 {
-    SetBackgroundColour(*wxWHITE);
+    SetBackgroundColour(ThemeManager::Instance().GetColors().background);
     CreateControls();
 }
 
 void DiskAnalyzerPanel::CreateControls() {
+    const auto& colors = ThemeManager::Instance().GetColors();
     auto* mainSizer = new wxBoxSizer(wxVERTICAL);
     mainSizer->AddSpacer(12);
 
     // 标题
-    auto* titleLabel = new wxStaticText(this, wxID_ANY, L"磁盘分析");
+    auto* titleLabel = new wxStaticText(this, wxID_ANY, L"大文件分析");
     titleLabel->SetFont(wxFont(14, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD,
                                false, L"微软雅黑"));
-    titleLabel->SetForegroundColour(wxColour(0x33, 0x33, 0x33));
+    titleLabel->SetForegroundColour(colors.textPrimary);
     mainSizer->Add(titleLabel, 0, wxLEFT | wxRIGHT, 20);
     mainSizer->AddSpacer(8);
 
@@ -66,10 +68,19 @@ void DiskAnalyzerPanel::CreateControls() {
     m_scanButton = new wxButton(this, wxID_ANY, L"扫描", wxDefaultPosition, wxSize(100, 32));
     m_scanButton->SetFont(wxFont(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD,
                                  false, L"微软雅黑"));
-    m_scanButton->SetBackgroundColour(wxColour(0x00, 0x78, 0xD4));
+    m_scanButton->SetBackgroundColour(colors.accent);
     m_scanButton->SetForegroundColour(*wxWHITE);
     m_scanButton->Bind(wxEVT_BUTTON, &DiskAnalyzerPanel::OnScanButton, this);
     topSizer->Add(m_scanButton, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 8);
+
+    m_stopButton = new wxButton(this, wxID_ANY, L"停止", wxDefaultPosition, wxSize(80, 32));
+    m_stopButton->SetFont(wxFont(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+                                  false, L"微软雅黑"));
+    m_stopButton->SetBackgroundColour(colors.danger);
+    m_stopButton->SetForegroundColour(*wxWHITE);
+    m_stopButton->Bind(wxEVT_BUTTON, &DiskAnalyzerPanel::OnStopButton, this);
+    m_stopButton->Hide();
+    topSizer->Add(m_stopButton, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 8);
 
     topSizer->AddStretchSpacer();
 
@@ -83,7 +94,7 @@ void DiskAnalyzerPanel::CreateControls() {
     m_treemapPanel = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
                                   wxFULL_REPAINT_ON_RESIZE);
     m_treemapPanel->SetBackgroundStyle(wxBG_STYLE_PAINT);
-    m_treemapPanel->SetBackgroundColour(wxColour(0xF5, 0xF5, 0xF5));
+    m_treemapPanel->SetBackgroundColour(colors.background);
     m_treemapPanel->Bind(wxEVT_PAINT, &DiskAnalyzerPanel::OnTreemapPaint, this);
     m_treemapPanel->Bind(wxEVT_MOTION, &DiskAnalyzerPanel::OnTreemapMouseMotion, this);
     m_treemapPanel->Bind(wxEVT_LEFT_DOWN, &DiskAnalyzerPanel::OnTreemapLeftClick, this);
@@ -128,16 +139,10 @@ void DiskAnalyzerPanel::CreateControls() {
     m_statusLabel = new wxStaticText(this, wxID_ANY, L"选择驱动器并点击扫描开始分析");
     m_statusLabel->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
                                   false, L"微软雅黑"));
-    m_statusLabel->SetForegroundColour(wxColour(0x66, 0x66, 0x66));
+    m_statusLabel->SetForegroundColour(colors.textSecondary);
     mainSizer->Add(m_statusLabel, 0, wxLEFT | wxRIGHT | wxBOTTOM, 12);
 
     SetSizer(mainSizer);
-}
-
-void DiskAnalyzerPanel::SetDiskData(std::shared_ptr<IceClean::Models::DiskNode> root) {
-    m_rootNode = root;
-    BuildTreemap();
-    m_treemapPanel->Refresh();
 }
 
 wxString DiskAnalyzerPanel::GetSelectedDrive() const {
@@ -263,8 +268,9 @@ wxColour DiskAnalyzerPanel::GetNodeColor(const std::shared_ptr<IceClean::Models:
 }
 
 void DiskAnalyzerPanel::OnTreemapPaint(wxPaintEvent& event) {
+    const auto& colors = ThemeManager::Instance().GetColors();
     wxAutoBufferedPaintDC dc(m_treemapPanel);
-    dc.SetBackground(wxBrush(wxColour(0xF5, 0xF5, 0xF5)));
+    dc.SetBackground(wxBrush(colors.background));
     dc.Clear();
 
     for (size_t i = 0; i < m_treemapRects.size(); ++i) {
@@ -277,7 +283,7 @@ void DiskAnalyzerPanel::OnTreemapPaint(wxPaintEvent& event) {
         }
 
         dc.SetBrush(wxBrush(color));
-        dc.SetPen(wxPen(wxColour(0xF5, 0xF5, 0xF5), 1));
+        dc.SetPen(wxPen(colors.background, 1));
         dc.DrawRectangle(rect.x, rect.y, rect.width, rect.height);
 
         // 如果矩形足够大，显示名称
@@ -321,9 +327,9 @@ void DiskAnalyzerPanel::OnTreemapMouseMotion(wxMouseEvent& event) {
         const auto& rect = m_treemapRects[m_hoveredRect];
         if (rect.node) {
             m_statusLabel->SetLabel(wxString::Format(L"%s  |  %s  |  %s",
-                rect.node->name,
-                rect.node->fullPath,
-                IceClean::Utils::FormatUtil::FormatFileSize(rect.node->GetTotalSize())));
+                rect.node->name.c_str(),
+                rect.node->fullPath.c_str(),
+                IceClean::Utils::FormatUtil::FormatFileSize(rect.node->GetTotalSize()).c_str()));
         }
     }
 }
@@ -371,13 +377,44 @@ void DiskAnalyzerPanel::OnTreemapRightClick(wxMouseEvent& event) {
 }
 
 void DiskAnalyzerPanel::OnScanButton(wxCommandEvent& event) {
-    m_scanButton->Disable();
-    m_scanButton->SetLabel(L"扫描中...");
+    m_isScanning = true;
+    m_scanButton->Hide();
+    m_stopButton->Show();
+    m_driveChoice->Disable();
+    m_statusLabel->SetLabel(L"正在扫描...");
 
     // 发送扫描事件
     wxThreadEvent scanEvt(wxEVT_SCAN_REQUEST);
     scanEvt.SetInt(3); // 3 = 磁盘分析扫描
     wxPostEvent(GetParent(), scanEvt);
+}
+
+void DiskAnalyzerPanel::OnStopButton(wxCommandEvent& event) {
+    m_stopButton->Disable();
+    m_stopButton->SetLabel(L"正在停止...");
+    m_statusLabel->SetLabel(L"正在停止扫描...");
+
+    // 发送停止扫描事件
+    wxThreadEvent stopEvt(wxEVT_SCAN_STOP);
+    wxPostEvent(GetParent(), stopEvt);
+}
+
+void DiskAnalyzerPanel::SetDiskData(std::shared_ptr<IceClean::Models::DiskNode> root) {
+    m_isScanning = false;
+    m_scanButton->Show();
+    m_stopButton->Hide();
+    m_stopButton->Enable();
+    m_stopButton->SetLabel(L"停止");
+    m_driveChoice->Enable();
+
+    m_rootNode = root;
+    BuildTreemap();
+    m_treemapPanel->Refresh();
+
+    if (root) {
+        m_statusLabel->SetLabel(wxString::Format(L"扫描完成 - %s",
+            IceClean::Utils::FormatUtil::FormatFileSize(root->GetTotalSize()).c_str()));
+    }
 }
 
 void DiskAnalyzerPanel::OnDriveChoice(wxCommandEvent& event) {

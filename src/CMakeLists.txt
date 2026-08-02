@@ -23,6 +23,7 @@ target_link_libraries(IceClean PRIVATE
     ${wxWidgets_LIBRARIES}
     nlohmann_json::nlohmann_json
     spdlog::spdlog
+    unofficial::sqlite3::sqlite3
 )
 
 # ── 链接 Windows 系统库 ──

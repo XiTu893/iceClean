@@ -2,6 +2,7 @@
 #include "gui/dialogs/ConfirmDialog.h"
 #include "gui/dialogs/MigrationProgressDlg.h"
 #include "gui/Events.h"
+#include "gui/controls/ThemeManager.h"
 #include "utils/FormatUtil.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
@@ -17,11 +18,12 @@ wxEND_EVENT_TABLE()
 MigrationPanel::MigrationPanel(wxWindow* parent, wxWindowID id)
     : wxPanel(parent, id)
 {
-    SetBackgroundColour(*wxWHITE);
+    SetBackgroundColour(ThemeManager::Instance().GetColors().background);
     CreateControls();
 }
 
 void MigrationPanel::CreateControls() {
+    const auto& colors = ThemeManager::Instance().GetColors();
     auto* mainSizer = new wxBoxSizer(wxVERTICAL);
     mainSizer->AddSpacer(12);
 
@@ -29,7 +31,7 @@ void MigrationPanel::CreateControls() {
     auto* titleLabel = new wxStaticText(this, wxID_ANY, L"智能迁移");
     titleLabel->SetFont(wxFont(14, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD,
                                false, L"微软雅黑"));
-    titleLabel->SetForegroundColour(wxColour(0x33, 0x33, 0x33));
+    titleLabel->SetForegroundColour(colors.textPrimary);
     mainSizer->Add(titleLabel, 0, wxLEFT | wxRIGHT, 20);
     mainSizer->AddSpacer(4);
 
@@ -37,18 +39,38 @@ void MigrationPanel::CreateControls() {
         L"将C盘大文件迁移到其他分区，通过Junction链接让程序无感知运行。");
     descLabel->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
                               false, L"微软雅黑"));
-    descLabel->SetForegroundColour(wxColour(0x66, 0x66, 0x66));
+    descLabel->SetForegroundColour(colors.textSecondary);
     mainSizer->Add(descLabel, 0, wxLEFT | wxRIGHT, 20);
     mainSizer->AddSpacer(12);
 
-    // 扫描按钮
+    // 扫描按钮 + 停止按钮
+    auto* scanSizer = new wxBoxSizer(wxHORIZONTAL);
+    scanSizer->AddSpacer(20);
+
     m_scanButton = new wxButton(this, wxID_ANY, L"扫描大文件", wxDefaultPosition, wxSize(140, 36));
     m_scanButton->SetFont(wxFont(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD,
                                  false, L"微软雅黑"));
-    m_scanButton->SetBackgroundColour(wxColour(0x00, 0x78, 0xD4));
+    m_scanButton->SetBackgroundColour(colors.accent);
     m_scanButton->SetForegroundColour(*wxWHITE);
     m_scanButton->Bind(wxEVT_BUTTON, &MigrationPanel::OnScanButton, this);
-    mainSizer->Add(m_scanButton, 0, wxLEFT, 20);
+    scanSizer->Add(m_scanButton, 0);
+
+    m_stopButton = new wxButton(this, wxID_ANY, L"停止", wxDefaultPosition, wxSize(80, 36));
+    m_stopButton->SetFont(wxFont(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+                                  false, L"微软雅黑"));
+    m_stopButton->SetBackgroundColour(colors.danger);
+    m_stopButton->SetForegroundColour(*wxWHITE);
+    m_stopButton->Bind(wxEVT_BUTTON, &MigrationPanel::OnStopButton, this);
+    m_stopButton->Hide();
+    scanSizer->Add(m_stopButton, 0, wxLEFT, 8);
+
+    m_statusLabel = new wxStaticText(this, wxID_ANY, L"");
+    m_statusLabel->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+                                   false, L"微软雅黑"));
+    m_statusLabel->SetForegroundColour(colors.textSecondary);
+    scanSizer->Add(m_statusLabel, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 12);
+
+    mainSizer->Add(scanSizer, 0);
     mainSizer->AddSpacer(12);
 
     // 文件列表
@@ -87,7 +109,7 @@ void MigrationPanel::CreateControls() {
     m_migrateButton = new wxButton(this, wxID_ANY, L"开始迁移", wxDefaultPosition, wxSize(140, 40));
     m_migrateButton->SetFont(wxFont(11, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD,
                                     false, L"微软雅黑"));
-    m_migrateButton->SetBackgroundColour(wxColour(0x00, 0x78, 0xD4));
+    m_migrateButton->SetBackgroundColour(colors.accent);
     m_migrateButton->SetForegroundColour(*wxWHITE);
     m_migrateButton->Bind(wxEVT_BUTTON, &MigrationPanel::OnMigrateButton, this);
     bottomSizer->Add(m_migrateButton, 0, wxRIGHT, 20);
@@ -115,7 +137,7 @@ void MigrationPanel::PopulateDriveList() {
                 if (GetDiskFreeSpaceExW(root, &freeBytes, nullptr, nullptr)) {
                     wxString label = wxString::Format(L"%c: (%s 可用)",
                         L'A' + i,
-                        IceClean::Utils::FormatUtil::FormatFileSize(freeBytes.QuadPart));
+                        IceClean::Utils::FormatUtil::FormatFileSize(freeBytes.QuadPart).c_str());
                     m_targetDriveChoice->Append(label);
                 }
             }
@@ -128,6 +150,11 @@ void MigrationPanel::PopulateDriveList() {
 }
 
 void MigrationPanel::SetMigrationItems(const std::vector<IceClean::Models::MigrationItem>& items) {
+    m_scanButton->Show();
+    m_stopButton->Hide();
+    m_stopButton->Enable();
+    m_stopButton->SetLabel(L"停止");
+
     m_items = items;
     m_fileList->DeleteAllItems();
 
@@ -163,6 +190,9 @@ void MigrationPanel::SetMigrationItems(const std::vector<IceClean::Models::Migra
         }
         m_fileList->SetItem(idx, 5, adviceStr);
     }
+
+    m_statusLabel->SetLabel(wxString::Format(L"扫描完成，找到 %d 个可迁移项",
+        static_cast<int>(items.size())));
 }
 
 std::vector<IceClean::Models::MigrationItem> MigrationPanel::GetSelectedItems() const {
@@ -184,13 +214,24 @@ wxString MigrationPanel::GetTargetDrive() const {
 }
 
 void MigrationPanel::OnScanButton(wxCommandEvent& event) {
-    m_scanButton->Disable();
-    m_scanButton->SetLabel(L"扫描中...");
+    m_scanButton->Hide();
+    m_stopButton->Show();
+    m_statusLabel->SetLabel(L"正在扫描...");
 
     // 发送扫描事件，由MainWindow处理
     wxThreadEvent scanEvt(wxEVT_SCAN_REQUEST);
     scanEvt.SetInt(1); // 1 = 迁移扫描
     wxPostEvent(GetParent(), scanEvt);
+}
+
+void MigrationPanel::OnStopButton(wxCommandEvent& event) {
+    m_stopButton->Disable();
+    m_stopButton->SetLabel(L"正在停止...");
+    m_statusLabel->SetLabel(L"正在停止扫描...");
+
+    // 发送停止扫描事件
+    wxThreadEvent stopEvt(wxEVT_SCAN_STOP);
+    wxPostEvent(GetParent(), stopEvt);
 }
 
 void MigrationPanel::OnMigrateButton(wxCommandEvent& event) {
@@ -210,7 +251,7 @@ void MigrationPanel::OnMigrateButton(wxCommandEvent& event) {
     wxString desc = wxString::Format(L"即将将 %d 个项目迁移到 %s\n\n"
         L"迁移后将创建Junction链接，程序可正常运行。\n"
         L"确定继续？",
-        static_cast<int>(selectedItems.size()), targetDrive);
+        static_cast<int>(selectedItems.size()), targetDrive.wx_str());
 
     ConfirmDialog dlg(this, L"确认迁移", desc,
                       ConfirmDialog::DangerLevel::Caution, L"确认迁移", L"取消");

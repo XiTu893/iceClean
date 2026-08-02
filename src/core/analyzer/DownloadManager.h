@@ -3,6 +3,7 @@
 #include <vector>
 #include <cstdint>
 #include <functional>
+#include <windows.h>
 
 namespace IceClean::Core::Analyzer {
 

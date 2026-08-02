@@ -17,7 +17,8 @@
                     "type": "FILEPATH",
                     "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
                 },
-                "VCPKG_TARGET_TRIPLET": "x64-windows-static"
+                "VCPKG_TARGET_TRIPLET": "x64-windows-static",
+                "VCPKG_HOST_TRIPLET": "x64-windows-static"
             },
             "condition": {
                 "type": "equals",
@@ -37,7 +38,8 @@
                     "type": "FILEPATH",
                     "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
                 },
-                "VCPKG_TARGET_TRIPLET": "x64-windows-static"
+                "VCPKG_TARGET_TRIPLET": "x64-windows-static",
+                "VCPKG_HOST_TRIPLET": "x64-windows-static"
             },
             "condition": {
                 "type": "equals",

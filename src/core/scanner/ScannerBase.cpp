@@ -68,13 +68,18 @@ void ScannerBase::ScanDirectory(const std::wstring& directoryPath,
             if (recursive &&
                 !(findData.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)) {
                 ScanDirectory(fullPath, pattern, recursive, skipLocked, category, stopFlag, progressCb);
+                // 递归返回后也检查停止标志
+                if (ShouldStop(stopFlag)) {
+                    FindClose(hFind);
+                    return;
+                }
             }
         } else {
             // 跳过白名单路径
             if (IsWhitelisted(fullPath)) continue;
 
-            // 跳过被锁定的文件
-            if (skipLocked && IsFileLocked(fullPath)) continue;
+            // 跳过被锁定的文件（stopFlag设置时跳过锁定检查，加速停止）
+            if (skipLocked && !ShouldStop(stopFlag) && IsFileLocked(fullPath)) continue;
 
             Models::ScanFileItem item;
             item.path = fullPath;

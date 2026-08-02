@@ -4,7 +4,7 @@
 
 namespace IceClean::Gui {
 
-// 圆形进度条控件
+// 圆形进度条控件（带动画）
 class CircularProgress : public wxPanel {
 public:
     CircularProgress(wxWindow* parent,
@@ -12,7 +12,9 @@ public:
                      const wxPoint& pos = wxDefaultPosition,
                      const wxSize& size = wxDefaultSize);
 
-    // 设置进度值 (0-100)
+    ~CircularProgress();
+
+    // 设置进度值 (0-100)，带平滑动画
     void SetValue(int value);
     int GetValue() const { return m_value; }
 
@@ -28,15 +30,31 @@ public:
     void SetSubLabel(const wxString& subLabel);
     const wxString& GetSubLabel() const { return m_subLabel; }
 
+    // 设置不确定模式（旋转动画，用于扫描中等无法确定进度的场景）
+    void SetIndeterminate(bool indeterminate);
+    bool IsIndeterminate() const { return m_indeterminate; }
+
 private:
     int m_value = 0;
-    wxColour m_progressColor = wxColour(0x00, 0x78, 0xD4); // #0078D4
-    wxColour m_trackColor = wxColour(0xE0, 0xE0, 0xE0);    // 浅灰
+    int m_displayValue = 0;  // 动画当前显示值
+    int m_targetValue = 0;   // 动画目标值
+    wxColour m_progressColor;  // 由构造函数从 ThemeManager 初始化
+    wxColour m_trackColor;     // 由构造函数从 ThemeManager 初始化
     wxString m_label;
     wxString m_subLabel;
 
+    // 动画相关
+    bool m_indeterminate = false;
+    double m_indetAngle = 0.0;  // 不确定模式旋转角度
+    wxTimer* m_animTimer = nullptr;
+    static const int ANIM_INTERVAL = 16;  // ~60fps
+    static const int ANIM_DURATION = 300; // 动画持续时间(ms)
+    int m_animElapsed = 0;
+    int m_animStartValue = 0;
+
     void OnPaint(wxPaintEvent& event);
     void OnSize(wxSizeEvent& event);
+    void OnAnimTimer(wxTimerEvent& event);
 
     wxDECLARE_EVENT_TABLE();
 };

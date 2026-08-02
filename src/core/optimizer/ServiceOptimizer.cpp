@@ -258,6 +258,32 @@ bool ServiceOptimizer::SetServiceStartType(const std::wstring& serviceName, DWOR
 
 bool ServiceOptimizer::DisableService(const std::wstring& serviceName) {
     if (IsCriticalService(serviceName)) return false;
+
+    // 先尝试停止运行中的服务
+    SC_HANDLE hScManager = OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CONNECT);
+    if (hScManager) {
+        SC_HANDLE hService = OpenServiceW(hScManager, serviceName.c_str(),
+                                           SERVICE_STOP | SERVICE_QUERY_STATUS);
+        if (hService) {
+            SERVICE_STATUS status{};
+            if (QueryServiceStatus(hService, &status) &&
+                status.dwCurrentState == SERVICE_RUNNING) {
+                // 请求停止服务
+                ControlService(hService, SERVICE_CONTROL_STOP, &status);
+
+                // 等待服务停止（最多10秒）
+                for (int i = 0; i < 50; ++i) {
+                    if (!QueryServiceStatus(hService, &status)) break;
+                    if (status.dwCurrentState == SERVICE_STOPPED) break;
+                    Sleep(200);
+                }
+            }
+            CloseServiceHandle(hService);
+        }
+        CloseServiceHandle(hScManager);
+    }
+
+    // 设置服务为禁用
     return SetServiceStartType(serviceName, SERVICE_DISABLED);
 }
 

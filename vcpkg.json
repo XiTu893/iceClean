@@ -6,6 +6,7 @@
         "wxwidgets",
         "nlohmann-json",
         "spdlog",
-        "gtest"
+        "gtest",
+        "sqlite3"
     ]
 }

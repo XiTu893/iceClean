@@ -23,6 +23,7 @@ private:
     // 控件
     wxChoice* m_driveChoice = nullptr;
     wxButton* m_scanButton = nullptr;
+    wxButton* m_stopButton = nullptr;
     wxPanel* m_treemapPanel = nullptr;
     wxCheckListBox* m_typeFilter = nullptr;
     wxStaticText* m_statusLabel = nullptr;
@@ -56,8 +57,12 @@ private:
 
     // 事件处理
     void OnScanButton(wxCommandEvent& event);
+    void OnStopButton(wxCommandEvent& event);
     void OnDriveChoice(wxCommandEvent& event);
     void OnTypeFilter(wxCommandEvent& event);
+
+    // 扫描状态
+    bool m_isScanning = false;
 
     wxDECLARE_EVENT_TABLE();
 };

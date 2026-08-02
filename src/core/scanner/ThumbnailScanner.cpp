@@ -16,7 +16,7 @@ Models::ScanCategory ThumbnailScanner::Scan(const std::atomic<bool>* stopFlag, S
     // 扫描 %LocalAppData%\Microsoft\Windows\Explorer\thumbcache_*
     std::wstring explorerPath = Utils::Win32Util::GetSpecialFolder(CSIDL_LOCAL_APPDATA);
     if (!explorerPath.empty()) {
-        if (stopFlag && stopFlag->load()) return category;
+        if (ShouldStop(stopFlag)) return category;
 
         std::wstring thumbPath = explorerPath + L"\\Microsoft\\Windows\\Explorer";
         if (Utils::FileUtil::Exists(thumbPath)) {
@@ -31,6 +31,10 @@ Models::ScanCategory ThumbnailScanner::Scan(const std::atomic<bool>* stopFlag, S
             HANDLE hFind = FindFirstFileW(searchPath.c_str(), &findData);
             if (hFind != INVALID_HANDLE_VALUE) {
                 do {
+                    if (ShouldStop(stopFlag)) {
+                        FindClose(hFind);
+                        return category;
+                    }
                     if (!(findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
                         std::wstring fullPath = thumbPath + L"\\" + findData.cFileName;
 
@@ -52,11 +56,17 @@ Models::ScanCategory ThumbnailScanner::Scan(const std::atomic<bool>* stopFlag, S
                 FindClose(hFind);
             }
 
+            if (ShouldStop(stopFlag)) return category;
+
             // 同时扫描 iconcache_* 文件
             std::wstring iconSearchPath = thumbPath + L"\\iconcache_*";
             hFind = FindFirstFileW(iconSearchPath.c_str(), &findData);
             if (hFind != INVALID_HANDLE_VALUE) {
                 do {
+                    if (ShouldStop(stopFlag)) {
+                        FindClose(hFind);
+                        return category;
+                    }
                     if (!(findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
                         std::wstring fullPath = thumbPath + L"\\" + findData.cFileName;
 

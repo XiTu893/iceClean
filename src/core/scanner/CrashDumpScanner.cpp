@@ -17,6 +17,7 @@ Models::ScanCategory CrashDumpScanner::Scan(const std::atomic<bool>* stopFlag, S
     if (Utils::FileUtil::Exists(minidumpPath)) {
         ScanDirectory(minidumpPath, L"*.dmp", false, false, category, stopFlag, progressCb);
     }
+    if (ShouldStop(stopFlag)) return category;
 
     // 扫描 C:\Windows\MEMORY.DMP
     std::wstring memoryDmp = Utils::Win32Util::ExpandEnvVars(L"%SystemRoot%\\MEMORY.DMP");
@@ -34,6 +35,7 @@ Models::ScanCategory CrashDumpScanner::Scan(const std::atomic<bool>* stopFlag, S
         category.items.push_back(item);
         category.totalSize += item.size;
     }
+    if (ShouldStop(stopFlag)) return category;
 
     // 扫描 C:\Windows\LiveKernelReports
     std::wstring liveKernelPath = Utils::Win32Util::ExpandEnvVars(L"%SystemRoot%\\LiveKernelReports");

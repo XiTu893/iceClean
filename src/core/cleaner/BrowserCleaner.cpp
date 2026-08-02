@@ -93,9 +93,29 @@ Models::CleanResult BrowserCleaner::Clean(const std::vector<std::wstring>& paths
 }
 
 bool BrowserCleaner::IsAnyBrowserRunning() const {
+    // 国际浏览器
     return Utils::Win32Util::IsProcessRunning(L"chrome.exe") ||
            Utils::Win32Util::IsProcessRunning(L"msedge.exe") ||
-           Utils::Win32Util::IsProcessRunning(L"firefox.exe");
+           Utils::Win32Util::IsProcessRunning(L"firefox.exe") ||
+           Utils::Win32Util::IsProcessRunning(L"opera.exe") ||
+           Utils::Win32Util::IsProcessRunning(L"brave.exe") ||
+           Utils::Win32Util::IsProcessRunning(L"vivaldi.exe") ||
+           Utils::Win32Util::IsProcessRunning(L"tor.exe") ||
+           // 国内浏览器
+           Utils::Win32Util::IsProcessRunning(L"360se.exe") ||
+           Utils::Win32Util::IsProcessRunning(L"360chrome.exe") ||
+           Utils::Win32Util::IsProcessRunning(L"qqbrowser.exe") ||
+           Utils::Win32Util::IsProcessRunning(L"qzone.exe") ||
+           Utils::Win32Util::IsProcessRunning(L"sogouexplorer.exe") ||
+           Utils::Win32Util::IsProcessRunning(L"sogou.exe") ||
+           Utils::Win32Util::IsProcessRunning(L"liebao.exe") ||
+           Utils::Win32Util::IsProcessRunning(L"liebaofree.exe") ||
+           Utils::Win32Util::IsProcessRunning(L"2345Explorer.exe") ||
+           Utils::Win32Util::IsProcessRunning(L"2345Browser.exe") ||
+           Utils::Win32Util::IsProcessRunning(L"maxthon.exe") ||
+           Utils::Win32Util::IsProcessRunning(L"maxthon5.exe") ||
+           Utils::Win32Util::IsProcessRunning(L"LBBrowser.exe") ||
+           Utils::Win32Util::IsProcessRunning(L"LenovoBrowser.exe");
 }
 
 } // namespace IceClean::Core::Cleaner

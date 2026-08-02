@@ -1,4 +1,5 @@
 #include "StartupOptimizer.h"
+#include "ScheduledTaskOptimizer.h"
 #include "utils/RegistryUtil.h"
 #include "utils/Win32Util.h"
 #include "utils/FileUtil.h"
@@ -195,6 +196,12 @@ bool StartupOptimizer::EnableRegistryItem(HKEY rootKey, const std::wstring& subK
 bool StartupOptimizer::DisableItem(const Models::StartupItem& item) {
     if (item.isSystemCritical || !item.canDisable) return false;
 
+    // 先尝试终止关联进程
+    std::wstring processName = Utils::Win32Util::ExtractProcessName(item.path);
+    if (!processName.empty()) {
+        Utils::Win32Util::KillProcessByName(processName);
+    }
+
     if (item.type == Models::StartupItemType::Registry) {
         // 确定注册表位置
         // 尝试在所有可能的注册表位置查找
@@ -224,6 +231,12 @@ bool StartupOptimizer::DisableItem(const Models::StartupItem& item) {
         // 对于启动文件夹项，重命名文件添加.disabled后缀
         std::wstring disabledPath = item.path + L".disabled";
         return MoveFileW(item.path.c_str(), disabledPath.c_str()) != 0;
+    }
+
+    if (item.type == Models::StartupItemType::ScheduledTask) {
+        // 对于计划任务，委托给ScheduledTaskOptimizer禁用
+        ScheduledTaskOptimizer taskOpt;
+        return taskOpt.DisableTask(item.path, item.name);
     }
 
     return false;
@@ -262,6 +275,12 @@ bool StartupOptimizer::EnableItem(const Models::StartupItem& item) {
         if (Utils::FileUtil::Exists(disabledPath)) {
             return MoveFileW(disabledPath.c_str(), item.path.c_str()) != 0;
         }
+    }
+
+    if (item.type == Models::StartupItemType::ScheduledTask) {
+        // 对于计划任务，委托给ScheduledTaskOptimizer启用
+        ScheduledTaskOptimizer taskOpt;
+        return taskOpt.EnableTask(item.path, item.name);
     }
 
     return false;

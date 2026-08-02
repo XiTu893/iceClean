@@ -1,4 +1,5 @@
 #include "MigrationProgressDlg.h"
+#include "gui/controls/ThemeManager.h"
 #include "utils/FormatUtil.h"
 #include <algorithm>
 
@@ -9,6 +10,7 @@ MigrationProgressDlg::MigrationProgressDlg(wxWindow* parent, const wxString& tit
     : wxDialog(parent, wxID_ANY, title, pos, size,
                wxDEFAULT_DIALOG_STYLE & ~wxCLOSE_BOX | wxCENTRE)
 {
+    const auto& colors = ThemeManager::Instance().GetColors();
     auto* mainSizer = new wxBoxSizer(wxVERTICAL);
     mainSizer->AddSpacer(16);
 
@@ -22,7 +24,7 @@ MigrationProgressDlg::MigrationProgressDlg(wxWindow* parent, const wxString& tit
     m_fileLabel = new wxStaticText(this, wxID_ANY, L"准备迁移...");
     m_fileLabel->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
                                 false, L"微软雅黑"));
-    m_fileLabel->SetForegroundColour(wxColour(0x66, 0x66, 0x66));
+    m_fileLabel->SetForegroundColour(colors.textSecondary);
     mainSizer->Add(m_fileLabel, 0, wxLEFT | wxRIGHT, 20);
     mainSizer->AddSpacer(8);
 
@@ -38,13 +40,13 @@ MigrationProgressDlg::MigrationProgressDlg(wxWindow* parent, const wxString& tit
     m_speedLabel = new wxStaticText(this, wxID_ANY, L"速度: --");
     m_speedLabel->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
                                  false, L"微软雅黑"));
-    m_speedLabel->SetForegroundColour(wxColour(0x66, 0x66, 0x66));
+    m_speedLabel->SetForegroundColour(colors.textSecondary);
     infoSizer->Add(m_speedLabel, 1);
 
     m_timeLabel = new wxStaticText(this, wxID_ANY, L"剩余时间: --");
     m_timeLabel->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
                                 false, L"微软雅黑"));
-    m_timeLabel->SetForegroundColour(wxColour(0x66, 0x66, 0x66));
+    m_timeLabel->SetForegroundColour(colors.textSecondary);
     infoSizer->Add(m_timeLabel, 0);
     mainSizer->Add(infoSizer, 0, wxLEFT | wxRIGHT | wxEXPAND, 20);
     mainSizer->AddSpacer(16);
@@ -90,8 +92,8 @@ void MigrationProgressDlg::SetStats(int currentItem, int totalItems,
     using namespace IceClean::Utils;
     wxString stats = wxString::Format(L"%d/%d 项  |  %s / %s",
         currentItem, totalItems,
-        FormatUtil::FormatFileSize(migratedSize),
-        FormatUtil::FormatFileSize(totalSize));
+        FormatUtil::FormatFileSize(migratedSize).c_str(),
+        FormatUtil::FormatFileSize(totalSize).c_str());
     m_statsLabel->SetLabel(stats);
 }
 
@@ -103,10 +105,10 @@ void MigrationProgressDlg::SetCompleted(bool success, const wxString& message) {
 
     if (success) {
         m_fileLabel->SetLabel(message.IsEmpty() ? wxString(L"迁移完成！") : message);
-        m_fileLabel->SetForegroundColour(wxColour(0x10, 0x7C, 0x10));
+        m_fileLabel->SetForegroundColour(ThemeManager::Instance().GetColors().success);
     } else {
         m_fileLabel->SetLabel(message.IsEmpty() ? wxString(L"迁移失败") : message);
-        m_fileLabel->SetForegroundColour(wxColour(0xE8, 0x11, 0x23));
+        m_fileLabel->SetForegroundColour(ThemeManager::Instance().GetColors().danger);
     }
     m_speedLabel->SetLabel(L"速度: --");
     m_timeLabel->SetLabel(L"剩余时间: --");
