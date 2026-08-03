@@ -65,7 +65,8 @@ void ThemeManager::SetTheme(ThemeType theme) {
     }
 
     SavePreference();
-    spdlog::info("主题已切换: {}", std::string(GetThemeName(theme).begin(), GetThemeName(theme).end()));
+    auto themeName = GetThemeName(theme);
+    spdlog::info("主题已切换: {}", std::string(themeName.begin(), themeName.end()));
 }
 
 const ThemeColors& ThemeManager::GetColors() const {

@@ -59,6 +59,10 @@
 
 #ifdef __WXMSW__
 #include <windowsx.h>
+// windowsx.h 定义了 IsMaximized(hwnd) 宏，会与 wxFrame::IsMaximized() 成员函数冲突
+#ifdef IsMaximized
+#undef IsMaximized
+#endif
 #endif
 
 namespace IceClean::Gui {

@@ -189,7 +189,8 @@ Models::DebloatResult WindowsDebloater::ApplyItems(
 }
 
 bool WindowsDebloater::RevertItem(const Models::DebloatItem& item) {
-    spdlog::info("WindowsDebloater: 还原操作尚未实现: {}", item.name);
+    spdlog::info("WindowsDebloater: 还原操作尚未实现: {}",
+                 std::string(item.name.begin(), item.name.end()));
     return false;
 }
 

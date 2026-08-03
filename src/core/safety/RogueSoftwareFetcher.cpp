@@ -220,7 +220,7 @@ bool RogueSoftwareFetcher::LoadLocalCache(IceClean::Models::RogueSoftwareDB& out
 
     std::ifstream ifs(localPath);
     if (!ifs.is_open()) {
-        spdlog::warn("本地缓存文件不存在: {}", localPath);
+        spdlog::warn("本地缓存文件不存在: {}", std::string(localPath.begin(), localPath.end()));
         return false;
     }
 
@@ -266,7 +266,7 @@ bool RogueSoftwareFetcher::SaveLocalCache(const IceClean::Models::RogueSoftwareD
         if (ofs.is_open()) {
             ofs << j.dump(2);
             ofs.close();
-            spdlog::info("规则缓存已保存: {}", localPath);
+            spdlog::info("规则缓存已保存: {}", std::string(localPath.begin(), localPath.end()));
             return true;
         }
     } catch (const std::exception& e) {

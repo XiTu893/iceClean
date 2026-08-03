@@ -153,14 +153,17 @@ bool PrivacyOptimizer::ApplyRegistryDword(const std::wstring& fullPath, const st
 
     HKEY hKey;
     if (RegCreateKeyExW(rootKey, path.c_str(), 0, nullptr, 0, KEY_WRITE, nullptr, &hKey, nullptr) != ERROR_SUCCESS) {
-        spdlog::warn("PrivacyOptimizer: 无法创建/打开注册表键: {}", fullPath);
+        spdlog::warn("PrivacyOptimizer: 无法创建/打开注册表键: {}",
+                     std::string(fullPath.begin(), fullPath.end()));
         return false;
     }
 
     bool ok = RegSetValueExW(hKey, valueName.c_str(), 0, REG_DWORD,
                               (const BYTE*)&value, sizeof(value)) == ERROR_SUCCESS;
     if (!ok) {
-        spdlog::warn("PrivacyOptimizer: 设置值失败: {}\\{}", fullPath, valueName);
+        spdlog::warn("PrivacyOptimizer: 设置值失败: {}\\{}",
+                     std::string(fullPath.begin(), fullPath.end()),
+                     std::string(valueName.begin(), valueName.end()));
     }
 
     RegCloseKey(hKey);
