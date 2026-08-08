@@ -4,6 +4,7 @@
 #include "gui/Events.h"
 #include "core/utils/ProgressReporter.h"
 #include <algorithm>
+#include <thread>
 #include <fstream>
 
 namespace IceClean::Gui {

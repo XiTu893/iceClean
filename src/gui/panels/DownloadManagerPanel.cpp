@@ -4,6 +4,7 @@
 #include "gui/Events.h"
 #include "core/utils/ProgressReporter.h"
 #include <algorithm>
+#include <thread>
 #include <shellapi.h>
 #include <shlobj.h>
 
@@ -256,7 +257,8 @@ void DownloadManagerPanel::OnClean(wxCommandEvent& /*event*/) {
 
         // Re-scan on complete
         CallAfter([this]() {
-            OnScan(wxCommandEvent{});
+            wxCommandEvent evt;
+            OnScan(evt);
         });
     }).detach();
 }
@@ -308,7 +310,8 @@ void DownloadManagerPanel::OnMove(wxCommandEvent& /*event*/) {
         wxQueueEvent(progressDlg->GetParent(), completeEvt);
 
         CallAfter([this]() {
-            OnScan(wxCommandEvent{});
+            wxCommandEvent evt;
+            OnScan(evt);
         });
     }).detach();
 }

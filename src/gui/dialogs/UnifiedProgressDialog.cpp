@@ -146,7 +146,9 @@ void UnifiedProgressDialog::UpdateData(const UnifiedProgressData& data) {
     m_subGauge->SetValue(std::clamp(data.subPercent, 0, 100));
 
     // 统计信息
-    FormatSize(data.processedBytes, m_sizeLabel->GetLabel());
+    wxString sizeStr = m_sizeLabel->GetLabel();
+    FormatSize(data.processedBytes, sizeStr);
+    m_sizeLabel->SetLabel(sizeStr);
     m_sizeLabel->GetParent()->Layout();
 
     if (data.totalItems > 0) {
