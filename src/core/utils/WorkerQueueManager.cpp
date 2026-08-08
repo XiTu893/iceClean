@@ -1,4 +1,5 @@
 #include "WorkerQueueManager.h"
+#include <thread>
 
 namespace IceClean::Core::Utils {
 

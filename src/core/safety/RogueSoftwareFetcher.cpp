@@ -6,6 +6,7 @@
 #include <winhttp.h>
 #include <fstream>
 #include <filesystem>
+#include <thread>
 
 #pragma comment(lib, "winhttp.lib")
 

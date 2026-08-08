@@ -4,6 +4,7 @@
 #include "gui/Events.h"
 #include "core/utils/ProgressReporter.h"
 #include <wx/gbsizer.h>
+#include <thread>
 
 namespace IceClean::Gui {
 

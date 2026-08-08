@@ -3,6 +3,7 @@
 #include <nlohmann/json.hpp>
 #include <windows.h>
 #include <winhttp.h>
+#include <thread>
 
 #pragma comment(lib, "winhttp.lib")
 

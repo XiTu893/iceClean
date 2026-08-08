@@ -4,6 +4,7 @@
 #include "gui/Events.h"
 #include "gui/dialogs/UnifiedProgressDialog.h"
 #include <algorithm>
+#include <thread>
 
 namespace IceClean::Gui {
 

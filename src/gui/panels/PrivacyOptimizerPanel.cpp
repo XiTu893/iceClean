@@ -4,6 +4,7 @@
 #include "gui/Events.h"
 #include "gui/dialogs/UnifiedProgressDialog.h"
 #include <algorithm>
+#include <thread>
 
 namespace IceClean::Gui {
 
@@ -183,7 +184,6 @@ void PrivacyOptimizerPanel::PopulateList() {
             if (!headerAdded) {
                 m_itemList->Append(L"── " + catName + L" ──");
                 m_itemList->Check(m_itemList->GetCount() - 1, false);
-                m_itemList->Enable(m_itemList->GetCount() - 1, false);
                 headerAdded = true;
             }
 
