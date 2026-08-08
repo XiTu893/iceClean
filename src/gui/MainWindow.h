@@ -33,7 +33,8 @@ class SecurityPanel;
 class SettingsPanel;
 class AboutPanel;
 
-namespace Dialogs { class CleanProgressDialog; }
+class CleanProgressDialog;
+class UnifiedProgressDialog;
 
 // ── 内容书页索引（与 NavSidebar 导航项一一对应） ──
 enum class NavPage : int {
@@ -85,6 +86,12 @@ private:
     void StartClean(int cleanType, const std::vector<std::wstring>& paths);
     void StartDeepClean(const std::vector<wxString>& selectedIds);
     void OnCleanComplete(wxThreadEvent& event);
+
+    // 清理进度对话框
+    void ShowCleanProgress(const wxString& title);
+    void UpdateCleanProgress(int percent, const wxString& category,
+                             const wxString& detail, uint64_t cleanedSize);
+    void CloseCleanProgress(uint64_t totalCleaned);
 
     // 迁移请求/完成
     void OnMigrateRequest(wxThreadEvent& event);
@@ -153,6 +160,10 @@ private:
 
     // 事件表
     wxDECLARE_EVENT_TABLE();
+
+#ifdef __WXMSW__
+    WXLRESULT MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lParam) override;
+#endif
 
     // 键盘快捷键
     void OnKeyDown(wxKeyEvent& event);

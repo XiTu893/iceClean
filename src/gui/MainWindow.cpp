@@ -819,9 +819,7 @@ void MainWindow::StartDeepClean(const std::vector<wxString>& selectedIds)
             // 更新已释放大小
             uint64_t freedSoFar = totalFreed;
             CallAfter([this, percent, freedSoFar]() {
-                if (m_cleanProgressDlg) {
-                    m_cleanProgressDlg->SetCleanedSize(freedSoFar);
-                }
+                UpdateCleanProgress(percent, L"", L"", freedSoFar);
             });
         }
 
@@ -1110,31 +1108,35 @@ void MainWindow::ShowCleanProgress(const wxString& title) {
         m_cleanProgressDlg->Destroy();
         m_cleanProgressDlg = nullptr;
     }
-    m_cleanProgressDlg = new CleanProgressDialog(this);
-    m_cleanProgressDlg->SetTitle(title);
-    m_cleanProgressDlg->Show();
+
+    auto* dlg = new CleanProgressDialog(this);
+    dlg->SetTitle(title);
+    dlg->Show();
+    m_cleanProgressDlg = dlg;
 }
 
 void MainWindow::UpdateCleanProgress(int percent, const wxString& category, const wxString& detail, uint64_t cleanedSize) {
-    if (!m_cleanProgressDlg) return;
-    m_cleanProgressDlg->SetProgress(percent);
+    auto* dlg = static_cast<CleanProgressDialog*>(m_cleanProgressDlg);
+    if (!dlg) return;
+    dlg->SetProgress(percent);
     if (!category.empty()) {
-        m_cleanProgressDlg->SetCategory(category);
+        dlg->SetCategory(category);
     }
     if (!detail.empty()) {
-        m_cleanProgressDlg->SetCurrentFile(detail);
+        dlg->SetCurrentFile(detail);
     }
     if (cleanedSize > 0) {
-        m_cleanProgressDlg->SetCleanedSize(cleanedSize);
+        dlg->SetCleanedSize(cleanedSize);
     }
 }
 
 void MainWindow::CloseCleanProgress(uint64_t totalCleaned) {
-    if (!m_cleanProgressDlg) return;
-    m_cleanProgressDlg->SetFinished(totalCleaned);
+    auto* dlg = static_cast<CleanProgressDialog*>(m_cleanProgressDlg);
+    if (!dlg) return;
+    dlg->SetFinished(totalCleaned);
     // SetFinished会将按钮改为"关闭"，用户点击后对话框自动关闭
     // 对话框关闭时自动销毁
-    m_cleanProgressDlg->Bind(wxEVT_DESTROY, [this](wxWindowDestroyEvent&) {
+    dlg->Bind(wxEVT_DESTROY, [this](wxWindowDestroyEvent&) {
         m_cleanProgressDlg = nullptr;
     });
 }
