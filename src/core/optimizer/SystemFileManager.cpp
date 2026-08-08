@@ -1,6 +1,7 @@
 #include "SystemFileManager.h"
 #include "utils/Win32Util.h"
 #include "utils/RegistryUtil.h"
+#include "utils/FileUtil.h"
 #include <spdlog/spdlog.h>
 #include <sstream>
 
@@ -154,7 +155,8 @@ SystemFileActionResult SystemFileManager::CleanWindowsOld() {
 
     if (!result.success) {
         // 备用方案：直接使用磁盘清理工具
-        result.success = RunAdminCommand(L"cleanmgr /d " + Win32Util::GetSystemDrive()[0] + L" /sagerun:1");
+        std::wstring driveLetter(1, Win32Util::GetSystemDrive()[0]);
+        result.success = RunAdminCommand(L"cleanmgr /d " + driveLetter + L" /sagerun:1");
     }
 
     if (result.success) {
