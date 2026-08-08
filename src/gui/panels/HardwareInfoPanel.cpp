@@ -1,5 +1,6 @@
 #include "HardwareInfoPanel.h"
 #include "gui/controls/ThemeManager.h"
+#include <thread>
 
 namespace IceClean::Gui {
 
@@ -59,32 +60,6 @@ HardwareInfoPanel::HardwareInfoPanel(wxWindow* parent)
 
         card->SetSizer(sizer);
         return card;
-    };
-
-    auto addRow = [&](wxSizer* sizer, const wxString& label, wxString initialValue) -> wxStaticText* {
-        auto* rowSizer = new wxBoxSizer(wxHORIZONTAL);
-        auto* labelText = new wxStaticText(scrollWin, wxID_ANY, label);
-        labelText->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
-                                  false, L"微软雅黑"));
-        labelText->SetForegroundColour(colors.textSecondary);
-        rowSizer->Add(labelText, 0, wxALIGN_TOP | wxRIGHT, 8);
-
-        auto* valueText = new wxStaticText(scrollWin, wxID_ANY, initialValue);
-        valueText->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD,
-                                  false, L"微软雅黑"));
-        valueText->SetForegroundColour(colors.textPrimary);
-        rowSizer->Add(valueText, 1, wxEXPAND | wxLEFT, 8);
-
-        // Find the parent card's infoSizer
-        auto* items = sizer->GetChildren();
-        if (!items->empty()) {
-            auto* lastItem = items->back();
-            if (lastItem->IsSizer()) {
-                lastItem->GetSizer()->Add(rowSizer, 0, wxEXPAND | wxBOTTOM, 6);
-            }
-        }
-
-        return valueText;
     };
 
     // ── CPU 卡片 ──
@@ -238,33 +213,30 @@ void HardwareInfoPanel::LoadHardwareInfo() {
         CallAfter([this, cpuInfo, gpuInfo, memoryInfo, diskInfo,
                          motherboardInfo, osVersion, osBuild, uptime]() {
             // CPU
-            wxString cpuStr = wxString::Format(L"%s\n%d 核 %d 逻辑处理器 | %.0f%% 利用率",
-                cpuInfo.name, cpuInfo.physicalCores, cpuInfo.logicalCores,
-                cpuInfo.usagePercent);
+            wxString cpuStr = wxString::Format(L"%s\n%d 核 %d 逻辑处理器 | %.2f GHz",
+                cpuInfo.name, cpuInfo.coreCount, cpuInfo.logicalProcessorCount,
+                cpuInfo.maxClockSpeedGHz);
             m_cpuInfo->SetLabel(cpuStr);
 
             // GPU
-            wxString gpuStr;
-            for (const auto& gpu : gpuInfo) {
-                if (!gpuStr.empty()) gpuStr += L"\n";
-                gpuStr += wxString::Format(L"%s | %s | %s",
-                    gpu.name, gpu.vendor, gpu.dedicatedMemory);
-            }
+            wxString gpuStr = wxString::Format(L"%s | %s | %s",
+                gpuInfo.name, gpuInfo.adapterString,
+                wxString::Format(L"%llu MB 显存", gpuInfo.dedicatedMemoryMB));
             m_gpuInfo->SetLabel(gpuStr);
 
             // Memory
-            wxString memStr = wxString::Format(L"总计: %s | 已用: %s | 可用: %s\n利用率: %.0f%%",
-                memoryInfo.totalFormatted, memoryInfo.usedFormatted,
-                memoryInfo.availableFormatted, memoryInfo.usagePercent);
+            wxString memStr = wxString::Format(L"物理内存: %llu MB | 可用: %llu MB\n虚拟内存: %llu MB | 可用: %llu MB",
+                memoryInfo.totalPhysicalMB, memoryInfo.availablePhysicalMB,
+                memoryInfo.totalVirtualMB, memoryInfo.availableVirtualMB);
             m_memoryInfo->SetLabel(memStr);
 
             // Disk
             wxString diskStr;
             for (const auto& disk : diskInfo) {
                 if (!diskStr.empty()) diskStr += L"\n";
-                diskStr += wxString::Format(L"%s (%s) | %s / %s | %s | 健康度: %.0f%%",
+                diskStr += wxString::Format(L"%s (%s) | %llu GB / %llu GB | %s | 健康度: %.0f%%",
                     disk.driveLetter, disk.fileSystem,
-                    disk.usedFormatted, disk.totalFormatted,
+                    disk.freeGB, disk.totalGB,
                     disk.isSSD ? L"SSD" : L"HDD", disk.healthPercent);
             }
             m_diskInfo->SetLabel(diskStr);
