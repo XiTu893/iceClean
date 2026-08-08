@@ -251,7 +251,6 @@ void WindowsDebloaterPanel::PopulateList() {
     for (const auto& [groupName, indices] : groups) {
         m_itemList->Append(groupName);
         m_itemList->Check(m_itemList->GetCount() - 1, false);
-        m_itemList->Enable(m_itemList->GetCount() - 1, false);
 
         for (size_t idx : indices) {
             std::wstring display = m_items[idx].name;
