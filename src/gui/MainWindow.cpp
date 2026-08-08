@@ -342,7 +342,8 @@ void MainWindow::LayoutControls()
     // ── 状态栏 ──
     m_statusBar = new wxStatusBar(this, wxID_ANY);
     m_statusBar->SetFieldsCount(3);
-    m_statusBar->SetStatusStyles(3, {wxSB_NORMAL, wxSB_NORMAL, wxSB_NORMAL});
+    int styles[] = { wxSB_NORMAL, wxSB_NORMAL, wxSB_NORMAL };
+    m_statusBar->SetStatusStyles(3, styles);
     m_statusBar->SetMinHeight(24);
     int widths[] = { -2, -1, 180 };
     m_statusBar->SetStatusWidths(3, widths);

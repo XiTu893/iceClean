@@ -275,8 +275,8 @@ bool WindowsDebloater::ApplyAppxPackage(const Models::DebloatItem& item) const {
 }
 
 bool WindowsDebloater::ApplyTelemetry(const Models::DebloatItem& item) const {
-    // 解析 registryPath: "HKLM\\SOFTWARE\\..."
-    std::wstring path = item.registryPath;
+    // item.target 为注册表路径 (如 "HKLM\\SOFTWARE\\...")
+    std::wstring path = item.target;
     HKEY rootKey = HKEY_LOCAL_MACHINE;
     if (path.find(L"HKCU\\") == 0) {
         rootKey = HKEY_CURRENT_USER;
@@ -293,18 +293,18 @@ bool WindowsDebloater::ApplyTelemetry(const Models::DebloatItem& item) const {
     }
 
     DWORD value = 0;
-    if (item.target == L"AllowTelemetry") value = 0;
-    else if (item.target == L"DisableTelemetryOptin") value = 1;
-    else if (item.target == L"AllowCensus") value = 0;
-    else if (item.target == L"AllowConnectedUser") value = 0;
-    else if (item.target == L"AllowCortana") value = 0;
-    else if (item.target == L"DisableAIDataCollection") value = 1;
-    else if (item.target == L"DisableWebSearch") value = 1;
-    else if (item.target == L"BingSearchEnabled") value = 0;
-    else if (item.target == L"CloudSearchEnabled") value = 0;
+    if (item.value == L"AllowTelemetry") value = 0;
+    else if (item.value == L"DisableTelemetryOptin") value = 1;
+    else if (item.value == L"AllowCensus") value = 0;
+    else if (item.value == L"AllowConnectedUser") value = 0;
+    else if (item.value == L"AllowCortana") value = 0;
+    else if (item.value == L"DisableAIDataCollection") value = 1;
+    else if (item.value == L"DisableWebSearch") value = 1;
+    else if (item.value == L"BingSearchEnabled") value = 0;
+    else if (item.value == L"CloudSearchEnabled") value = 0;
     else value = 0;
 
-    bool ok = RegSetValueExW(hKey, item.target.c_str(), 0, REG_DWORD,
+    bool ok = RegSetValueExW(hKey, item.value.c_str(), 0, REG_DWORD,
                               (const BYTE*)&value, sizeof(value)) == ERROR_SUCCESS;
     RegCloseKey(hKey);
     return ok;
@@ -371,23 +371,20 @@ bool WindowsDebloater::ApplyContextMenu(const Models::DebloatItem& item) const {
 }
 
 bool WindowsDebloater::ApplyRegistryTweak(const Models::DebloatItem& item) const {
-    std::wstring path = item.registryPath;
+    // item.target 为注册表键路径，item.value 为值名
+    std::wstring subKey = item.target;
     HKEY rootKey = HKEY_LOCAL_MACHINE;
-    if (path.find(L"HKCU\\") == 0) {
+    if (subKey.find(L"HKCU\\") == 0) {
         rootKey = HKEY_CURRENT_USER;
-        path = path.substr(5);
-    } else if (path.find(L"HKLM\\") == 0) {
+        subKey = subKey.substr(5);
+    } else if (subKey.find(L"HKLM\\") == 0) {
         rootKey = HKEY_LOCAL_MACHINE;
-        path = path.substr(5);
+        subKey = subKey.substr(5);
     } else {
         rootKey = HKEY_CURRENT_USER;
     }
 
-    size_t sep = path.rfind(L'\\');
-    if (sep == std::wstring::npos) return false;
-
-    std::wstring subKey = path.substr(0, sep);
-    std::wstring valName = path.substr(sep + 1);
+    const std::wstring& valName = item.value;
 
     HKEY hKey;
     if (RegCreateKeyExW(rootKey, subKey.c_str(), 0, nullptr, 0, KEY_WRITE, nullptr, &hKey, nullptr) != ERROR_SUCCESS) {

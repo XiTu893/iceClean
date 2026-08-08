@@ -2,6 +2,7 @@
 #include "utils/Win32Util.h"
 #include "utils/FileUtil.h"
 #include <shlobj.h>
+#include <algorithm>
 
 namespace IceClean::Core::Scanner {
 
