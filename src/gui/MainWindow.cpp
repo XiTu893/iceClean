@@ -361,6 +361,7 @@ void MainWindow::LayoutControls()
     m_statusBar->Bind(wxEVT_SIZE, [this](wxSizeEvent&) {
         m_statusBar->SetStatusText(L"IceClean v1.0", 2);
     });
+}
 
 // ── Initialization ──
 
