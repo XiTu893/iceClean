@@ -9,6 +9,7 @@ on:
 
 env:
   BUILD_TYPE: Release
+  APP_VERSION: 1.0.0
 
 jobs:
   build:
@@ -53,9 +54,20 @@ jobs:
         name: build-log
         path: ${{ github.workspace }}/build_log.txt
 
+    - name: Install NSIS
+      uses: crazy-max/ghaction-chocolatey@v2
+      with:
+        args: install nsis
+
+    - name: Build Installer
+      run: |
+        makensis -DVERSION=${{ env.APP_VERSION }} scripts/installer.nsi
+
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: IceClean-${{ env.BUILD_TYPE }}
-        path: ${{ github.workspace }}/build/${{ env.BUILD_TYPE }}/IceClean.exe
+        path: |
+          ${{ github.workspace }}/build/${{ env.BUILD_TYPE }}/IceClean.exe
+          ${{ github.workspace }}/IceClean-${{ env.APP_VERSION }}-setup.exe
         if-no-files-found: warn
