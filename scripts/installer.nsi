@@ -24,7 +24,7 @@ RequestExecutionLevel admin
 !define MUI_UNICON "${NSISDIR}\Contrib\Graphics\Icons\modern-uninstall.ico"
 
 !insertmacro MUI_PAGE_WELCOME
-!insertmacro MUI_PAGE_LICENSE "${NSISDIR}\Docs\license.rtf"
+; Skip license page for now (no license file in repo)
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
@@ -41,12 +41,12 @@ Section "Main" SEC_MAIN
     SetOutPath "$INSTDIR"
     
     ; Main executable
-    File "..\build\Release\${APP_EXE}"
+    File "${APP_EXE}"
     
     ; Resources
-    File "..\src\gui\resources\app.manifest"
-    File "..\src\gui\resources\QrReward.jpg"
-    File "..\src\gui\resources\XiTu-logo.jpg"
+    File "src\gui\resources\app.manifest"
+    File "src\gui\resources\QrReward.jpg"
+    File "src\gui\resources\XiTu-logo.jpg"
     
     ; Start menu shortcuts
     CreateDirectory "$SMPROGRAMS\${APP_NAME}"

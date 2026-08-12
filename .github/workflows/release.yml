@@ -43,7 +43,24 @@ jobs:
 
     - name: Build Installer
       run: |
-        makensis -DVERSION=${{ env.APP_VERSION }} scripts/installer.nsi
+        # Copy build artifacts to scripts directory for NSIS
+        Copy-Item build\${{ env.BUILD_TYPE }}\IceClean.exe scripts\IceClean.exe
+        Copy-Item src\gui\resources\app.manifest scripts\app.manifest
+        Copy-Item src\gui\resources\QrReward.jpg scripts\QrReward.jpg
+        Copy-Item src\gui\resources\XiTu-logo.jpg scripts\XiTu-logo.jpg
+        
+        cd scripts
+        makensis -DVERSION=${{ env.APP_VERSION }} installer.nsi 2>&1 | Tee-Object -FilePath ../installer_log.txt
+        $exit = $LASTEXITCODE
+        if ($exit -ne 0) {
+          Write-Output "===== INSTALLER BUILD FAILED. Last 80 lines: ====="
+          Get-Content ../installer_log.txt -Tail 80 | ForEach-Object {
+            if ($_ -match 'error|Error|fatal|unresolved') { Write-Output "::error::$($_.Substring(0, [Math]::Min($_.Length, 300)))" }
+          }
+          Write-Output "===== END ====="
+        }
+        cd ..
+        exit $exit
 
     - name: Get version from tag
       id: get_version
