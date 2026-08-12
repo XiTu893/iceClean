@@ -4,6 +4,7 @@
     "description": "IceClean - C-drive cleaner and migration tool for Windows",
     "dependencies": [
         "wxwidgets",
+        "libwebp",
         "nlohmann-json",
         "spdlog",
         "gtest",

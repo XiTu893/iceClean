@@ -4,6 +4,8 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/*.rc
 )
 
+find_package(WebP CONFIG REQUIRED)
+
 # ── 创建可执行文件 (WIN32 子系统) ──
 add_executable(IceClean WIN32 ${SOURCES})
 
@@ -24,6 +26,7 @@ target_link_libraries(IceClean PRIVATE
     nlohmann_json::nlohmann_json
     spdlog::spdlog
     unofficial::sqlite3::sqlite3
+    ${WebP_LIBRARIES}
 )
 
 # ── 链接 Windows 系统库 ──
