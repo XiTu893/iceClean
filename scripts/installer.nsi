@@ -41,12 +41,12 @@ Section "Main" SEC_MAIN
     SetOutPath "$INSTDIR"
     
     ; Main executable
-    File "${APP_EXE}"
+    File "IceClean.exe"
     
     ; Resources
-    File "src\gui\resources\app.manifest"
-    File "src\gui\resources\QrReward.jpg"
-    File "src\gui\resources\XiTu-logo.jpg"
+    File "app.manifest"
+    File "QrReward.jpg"
+    File "XiTu-logo.jpg"
     
     ; Start menu shortcuts
     CreateDirectory "$SMPROGRAMS\${APP_NAME}"
