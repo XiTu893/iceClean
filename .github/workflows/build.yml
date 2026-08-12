@@ -36,7 +36,15 @@ jobs:
     - name: Build
       run: |
         cmake --build ${{ github.workspace }}/build --config ${{ env.BUILD_TYPE }} --parallel 2>&1 | Tee-Object -FilePath ${{ github.workspace }}/build_log.txt
-        exit $LASTEXITCODE
+        $exit = $LASTEXITCODE
+        if ($exit -ne 0) {
+          Write-Output "===== BUILD FAILED. Last 80 lines: ====="
+          Get-Content ${{ github.workspace }}/build_log.txt -Tail 80 | ForEach-Object {
+            if ($_ -match 'error|LNK|fatal|unresolved') { Write-Output "::error::$($_.Substring(0, [Math]::Min($_.Length, 300)))" }
+          }
+          Write-Output "===== END ====="
+        }
+        exit $exit
 
     - name: Upload build log on failure
       if: failure()
