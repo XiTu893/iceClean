@@ -34,7 +34,16 @@ jobs:
               -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake"
 
     - name: Build
-      run: cmake --build ${{ github.workspace }}/build --config ${{ env.BUILD_TYPE }} --parallel
+      run: |
+        cmake --build ${{ github.workspace }}/build --config ${{ env.BUILD_TYPE }} --parallel 2>&1 | Tee-Object -FilePath ${{ github.workspace }}/build_log.txt
+        exit $LASTEXITCODE
+
+    - name: Upload build log on failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-log
+        path: ${{ github.workspace }}/build_log.txt
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
