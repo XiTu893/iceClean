@@ -11,10 +11,12 @@ if(VCPKG_INSTALLED_DIR AND VCPKG_TARGET_TRIPLET)
     find_library(WEBP_LIB_MAIN NAMES libwebp PATHS "${WEBP_LIB_DIR}" NO_DEFAULT_PATH)
     find_library(WEBP_LIB_DEMUX NAMES libwebpdemux PATHS "${WEBP_LIB_DIR}" NO_DEFAULT_PATH)
     find_library(WEBP_LIB_MUX NAMES libwebpmux PATHS "${WEBP_LIB_DIR}" NO_DEFAULT_PATH)
+    find_library(WEBP_LIB_SHARPYUV NAMES sharpyuv PATHS "${WEBP_LIB_DIR}" NO_DEFAULT_PATH)
 else()
     find_library(WEBP_LIB_MAIN NAMES libwebp)
     find_library(WEBP_LIB_DEMUX NAMES libwebpdemux)
     find_library(WEBP_LIB_MUX NAMES libwebpmux)
+    find_library(WEBP_LIB_SHARPYUV NAMES sharpyuv)
 endif()
 if(NOT WEBP_LIB_MAIN)
     message(FATAL_ERROR "libwebp not found")
@@ -40,6 +42,7 @@ target_link_libraries(IceClean PRIVATE
     nlohmann_json::nlohmann_json
     spdlog::spdlog
     unofficial::sqlite3::sqlite3
+    ${WEBP_LIB_SHARPYUV}
     ${WEBP_LIB_MAIN}
     ${WEBP_LIB_DEMUX}
     ${WEBP_LIB_MUX}
