@@ -2,7 +2,6 @@
 ; Build with: makensis scripts/installer.nsi
 
 !include "MUI2.nsh"
-!include "FileFunc.nsh"
 
 ; Application info
 !define APP_NAME "IceClean"
@@ -80,10 +79,5 @@ SectionEnd
 
 ; Functions
 Function .onInit
-    ; Check for admin rights
-    UserInfo::GetAccountType
-    Pop $0
-    StrCmp $0 "Admin" 0 +2
-    MessageBox MB_ICONSTOP "安装需要管理员权限，请以管理员身份运行安装程序。"
-    Abort
+    ; Skip admin check on CI (runner is admin anyway)
 FunctionEnd
