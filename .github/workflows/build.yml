@@ -81,17 +81,16 @@ jobs:
         Write-Output "=== Files in scripts dir ==="
         Get-ChildItem scripts
         
-        cd scripts
-        makensis -V4 -DVERSION=${{ env.APP_VERSION }} installer.nsi 2>&1 | Tee-Object -FilePath ../installer_log.txt
+        # Run makensis from root with explicit script path
+        makensis -V4 -DVERSION=${{ env.APP_VERSION }} scripts/installer.nsi 2>&1 | Tee-Object -FilePath installer_log.txt
         $exit = $LASTEXITCODE
         if ($exit -ne 0) {
           Write-Output "===== INSTALLER BUILD FAILED. Full log: ====="
-          Get-Content ../installer_log.txt | ForEach-Object {
+          Get-Content installer_log.txt | ForEach-Object {
             if ($_ -match 'error|Error|fatal|unresolved|!error|!warning') { Write-Output "::error::$($_.Substring(0, [Math]::Min($_.Length, 300)))" } else { Write-Output $_ }
           }
           Write-Output "===== END ====="
         }
-        cd ..
         exit $exit
 
     - name: Upload artifact
