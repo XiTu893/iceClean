@@ -18,14 +18,9 @@ InstallDir "$PROGRAMFILES64\${APP_NAME}"
 InstallDirRegKey HKCU "Software\${APP_NAME}" ""
 RequestExecutionLevel admin
 
-; Modern UI
+; Modern UI - minimal
 !define MUI_ABORTWARNING
-; Icons not available on CI runner
-; !define MUI_ICON "${NSISDIR}\Contrib\Graphics\Icons\modern-install.ico"
-; !define MUI_UNICON "${NSISDIR}\Contrib\Graphics\Icons\modern-uninstall.ico"
-
 !insertmacro MUI_PAGE_WELCOME
-; Skip license page for now (no license file in repo)
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
