@@ -44,10 +44,24 @@ jobs:
     - name: Build Installer
       run: |
         # Copy build artifacts to scripts directory for NSIS
-        Copy-Item build\${{ env.BUILD_TYPE }}\IceClean.exe scripts\IceClean.exe
-        Copy-Item src\gui\resources\app.manifest scripts\app.manifest
-        Copy-Item src\gui\resources\QrReward.jpg scripts\QrReward.jpg
-        Copy-Item src\gui\resources\XiTu-logo.jpg scripts\XiTu-logo.jpg
+        Write-Output "=== Copying files ==="
+        $srcExe = "build\${{ env.BUILD_TYPE }}\IceClean.exe"
+        $srcManifest = "src\gui\resources\app.manifest"
+        $srcQr = "src\gui\resources\QrReward.jpg"
+        $srcLogo = "src\gui\resources\XiTu-logo.jpg"
+        
+        Write-Output "Source exe exists: $(Test-Path $srcExe)"
+        Write-Output "Source manifest exists: $(Test-Path $srcManifest)"
+        Write-Output "Source QR exists: $(Test-Path $srcQr)"
+        Write-Output "Source Logo exists: $(Test-Path $srcLogo)"
+        
+        Copy-Item $srcExe scripts\IceClean.exe
+        Copy-Item $srcManifest scripts\app.manifest
+        Copy-Item $srcQr scripts\QrReward.jpg
+        Copy-Item $srcLogo scripts\XiTu-logo.jpg
+        
+        Write-Output "=== Files in scripts dir ==="
+        Get-ChildItem scripts
         
         cd scripts
         makensis -V4 -DVERSION=${{ env.APP_VERSION }} installer.nsi 2>&1 | Tee-Object -FilePath ../installer_log.txt
