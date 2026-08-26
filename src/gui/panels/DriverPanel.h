@@ -2,54 +2,83 @@
 #include <wx/wx.h>
 #include <wx/listctrl.h>
 #include <wx/srchctrl.h>
+#include <wx/notebook.h>
 #include <vector>
-#include "models/DriverInfo.h"
+#include "core/driver/DeviceDriverInfo.h"
 
 namespace IceClean::Gui {
 
-// 驱动管理面板
+// 设备&驱动视图页（SetupDi，只读检测，默认在前）
+class DeviceDriverPage : public wxPanel {
+public:
+    DeviceDriverPage(wxWindow* parent, wxWindowID id = wxID_ANY);
+
+private:
+    void CreateControls();
+    void RefreshList();
+    void Populate(const std::vector<Core::Driver::DeviceDriverInfo>& items);
+    void ApplyFilterAndSearch();
+    void OnSearch(wxCommandEvent& event);
+    void OnFilter(wxCommandEvent& event);
+    void OnRefresh(wxCommandEvent& event);
+
+    std::vector<Core::Driver::DeviceDriverInfo> m_all;
+    std::vector<Core::Driver::DeviceDriverInfo> m_filtered;
+
+    wxSearchCtrl* m_search = nullptr;
+    wxChoice* m_filter = nullptr;
+    wxButton* m_refresh = nullptr;
+    wxListCtrl* m_list = nullptr;
+    wxStaticText* m_status = nullptr;
+};
+
+// 驱动包视图页（pnputil /enum-drivers，备份/还原单元）
+class PackageDriverPage : public wxPanel {
+public:
+    PackageDriverPage(wxWindow* parent, wxWindowID id = wxID_ANY);
+
+private:
+    void CreateControls();
+    void RefreshList();
+    void Populate(const std::vector<Core::Driver::DriverPackageInfo>& items);
+    void ApplyFilterAndSearch();
+    void OnSearch(wxCommandEvent& event);
+    void OnFilter(wxCommandEvent& event);
+    void OnRefresh(wxCommandEvent& event);
+    void OnBackupAll(wxCommandEvent& event);
+    void OnBackupSelected(wxCommandEvent& event);
+    void OnRestore(wxCommandEvent& event);
+    void OnCleanup(wxCommandEvent& event);
+
+    std::vector<Core::Driver::DriverPackageInfo> m_all;
+    std::vector<Core::Driver::DriverPackageInfo> m_filtered;
+    int m_sortColumn = -1;
+    bool m_sortAsc = true;
+
+    wxSearchCtrl* m_search = nullptr;
+    wxChoice* m_filter = nullptr;
+    wxButton* m_refresh = nullptr;
+    wxButton* m_backupAll = nullptr;
+    wxButton* m_backupSelected = nullptr;
+    wxButton* m_restore = nullptr;
+    wxButton* m_cleanup = nullptr;
+    wxListCtrl* m_list = nullptr;
+    wxStaticText* m_status = nullptr;
+    wxStaticText* m_ticker = nullptr;
+
+    Core::Driver::DriverPackageInfo GetSelected() const;
+};
+
+// 驱动管理主面板：双 Tab 容器
 class DriverPanel : public wxPanel {
 public:
     DriverPanel(wxWindow* parent, wxWindowID id = wxID_ANY);
 
-    // 刷新驱动列表
-    void RefreshDriverList();
-
 private:
-    std::vector<IceClean::Models::DriverInfo> m_driverList;
-    std::vector<IceClean::Models::DriverInfo> m_filteredList;
-    int m_sortColumn = -1;
-    bool m_sortAsc = true;
-
-    // 控件
-    wxSearchCtrl* m_searchCtrl = nullptr;
-    wxListCtrl* m_driverListCtrl = nullptr;
-    wxButton* m_backupAllButton = nullptr;
-    wxButton* m_backupSelectedButton = nullptr;
-    wxButton* m_cleanupButton = nullptr;
-    wxButton* m_refreshButton = nullptr;
-    wxStaticText* m_statusLabel = nullptr;
-    wxStaticText* m_totalSizeLabel = nullptr;
-    wxChoice* m_filterChoice = nullptr;
-
     void CreateControls();
-
-    // 事件处理
-    void OnSearch(wxCommandEvent& event);
-    void OnRefresh(wxCommandEvent& event);
-    void OnBackupAll(wxCommandEvent& event);
-    void OnBackupSelected(wxCommandEvent& event);
-    void OnCleanup(wxCommandEvent& event);
-    void OnItemSelected(wxListEvent& event);
-    void OnItemDeselected(wxListEvent& event);
-    void OnColumnClick(wxListEvent& event);
-    void OnFilterChange(wxCommandEvent& event);
-
-    // 辅助方法
-    void PopulateList(const std::vector<IceClean::Models::DriverInfo>& items);
-    void UpdateStatus();
-    IceClean::Models::DriverInfo GetSelectedDriver() const;
-    wxString FormatSize(uint64_t bytes) const;
+    wxNotebook* m_notebook = nullptr;
+    DeviceDriverPage* m_devicePage = nullptr;
+    PackageDriverPage* m_packagePage = nullptr;
 
     wxDECLARE_EVENT_TABLE();
 };

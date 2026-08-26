@@ -33,6 +33,8 @@ set(SYSTEM_LIBS
     Advapi32
     Shell32
     Winhttp
+    SetupApi        # 设备/驱动枚举（SetupDi）
+    CfgMgr32        # CM_Get_DevNode_Status 等设备状态
 )
 
 # ── MSVC 专用设置 ──
@@ -49,6 +51,52 @@ endif()
 
 # ── 子目录 ──
 add_subdirectory(src)
+
+# ── 核心功能命令行验证工具（无 GUI 依赖，EXCLUDE_FROM_ALL 不进主构建）──
+add_executable(startup_opt_cli EXCLUDE_FROM_ALL
+    tools/startup_optimizer_cli.cpp
+    src/core/optimizer/StartupOptimizer.cpp
+    src/core/optimizer/ScheduledTaskOptimizer.cpp
+    src/utils/RegistryUtil.cpp
+    src/utils/Win32Util.cpp
+    src/utils/FileUtil.cpp
+)
+target_include_directories(startup_opt_cli PRIVATE ${CMAKE_SOURCE_DIR}/src)
+# 与主程序保持一致的字符集环境（Win32Util 等源码按 UNICODE 语义编写）
+target_compile_definitions(startup_opt_cli PRIVATE UNICODE _UNICODE)
+
+add_executable(core_check_cli EXCLUDE_FROM_ALL
+    tools/core_check_cli.cpp
+    src/core/migrator/LargeFolderDetector.cpp
+    src/core/migrator/FolderMigrator.cpp
+    src/core/migrator/MigratorBase.cpp
+    src/core/optimizer/ServiceOptimizer.cpp
+    src/core/optimizer/StartupOptimizer.cpp
+    src/core/optimizer/ScheduledTaskOptimizer.cpp
+    src/core/safety/SoftwareRecommendFetcher.cpp
+    src/core/safety/SoftwareRecommendSeed.cpp
+    src/core/safety/RestorePointManager.cpp
+    src/core/safety/OperationLogger.cpp
+    src/core/driver/DeviceDriverScanner.cpp
+    src/core/driver/PnpUtilRunner.cpp
+    src/core/driver/DriverBackupManager.cpp
+    src/utils/JunctionPoint.cpp
+    src/utils/RegistryUtil.cpp
+    src/utils/Win32Util.cpp
+    src/utils/FileUtil.cpp
+    src/utils/FormatUtil.cpp
+    src/utils/JsonUtil.cpp
+)
+target_include_directories(core_check_cli PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_compile_definitions(core_check_cli PRIVATE UNICODE _UNICODE)
+find_package(nlohmann_json CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
+target_link_libraries(core_check_cli PRIVATE
+    nlohmann_json::nlohmann_json
+    spdlog::spdlog
+    SetupApi
+    CfgMgr32
+)
 
 # ── 测试（可选）──
 option(BUILD_TESTS "Build unit tests" OFF)

@@ -1,5 +1,7 @@
 #include "DriverPanel.h"
-#include "core/optimizer/DriverManager.h"
+#include "core/driver/DeviceDriverScanner.h"
+#include "core/driver/PnpUtilRunner.h"
+#include "core/driver/DriverBackupManager.h"
 #include "gui/dialogs/ConfirmDialog.h"
 #include "gui/controls/ThemeManager.h"
 #include "utils/FormatUtil.h"
@@ -11,341 +13,447 @@ namespace IceClean::Gui {
 wxBEGIN_EVENT_TABLE(DriverPanel, wxPanel)
 wxEND_EVENT_TABLE()
 
+// ───────────────────────── DriverPanel 容器 ─────────────────────────
 DriverPanel::DriverPanel(wxWindow* parent, wxWindowID id)
-    : wxPanel(parent, id)
-{
+    : wxPanel(parent, id) {
     SetBackgroundColour(ThemeManager::Instance().GetColors().background);
     CreateControls();
 }
 
 void DriverPanel::CreateControls() {
     const auto& colors = ThemeManager::Instance().GetColors();
-    auto* mainSizer = new wxBoxSizer(wxVERTICAL);
-    mainSizer->AddSpacer(12);
+    auto* sizer = new wxBoxSizer(wxVERTICAL);
+    sizer->AddSpacer(12);
 
-    // 标题
-    auto* titleLabel = new wxStaticText(this, wxID_ANY, L"驱动管理");
-    titleLabel->SetFont(wxFont(14, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD, false, L"微软雅黑"));
-    titleLabel->SetForegroundColour(colors.textPrimary);
-    mainSizer->Add(titleLabel, 0, wxLEFT | wxRIGHT, 20);
-    mainSizer->AddSpacer(4);
+    auto* title = new wxStaticText(this, wxID_ANY, L"驱动管理");
+    title->SetFont(wxFont(14, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD, false, L"微软雅黑"));
+    title->SetForegroundColour(colors.textPrimary);
+    sizer->Add(title, 0, wxLEFT | wxRIGHT, 20);
+    sizer->AddSpacer(4);
 
-    auto* tipLabel = new wxStaticText(this, wxID_ANY,
-        L"查看和管理系统驱动程序，支持驱动备份和旧驱动清理。");
-    tipLabel->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, L"微软雅黑"));
-    tipLabel->SetForegroundColour(colors.textSecondary);
-    mainSizer->Add(tipLabel, 0, wxLEFT | wxRIGHT, 20);
-    mainSizer->AddSpacer(8);
+    auto* tip = new wxStaticText(this, wxID_ANY,
+        L"查看已安装设备与驱动，支持驱动备份与还原。");
+    tip->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, L"微软雅黑"));
+    tip->SetForegroundColour(colors.textSecondary);
+    sizer->Add(tip, 0, wxLEFT | wxRIGHT, 20);
+    sizer->AddSpacer(8);
 
-    // 工具栏
-    auto* toolbarSizer = new wxBoxSizer(wxHORIZONTAL);
-    toolbarSizer->AddSpacer(20);
+    m_notebook = new wxNotebook(this, wxID_ANY);
+    m_devicePage = new DeviceDriverPage(m_notebook);
+    m_packagePage = new PackageDriverPage(m_notebook);
+    m_notebook->AddPage(m_devicePage, L"设备 & 驱动");
+    m_notebook->AddPage(m_packagePage, L"驱动包");
+    sizer->Add(m_notebook, 1, wxEXPAND | wxLEFT | wxRIGHT, 20);
+    sizer->AddSpacer(12);
 
-    m_searchCtrl = new wxSearchCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(200, 30));
-    m_searchCtrl->SetFont(wxFont(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, L"微软雅黑"));
-    m_searchCtrl->SetDescriptiveText(L"搜索驱动...");
-    m_searchCtrl->Bind(wxEVT_TEXT, &DriverPanel::OnSearch, this);
-    toolbarSizer->Add(m_searchCtrl, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
-
-    // 过滤选择
-    m_filterChoice = new wxChoice(this, wxID_ANY, wxDefaultPosition, wxSize(120, 30));
-    m_filterChoice->Append(L"全部驱动");
-    m_filterChoice->Append(L"第三方驱动");
-    m_filterChoice->Append(L"系统驱动");
-    m_filterChoice->Append(L"可能过时");
-    m_filterChoice->SetSelection(0);
-    m_filterChoice->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, L"微软雅黑"));
-    m_filterChoice->Bind(wxEVT_CHOICE, &DriverPanel::OnFilterChange, this);
-    toolbarSizer->Add(m_filterChoice, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
-
-    m_refreshButton = new wxButton(this, wxID_ANY, L"刷新", wxDefaultPosition, wxSize(70, 30));
-    m_refreshButton->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, L"微软雅黑"));
-    m_refreshButton->Bind(wxEVT_BUTTON, &DriverPanel::OnRefresh, this);
-    toolbarSizer->Add(m_refreshButton, 0, wxALIGN_CENTER_VERTICAL);
-
-    toolbarSizer->AddStretchSpacer();
-
-    m_totalSizeLabel = new wxStaticText(this, wxID_ANY, L"");
-    m_totalSizeLabel->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, L"微软雅黑"));
-    m_totalSizeLabel->SetForegroundColour(colors.textSecondary);
-    toolbarSizer->Add(m_totalSizeLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 12);
-
-    mainSizer->Add(toolbarSizer, 0, wxEXPAND);
-
-    // 驱动列表
-    m_driverListCtrl = new wxListCtrl(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
-                                       wxLC_REPORT | wxLC_SINGLE_SEL | wxBORDER_SIMPLE);
-    m_driverListCtrl->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, L"微软雅黑"));
-
-    m_driverListCtrl->AppendColumn(L"设备名称", wxLIST_FORMAT_LEFT, 220);
-    m_driverListCtrl->AppendColumn(L"提供商", wxLIST_FORMAT_LEFT, 120);
-    m_driverListCtrl->AppendColumn(L"版本", wxLIST_FORMAT_LEFT, 90);
-    m_driverListCtrl->AppendColumn(L"日期", wxLIST_FORMAT_LEFT, 90);
-    m_driverListCtrl->AppendColumn(L"状态", wxLIST_FORMAT_LEFT, 70);
-
-    m_driverListCtrl->Bind(wxEVT_LIST_ITEM_SELECTED, &DriverPanel::OnItemSelected, this);
-    m_driverListCtrl->Bind(wxEVT_LIST_ITEM_DESELECTED, &DriverPanel::OnItemDeselected, this);
-    m_driverListCtrl->Bind(wxEVT_LIST_COL_CLICK, &DriverPanel::OnColumnClick, this);
-
-    mainSizer->Add(m_driverListCtrl, 1, wxEXPAND | wxLEFT | wxRIGHT, 20);
-    mainSizer->AddSpacer(8);
-
-    // 底部按钮栏
-    auto* bottomSizer = new wxBoxSizer(wxHORIZONTAL);
-
-    m_backupAllButton = new wxButton(this, wxID_ANY, L"备份所有第三方驱动", wxDefaultPosition, wxSize(160, 36));
-    m_backupAllButton->SetFont(wxFont(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, L"微软雅黑"));
-    m_backupAllButton->SetBackgroundColour(colors.accent);
-    m_backupAllButton->SetForegroundColour(*wxWHITE);
-    m_backupAllButton->Bind(wxEVT_BUTTON, &DriverPanel::OnBackupAll, this);
-    bottomSizer->Add(m_backupAllButton, 0, wxRIGHT, 8);
-
-    m_backupSelectedButton = new wxButton(this, wxID_ANY, L"备份选中驱动", wxDefaultPosition, wxSize(120, 36));
-    m_backupSelectedButton->SetFont(wxFont(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, L"微软雅黑"));
-    m_backupSelectedButton->Enable(false);
-    m_backupSelectedButton->Bind(wxEVT_BUTTON, &DriverPanel::OnBackupSelected, this);
-    bottomSizer->Add(m_backupSelectedButton, 0, wxRIGHT, 8);
-
-    m_cleanupButton = new wxButton(this, wxID_ANY, L"清理旧驱动备份", wxDefaultPosition, wxSize(130, 36));
-    m_cleanupButton->SetFont(wxFont(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, L"微软雅黑"));
-    m_cleanupButton->Bind(wxEVT_BUTTON, &DriverPanel::OnCleanup, this);
-    bottomSizer->Add(m_cleanupButton, 0, wxRIGHT, 8);
-
-    bottomSizer->AddStretchSpacer();
-
-    m_statusLabel = new wxStaticText(this, wxID_ANY, L"");
-    m_statusLabel->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, L"微软雅黑"));
-    m_statusLabel->SetForegroundColour(colors.textSecondary);
-    bottomSizer->Add(m_statusLabel, 0, wxALIGN_CENTER_VERTICAL);
-
-    mainSizer->Add(bottomSizer, 0, wxEXPAND | wxLEFT | wxRIGHT, 20);
-    mainSizer->AddSpacer(12);
-
-    SetSizer(mainSizer);
-
-    CallAfter([this]() { RefreshDriverList(); });
+    SetSizer(sizer);
 }
 
-void DriverPanel::RefreshDriverList() {
-    m_statusLabel->SetLabelText(L"正在加载驱动列表...");
-    m_refreshButton->Enable(false);
+// ───────────────────────── 设备 & 驱动页 ─────────────────────────
+DeviceDriverPage::DeviceDriverPage(wxWindow* parent, wxWindowID id)
+    : wxPanel(parent, id) {
+    CreateControls();
+    CallAfter([this]() { RefreshList(); });
+}
 
+void DeviceDriverPage::CreateControls() {
+    const auto& colors = ThemeManager::Instance().GetColors();
+    auto* sizer = new wxBoxSizer(wxVERTICAL);
+    sizer->AddSpacer(8);
+
+    auto* toolbar = new wxBoxSizer(wxHORIZONTAL);
+    toolbar->AddSpacer(8);
+
+    m_search = new wxSearchCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(220, 30));
+    m_search->SetDescriptiveText(L"搜索设备/驱动...");
+    m_search->Bind(wxEVT_TEXT, &DeviceDriverPage::OnSearch, this);
+    toolbar->Add(m_search, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
+
+    m_filter = new wxChoice(this, wxID_ANY, wxDefaultPosition, wxSize(120, 30));
+    m_filter->Append(L"全部设备");
+    m_filter->Append(L"异常设备");
+    m_filter->Append(L"第三方驱动");
+    m_filter->Append(L"微软驱动");
+    m_filter->SetSelection(0);
+    m_filter->Bind(wxEVT_CHOICE, &DeviceDriverPage::OnFilter, this);
+    toolbar->Add(m_filter, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
+
+    m_refresh = new wxButton(this, wxID_ANY, L"刷新", wxDefaultPosition, wxSize(70, 30));
+    m_refresh->Bind(wxEVT_BUTTON, &DeviceDriverPage::OnRefresh, this);
+    toolbar->Add(m_refresh, 0, wxALIGN_CENTER_VERTICAL);
+
+    toolbar->AddStretchSpacer();
+    m_status = new wxStaticText(this, wxID_ANY, L"");
+    m_status->SetForegroundColour(colors.textSecondary);
+    toolbar->Add(m_status, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 12);
+
+    sizer->Add(toolbar, 0, wxEXPAND);
+
+    m_list = new wxListCtrl(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+                            wxLC_REPORT | wxLC_SINGLE_SEL | wxBORDER_SIMPLE);
+    m_list->AppendColumn(L"设备名称", wxLIST_FORMAT_LEFT, 220);
+    m_list->AppendColumn(L"厂商", wxLIST_FORMAT_LEFT, 120);
+    m_list->AppendColumn(L"类别", wxLIST_FORMAT_LEFT, 90);
+    m_list->AppendColumn(L"驱动版本", wxLIST_FORMAT_LEFT, 90);
+    m_list->AppendColumn(L"日期", wxLIST_FORMAT_LEFT, 90);
+    m_list->AppendColumn(L"状态", wxLIST_FORMAT_LEFT, 80);
+    m_list->AppendColumn(L"签名", wxLIST_FORMAT_LEFT, 80);
+    sizer->Add(m_list, 1, wxEXPAND | wxALL, 8);
+
+    SetSizer(sizer);
+}
+
+void DeviceDriverPage::RefreshList() {
+    m_status->SetLabelText(L"正在加载设备与驱动...");
+    m_refresh->Enable(false);
     std::thread([this]() {
-        IceClean::Core::Optimizer::DriverManager driverMgr;
-        auto drivers = driverMgr.GetDrivers();
-
-        CallAfter([this, drivers = std::move(drivers)]() mutable {
-            m_driverList = std::move(drivers);
-            PopulateList(m_driverList);
-            m_refreshButton->Enable(true);
-            UpdateStatus();
+        auto list = Core::Driver::DeviceDriverScanner::Enumerate();
+        CallAfter([this, list = std::move(list)]() mutable {
+            m_all = std::move(list);
+            m_refresh->Enable(true);
+            ApplyFilterAndSearch();
         });
     }).detach();
 }
 
-void DriverPanel::PopulateList(const std::vector<IceClean::Models::DriverInfo>& items) {
-    m_driverListCtrl->DeleteAllItems();
-    m_filteredList = items;
-
+void DeviceDriverPage::Populate(const std::vector<Core::Driver::DeviceDriverInfo>& items) {
+    m_list->DeleteAllItems();
     for (int i = 0; i < static_cast<int>(items.size()); ++i) {
-        const auto& drv = items[i];
-        long idx = m_driverListCtrl->InsertItem(i, drv.deviceName.empty() ? drv.driverDesc : drv.deviceName);
-        m_driverListCtrl->SetItem(idx, 1, drv.driverProvider);
-        m_driverListCtrl->SetItem(idx, 2, drv.driverVersion);
-        m_driverListCtrl->SetItem(idx, 3, drv.driverDate);
-
-        wxString status;
-        if (drv.hasUpdate) status = L"可更新";
-        else if (drv.isSystemDriver) status = L"系统";
-        else status = L"正常";
-        m_driverListCtrl->SetItem(idx, 4, status);
-
-        m_driverListCtrl->SetItemData(idx, i);
+        const auto& d = items[i];
+        const auto name = d.deviceName.empty() ? d.driverDesc : d.deviceName;
+        long idx = m_list->InsertItem(i, name);
+        m_list->SetItem(idx, 1, d.manufacturer);
+        m_list->SetItem(idx, 2, d.deviceClass);
+        m_list->SetItem(idx, 3, d.version);
+        m_list->SetItem(idx, 4, d.date);
+        m_list->SetItem(idx, 5, d.statusText);
+        m_list->SetItem(idx, 6, Core::Driver::SignatureToText(d.signature));
+        m_list->SetItemData(idx, i);
     }
+    m_status->SetLabelText(
+        wxString::Format(L"共 %d 个设备/驱动", static_cast<int>(items.size())));
 }
 
-void DriverPanel::OnSearch(wxCommandEvent& event) {
-    wxString keyword = m_searchCtrl->GetValue().Lower();
-    if (keyword.empty()) {
-        PopulateList(m_driverList);
+void DeviceDriverPage::OnSearch(wxCommandEvent& event) {
+    ApplyFilterAndSearch();
+}
+
+void DeviceDriverPage::OnFilter(wxCommandEvent& event) {
+    ApplyFilterAndSearch();
+}
+
+void DeviceDriverPage::OnRefresh(wxCommandEvent& event) {
+    RefreshList();
+}
+
+// 过滤 + 搜索合并处理
+void DeviceDriverPage::ApplyFilterAndSearch() {
+    const int sel = m_filter->GetSelection();
+    const wxString kw = m_search->GetValue().Lower();
+    std::vector<Core::Driver::DeviceDriverInfo> out;
+    for (const auto& d : m_all) {
+        const std::wstring name = d.deviceName.empty() ? d.driverDesc : d.deviceName;
+        switch (sel) {
+        case 1: if (d.statusText == L"正常") continue; break;
+        case 2: if (!d.isThirdParty) continue; break;
+        case 3: if (d.isThirdParty) continue; break;
+        default: break;
+        }
+        if (!kw.empty()) {
+            std::wstring hay = name + L" " + d.driverDesc + L" " + d.manufacturer +
+                               L" " + d.provider;
+            std::transform(hay.begin(), hay.end(), hay.begin(), ::towlower);
+            if (hay.find(kw.ToStdWstring()) == std::wstring::npos) continue;
+        }
+        out.push_back(d);
+    }
+    Populate(out);
+}
+
+// ───────────────────────── 驱动包页 ─────────────────────────
+PackageDriverPage::PackageDriverPage(wxWindow* parent, wxWindowID id)
+    : wxPanel(parent, id) {
+    CreateControls();
+    CallAfter([this]() { RefreshList(); });
+}
+
+void PackageDriverPage::CreateControls() {
+    const auto& colors = ThemeManager::Instance().GetColors();
+    auto* sizer = new wxBoxSizer(wxVERTICAL);
+    sizer->AddSpacer(8);
+
+    auto* toolbar = new wxBoxSizer(wxHORIZONTAL);
+    toolbar->AddSpacer(8);
+
+    m_search = new wxSearchCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(200, 30));
+    m_search->SetDescriptiveText(L"搜索驱动包...");
+    m_search->Bind(wxEVT_TEXT, &PackageDriverPage::OnSearch, this);
+    toolbar->Add(m_search, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
+
+    m_filter = new wxChoice(this, wxID_ANY, wxDefaultPosition, wxSize(120, 30));
+    m_filter->Append(L"全部驱动");
+    m_filter->Append(L"第三方驱动");
+    m_filter->Append(L"系统驱动");
+    m_filter->SetSelection(0);
+    m_filter->Bind(wxEVT_CHOICE, &PackageDriverPage::OnFilter, this);
+    toolbar->Add(m_filter, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
+
+    m_refresh = new wxButton(this, wxID_ANY, L"刷新", wxDefaultPosition, wxSize(70, 30));
+    m_refresh->Bind(wxEVT_BUTTON, &PackageDriverPage::OnRefresh, this);
+    toolbar->Add(m_refresh, 0, wxALIGN_CENTER_VERTICAL);
+
+    toolbar->AddStretchSpacer();
+    m_ticker = new wxStaticText(this, wxID_ANY, L"");
+    m_ticker->SetForegroundColour(colors.textSecondary);
+    toolbar->Add(m_ticker, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 12);
+
+    sizer->Add(toolbar, 0, wxEXPAND);
+
+    m_list = new wxListCtrl(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+                            wxLC_REPORT | wxLC_SINGLE_SEL | wxBORDER_SIMPLE);
+    m_list->AppendColumn(L"名称", wxLIST_FORMAT_LEFT, 200);
+    m_list->AppendColumn(L"提供商", wxLIST_FORMAT_LEFT, 120);
+    m_list->AppendColumn(L"类别", wxLIST_FORMAT_LEFT, 90);
+    m_list->AppendColumn(L"版本", wxLIST_FORMAT_LEFT, 90);
+    m_list->AppendColumn(L"日期", wxLIST_FORMAT_LEFT, 90);
+    m_list->AppendColumn(L"oem.inf", wxLIST_FORMAT_LEFT, 100);
+    m_list->Bind(wxEVT_LIST_ITEM_SELECTED, [this](wxListEvent&) { m_backupSelected->Enable(true); });
+    m_list->Bind(wxEVT_LIST_ITEM_DESELECTED, [this](wxListEvent&) { m_backupSelected->Enable(false); });
+    m_list->Bind(wxEVT_LIST_COL_CLICK, [this](wxListEvent& e) {
+        const int col = e.GetColumn();
+        if (m_sortColumn == col) m_sortAsc = !m_sortAsc;
+        else { m_sortColumn = col; m_sortAsc = true; }
+        std::sort(m_filtered.begin(), m_filtered.end(),
+                  [this, col](const auto& a, const auto& b) {
+                      std::wstring na = col == 0 ? (a.originalName.empty() ? a.publishedName : a.originalName)
+                                                 : a.provider;
+                      std::wstring nb = col == 0 ? (b.originalName.empty() ? b.publishedName : b.originalName)
+                                                 : b.provider;
+                      if (col == 1) { na = a.provider; nb = b.provider; }
+                      else if (col == 2) { na = a.className; nb = b.className; }
+                      else if (col == 3) { na = a.version; nb = b.version; }
+                      else if (col == 4) { na = a.date; nb = b.date; }
+                      else if (col == 5) { na = a.publishedName; nb = b.publishedName; }
+                      const bool less = _wcsicmp(na.c_str(), nb.c_str()) < 0;
+                      return m_sortAsc ? less : !less;
+                  });
+        Populate(m_filtered);
+    });
+    sizer->Add(m_list, 1, wxEXPAND | wxLEFT | wxRIGHT, 8);
+    sizer->AddSpacer(8);
+
+    auto* bottom = new wxBoxSizer(wxHORIZONTAL);
+    bottom->AddSpacer(8);
+    m_backupAll = new wxButton(this, wxID_ANY, L"备份所有第三方驱动", wxDefaultPosition, wxSize(160, 36));
+    m_backupAll->SetBackgroundColour(colors.accent);
+    m_backupAll->SetForegroundColour(*wxWHITE);
+    m_backupAll->Bind(wxEVT_BUTTON, &PackageDriverPage::OnBackupAll, this);
+    bottom->Add(m_backupAll, 0, wxRIGHT, 8);
+
+    m_backupSelected = new wxButton(this, wxID_ANY, L"备份选中驱动", wxDefaultPosition, wxSize(120, 36));
+    m_backupSelected->Enable(false);
+    m_backupSelected->Bind(wxEVT_BUTTON, &PackageDriverPage::OnBackupSelected, this);
+    bottom->Add(m_backupSelected, 0, wxRIGHT, 8);
+
+    m_restore = new wxButton(this, wxID_ANY, L"从备份还原", wxDefaultPosition, wxSize(120, 36));
+    m_restore->Bind(wxEVT_BUTTON, &PackageDriverPage::OnRestore, this);
+    bottom->Add(m_restore, 0, wxRIGHT, 8);
+
+    m_cleanup = new wxButton(this, wxID_ANY, L"清理旧驱动", wxDefaultPosition, wxSize(120, 36));
+    m_cleanup->Bind(wxEVT_BUTTON, &PackageDriverPage::OnCleanup, this);
+    bottom->Add(m_cleanup, 0, wxRIGHT, 8);
+
+    bottom->AddStretchSpacer();
+    m_status = new wxStaticText(this, wxID_ANY, L"");
+    m_status->SetForegroundColour(colors.textSecondary);
+    bottom->Add(m_status, 0, wxALIGN_CENTER_VERTICAL);
+
+    sizer->Add(bottom, 0, wxEXPAND);
+    sizer->AddSpacer(12);
+
+    SetSizer(sizer);
+}
+
+void PackageDriverPage::RefreshList() {
+    m_status->SetLabelText(L"正在加载驱动包...");
+    m_refresh->Enable(false);
+    m_backupAll->Enable(false);
+    std::thread([this]() {
+        auto list = Core::Driver::PnpUtilRunner::EnumDrivers();
+        CallAfter([this, list = std::move(list)]() mutable {
+            m_all = std::move(list);
+            m_refresh->Enable(true);
+            m_backupAll->Enable(true);
+            ApplyFilterAndSearch();
+        });
+    }).detach();
+}
+
+void PackageDriverPage::Populate(const std::vector<Core::Driver::DriverPackageInfo>& items) {
+    m_list->DeleteAllItems();
+    for (int i = 0; i < static_cast<int>(items.size()); ++i) {
+        const auto& p = items[i];
+        const auto name = p.originalName.empty() ? p.publishedName : p.originalName;
+        long idx = m_list->InsertItem(i, name);
+        m_list->SetItem(idx, 1, p.provider);
+        m_list->SetItem(idx, 2, p.className);
+        m_list->SetItem(idx, 3, p.version);
+        m_list->SetItem(idx, 4, p.date);
+        m_list->SetItem(idx, 5, p.publishedName);
+        m_list->SetItemData(idx, i);
+    }
+    m_status->SetLabelText(
+        wxString::Format(L"共 %d 个驱动包", static_cast<int>(items.size())));
+}
+
+void PackageDriverPage::OnSearch(wxCommandEvent& event) { ApplyFilterAndSearch(); }
+void PackageDriverPage::OnFilter(wxCommandEvent& event) { ApplyFilterAndSearch(); }
+void PackageDriverPage::OnRefresh(wxCommandEvent& event) { RefreshList(); }
+
+void PackageDriverPage::ApplyFilterAndSearch() {
+    const int sel = m_filter->GetSelection();
+    const wxString kw = m_search->GetValue().Lower();
+    std::vector<Core::Driver::DriverPackageInfo> out;
+    for (const auto& p : m_all) {
+        switch (sel) {
+        case 1: if (!p.provider.empty() &&
+                    p.provider.find(L"Microsoft") == std::wstring::npos) { /*第三方*/ }
+                else continue; break;
+        case 2: if (p.provider.find(L"Microsoft") == std::wstring::npos) continue; break;
+        default: break;
+        }
+        if (!kw.empty()) {
+            std::wstring hay = (p.originalName.empty() ? p.publishedName : p.originalName) +
+                               L" " + p.provider + L" " + p.className;
+            std::transform(hay.begin(), hay.end(), hay.begin(), ::towlower);
+            if (hay.find(kw.ToStdWstring()) == std::wstring::npos) continue;
+        }
+        out.push_back(p);
+    }
+    m_filtered = out;
+    Populate(out);
+}
+
+Core::Driver::DriverPackageInfo PackageDriverPage::GetSelected() const {
+    long sel = m_list->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+    if (sel < 0 || sel >= static_cast<long>(m_filtered.size())) {
+        return Core::Driver::DriverPackageInfo{};
+    }
+    return m_filtered[sel];
+}
+
+void PackageDriverPage::OnBackupAll(wxCommandEvent& event) {
+    const auto root = Core::Driver::DriverBackupManager::GetDefaultBackupRoot();
+    wxDirDialog dlg(this, L"选择驱动备份保存目录", root, wxDD_DIR_MUST_EXIST);
+    if (dlg.ShowModal() != wxID_OK) return;
+
+    const auto backupDir = dlg.GetPath().ToStdWstring();
+    m_status->SetLabelText(L"正在备份驱动...");
+    m_ticker->SetLabelText(L"");
+    m_backupAll->Enable(false);
+    m_backupSelected->Enable(false);
+
+    std::thread([this, backupDir]() {
+        const auto result = Core::Driver::DriverBackupManager::BackupAll(
+            backupDir, [this](int cur, int total, const std::wstring& name) {
+                CallAfter([this, cur, total, name]() {
+                    m_ticker->SetLabelText(wxString::Format(
+                        L"已导出 %d 个文件 · %s", cur, name.c_str()));
+                });
+            });
+        CallAfter([this, result]() {
+            m_backupAll->Enable(true);
+            if (result.success) {
+                wxMessageBox(wxString::Format(
+                    L"驱动备份完成！成功导出 %d 个驱动包到:\n%s",
+                    result.packageCount, result.backupDir.c_str()),
+                    L"IceClean", wxOK | wxICON_INFORMATION, this);
+            } else {
+                wxMessageBox(L"驱动备份失败，请确认有足够磁盘空间与管理员权限。",
+                             L"IceClean", wxOK | wxICON_WARNING, this);
+            }
+            m_status->SetLabelText(L"");
+            m_ticker->SetLabelText(L"");
+        });
+    }).detach();
+}
+
+void PackageDriverPage::OnBackupSelected(wxCommandEvent& event) {
+    const auto pkg = GetSelected();
+    if (pkg.publishedName.empty()) return;
+
+    const auto root = Core::Driver::DriverBackupManager::GetDefaultBackupRoot();
+    wxDirDialog dlg(this, L"选择驱动备份保存目录", root, wxDD_DIR_MUST_EXIST);
+    if (dlg.ShowModal() != wxID_OK) return;
+
+    namespace fs = std::filesystem;
+    const auto dest = dlg.GetPath().ToStdWstring() + L"\\" + pkg.publishedName;
+    std::error_code ec;
+    fs::create_directories(dest, ec);
+
+    m_status->SetLabelText(L"正在备份选中驱动...");
+    std::thread([this, pkg, dest]() {
+        const bool ok = Core::Driver::PnpUtilRunner::ExportOne(pkg.publishedName, dest);
+        CallAfter([this, ok, pkg]() {
+            m_status->SetLabelText(L"");
+            wxMessageBox(ok ? L"驱动备份成功！" : L"驱动备份失败，请确认权限。",
+                         L"IceClean", wxOK | (ok ? wxICON_INFORMATION : wxICON_WARNING), this);
+        });
+    }).detach();
+}
+
+void PackageDriverPage::OnRestore(wxCommandEvent& event) {
+    wxDirDialog dlg(this, L"选择历史备份目录（含 manifest.json）",
+                    Core::Driver::DriverBackupManager::GetDefaultBackupRoot(),
+                    wxDD_DIR_MUST_EXIST);
+    if (dlg.ShowModal() != wxID_OK) return;
+
+    const auto dir = dlg.GetPath().ToStdWstring();
+    if (!std::filesystem::exists(dir + L"\\manifest.json")) {
+        wxMessageBox(L"所选目录不是有效的驱动备份（缺少 manifest.json）。",
+                     L"IceClean", wxOK | wxICON_WARNING, this);
         return;
     }
 
-    std::vector<IceClean::Models::DriverInfo> filtered;
-    for (const auto& drv : m_driverList) {
-        std::wstring name = drv.deviceName.empty() ? drv.driverDesc : drv.deviceName;
-        std::wstring prov = drv.driverProvider;
-        std::transform(name.begin(), name.end(), name.begin(), ::towlower);
-        std::transform(prov.begin(), prov.end(), prov.begin(), ::towlower);
-        std::wstring kw = keyword.ToStdWstring();
-        std::transform(kw.begin(), kw.end(), kw.begin(), ::towlower);
+    ConfirmDialog cd(this, L"从备份还原驱动",
+        L"即将把所选备份中的驱动包导入并安装到当前系统。\n\n"
+        L"此操作会创建系统还原点，并在安装前尽量保证可回滚。\n"
+        L"是否继续？",
+        ConfirmDialog::DangerLevel::Caution, L"还原", L"取消");
+    if (cd.ShowModal() != wxID_OK) return;
 
-        if (name.find(kw) != std::wstring::npos || prov.find(kw) != std::wstring::npos) {
-            filtered.push_back(drv);
-        }
-    }
-    PopulateList(filtered);
-}
-
-void DriverPanel::OnRefresh(wxCommandEvent& event) {
-    RefreshDriverList();
-}
-
-void DriverPanel::OnBackupAll(wxCommandEvent& event) {
-    wxDirDialog dlg(this, L"选择驱动备份保存目录", L"", wxDD_DIR_MUST_EXIST);
-    if (dlg.ShowModal() != wxID_OK) return;
-
-    auto backupDir = dlg.GetPath().ToStdWstring();
-    m_statusLabel->SetLabelText(L"正在备份驱动...");
-    m_backupAllButton->Enable(false);
-
-    std::thread([this, backupDir]() {
-        IceClean::Core::Optimizer::DriverManager driverMgr;
-        int count = driverMgr.BackupAllDrivers(backupDir,
-            [this](int current, int total, const std::wstring& name) {
-                CallAfter([this, current, total, name]() {
-                    m_statusLabel->SetLabelText(
-                        wxString::Format(L"正在备份: %s (%d/%d)", name.c_str(), current, total));
-                });
-            });
-
-        CallAfter([this, count, backupDir]() {
-            m_backupAllButton->Enable(true);
-            wxString msg = wxString::Format(L"驱动备份完成！成功备份 %d 个驱动到:\n%s", count, backupDir.c_str());
-            wxMessageBox(msg, L"IceClean", wxOK | wxICON_INFORMATION, this);
-            m_statusLabel->SetLabelText(L"");
+    m_status->SetLabelText(L"正在还原驱动（已创建还原点）...");
+    m_restore->Enable(false);
+    std::thread([this, dir]() {
+        const bool ok = Core::Driver::DriverBackupManager::RestoreFrom(dir);
+        CallAfter([this, ok]() {
+            m_restore->Enable(true);
+            m_status->SetLabelText(L"");
+            wxMessageBox(ok ? L"驱动还原完成！" : L"驱动还原失败，请查看操作日志。",
+                         L"IceClean", wxOK | (ok ? wxICON_INFORMATION : wxICON_WARNING), this);
         });
     }).detach();
 }
 
-void DriverPanel::OnBackupSelected(wxCommandEvent& event) {
-    auto driver = GetSelectedDriver();
-    if (driver.deviceName.empty() && driver.driverDesc.empty()) return;
-
-    wxDirDialog dlg(this, L"选择驱动备份保存目录", L"", wxDD_DIR_MUST_EXIST);
-    if (dlg.ShowModal() != wxID_OK) return;
-
-    auto backupDir = dlg.GetPath().ToStdWstring();
-    IceClean::Core::Optimizer::DriverManager driverMgr;
-    if (driverMgr.BackupDriver(driver, backupDir)) {
-        wxMessageBox(L"驱动备份成功！", L"IceClean", wxOK | wxICON_INFORMATION, this);
-    } else {
-        wxMessageBox(L"驱动备份失败，请确保有足够的磁盘空间和权限。", L"IceClean", wxOK | wxICON_WARNING, this);
-    }
-}
-
-void DriverPanel::OnCleanup(wxCommandEvent& event) {
-    ConfirmDialog dlg(this, L"清理旧驱动备份",
-        L"确定要清理Windows驱动存储中的旧驱动备份吗？\n\n"
-        L"此操作将删除不再使用的旧版本驱动文件，释放磁盘空间。\n"
-        L"当前正在使用的驱动不受影响。",
+void PackageDriverPage::OnCleanup(wxCommandEvent& event) {
+    ConfirmDialog cd(this, L"清理旧驱动",
+        L"确定要清理 Windows 驱动存储中不再使用的旧驱动包吗？\n\n"
+        L"此操作通过系统组件清理释放磁盘空间，当前正在使用的驱动不受影响。",
         ConfirmDialog::DangerLevel::Caution, L"清理", L"取消");
+    if (cd.ShowModal() != wxID_OK) return;
 
-    if (dlg.ShowModal() != wxID_OK) return;
-
-    m_statusLabel->SetLabelText(L"正在清理旧驱动备份...");
-    m_cleanupButton->Enable(false);
-
+    m_status->SetLabelText(L"正在清理旧驱动...");
+    m_cleanup->Enable(false);
     std::thread([this]() {
-        IceClean::Core::Optimizer::DriverManager driverMgr;
-        auto freed = driverMgr.CleanupOldDriverBackups();
-
+        const auto freed = Core::Driver::DriverBackupManager::CleanupOldBackups();
         CallAfter([this, freed]() {
-            m_cleanupButton->Enable(true);
-            wxString msg = wxString::Format(L"清理完成！释放了 %s 磁盘空间。",
-                IceClean::Utils::FormatUtil::FormatFileSize(freed).c_str());
-            wxMessageBox(msg, L"IceClean", wxOK | wxICON_INFORMATION, this);
-            m_statusLabel->SetLabelText(L"");
+            m_cleanup->Enable(true);
+            m_status->SetLabelText(L"");
+            wxMessageBox(wxString::Format(L"清理完成！释放了 %s 磁盘空间。",
+                             IceClean::Utils::FormatUtil::FormatFileSize(freed).c_str()),
+                         L"IceClean", wxOK | wxICON_INFORMATION, this);
         });
     }).detach();
-}
-
-void DriverPanel::OnFilterChange(wxCommandEvent& event) {
-    int sel = m_filterChoice->GetSelection();
-    std::vector<IceClean::Models::DriverInfo> filtered;
-
-    switch (sel) {
-        case 0: // 全部
-            PopulateList(m_driverList);
-            return;
-        case 1: // 第三方
-            for (const auto& drv : m_driverList) {
-                if (!drv.isSystemDriver) filtered.push_back(drv);
-            }
-            break;
-        case 2: // 系统
-            for (const auto& drv : m_driverList) {
-                if (drv.isSystemDriver) filtered.push_back(drv);
-            }
-            break;
-        case 3: // 可能过时
-            for (const auto& drv : m_driverList) {
-                if (drv.hasUpdate) filtered.push_back(drv);
-            }
-            break;
-    }
-    PopulateList(filtered);
-}
-
-void DriverPanel::OnItemSelected(wxListEvent& event) {
-    m_backupSelectedButton->Enable(true);
-}
-
-void DriverPanel::OnItemDeselected(wxListEvent& event) {
-    m_backupSelectedButton->Enable(false);
-}
-
-void DriverPanel::OnColumnClick(wxListEvent& event) {
-    int col = event.GetColumn();
-    if (m_sortColumn == col) {
-        m_sortAsc = !m_sortAsc;
-    } else {
-        m_sortColumn = col;
-        m_sortAsc = true;
-    }
-
-    auto& items = m_filteredList;
-    std::sort(items.begin(), items.end(), [this, col](const auto& a, const auto& b) {
-        bool less = false;
-        switch (col) {
-        case 0: {
-            auto na = a.deviceName.empty() ? a.driverDesc : a.deviceName;
-            auto nb = b.deviceName.empty() ? b.driverDesc : b.deviceName;
-            less = _wcsicmp(na.c_str(), nb.c_str()) < 0;
-            break;
-        }
-        case 1: less = _wcsicmp(a.driverProvider.c_str(), b.driverProvider.c_str()) < 0; break;
-        case 2: less = _wcsicmp(a.driverVersion.c_str(), b.driverVersion.c_str()) < 0; break;
-        case 3: less = _wcsicmp(a.driverDate.c_str(), b.driverDate.c_str()) < 0; break;
-        }
-        return m_sortAsc ? less : !less;
-    });
-
-    PopulateList(items);
-}
-
-void DriverPanel::UpdateStatus() {
-    m_statusLabel->SetLabelText(
-        wxString::Format(L"共 %d 个驱动", static_cast<int>(m_driverList.size())));
-
-    uint64_t totalSize = 0;
-    for (const auto& drv : m_driverList) {
-        totalSize += drv.driverSize;
-    }
-    m_totalSizeLabel->SetLabelText(
-        wxString::Format(L"驱动存储: %s", FormatSize(totalSize).c_str()));
-}
-
-IceClean::Models::DriverInfo DriverPanel::GetSelectedDriver() const {
-    long sel = m_driverListCtrl->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
-    if (sel < 0 || sel >= static_cast<long>(m_filteredList.size())) {
-        return IceClean::Models::DriverInfo();
-    }
-    return m_filteredList[sel];
-}
-
-wxString DriverPanel::FormatSize(uint64_t bytes) const {
-    return IceClean::Utils::FormatUtil::FormatFileSize(bytes);
 }
 
 } // namespace IceClean::Gui
