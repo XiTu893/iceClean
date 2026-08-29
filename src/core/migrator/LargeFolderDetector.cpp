@@ -11,6 +11,7 @@ LargeFolderDetector::LargeFolderDetector(uint64_t minSizeMB)
 
 const std::vector<std::wstring>& LargeFolderDetector::GetSkippedFolderNames() {
     static const std::vector<std::wstring> names = {
+        // 系统目录
         L"windows",
         L"winnt",
         L"program files",
@@ -29,32 +30,52 @@ const std::vector<std::wstring>& LargeFolderDetector::GetSkippedFolderNames() {
         // 云同步目录：junction 迁移会破坏同步客户端的路径跟踪
         L"onedrive",
         L"dropbox",
+        // 开发工具缓存目录（由 DevCacheMigrator 专门处理）
+        L".gradle",
+        L".m2",
+        L".npm",
+        L".yarn",
+        L".pnpm-store",
+        L".config",
+        L".cache",
+        L".local",
+        L"node_modules",
+        L"bower_components",
+        L"__pycache__",
+        L".pytest_cache",
+        L".tox",
+        L".venv",
+        L"venv",
+        L".idea",
+        L".vscode",
+        // 用户目录容器（由 UserFolderMigrator 专门处理，不作为整体迁移项）
+        L"users",
+        L"public",
+        L"default",
+        // 系统用户目录子项（由 UserFolderMigrator 专门处理）
+        L"appdata",
+        // 浏览器/IDE 内部缓存（避免和专用清理器冲突）
+        L"google",
+        L"microsoft",
+        L"mozilla",
     };
     return names;
 }
 
 bool LargeFolderDetector::ShouldSkip(const std::wstring& folderName, DWORD attributes) const {
-    // 跳过系统文件夹。注意：不能跳过 FILE_ATTRIBUTE_HIDDEN ——
-    // AppData 等核心可迁移目录本身即隐藏属性
-    if (attributes & FILE_ATTRIBUTE_SYSTEM) {
-        return true;
-    }
-
-    // 跳过联接链接
+    // 跳过联接链接（Junction/Symlink）
     if (attributes & FILE_ATTRIBUTE_REPARSE_POINT) {
         return true;
     }
 
-    // 检查是否在跳过列表中（含前缀匹配，覆盖 "OneDrive - xxx" 等变体）
     std::wstring lowerName = folderName;
     std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(), towlower);
 
+    // 跳过列表（前缀匹配，覆盖 "OneDrive - xxx"、"onedrive-person" 等变体）
     for (const auto& skip : GetSkippedFolderNames()) {
         if (lowerName == skip) return true;
-        if ((skip == L"onedrive" || skip == L"dropbox") &&
-            lowerName.rfind(skip, 0) == 0) {
-            return true;
-        }
+        // 所有跳过项都支持前缀匹配（如 "onedrive" 匹配 "onedrive-person"）
+        if (lowerName.rfind(skip, 0) == 0) return true;
     }
 
     return false;

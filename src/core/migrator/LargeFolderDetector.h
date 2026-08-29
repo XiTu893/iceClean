@@ -16,8 +16,10 @@ public:
                                                 uint64_t foundBytes)>;
 
     // 构造函数
-    // minSizeMB: 最小文件夹大小阈值(MB)，默认500MB
-    explicit LargeFolderDetector(uint64_t minSizeMB = 500);
+    // minSizeMB: 最小文件夹大小阈值(MB)，默认100MB
+    //   - 100MB 阈值可覆盖用户级大目录（Unity 项目、Adobe SDK、Docker 镜像等）
+    //   - 避免扫描结果中包含 1-2MB 的零碎文件夹
+    explicit LargeFolderDetector(uint64_t minSizeMB = 100);
 
     // 检测系统盘上的大文件夹（等价于 DetectAt(GetSystemDrive())）
     std::vector<Models::MigrationItem> Detect(ProgressCallback progressCallback = nullptr);

@@ -554,7 +554,9 @@ void MainWindow::StartScan(int scanType)
             // ── 迁移扫描（大文件夹检测 + 应用迁移器，全程实况上报）──
             std::vector<IceClean::Models::MigrationItem> items;
             try {
-                auto detector = std::make_unique<IceClean::Core::Migrator::LargeFolderDetector>(500);
+                // 100MB 阈值：覆盖用户级大目录（Unity、Adobe SDK、Docker 镜像等），
+                // 同时避免扫描结果中包含 1-2MB 的零碎文件夹
+                auto detector = std::make_unique<IceClean::Core::Migrator::LargeFolderDetector>(100);
                 {
                     std::lock_guard<std::mutex> lock(m_aggregatorMutex);
                     m_activeFolderDetector = detector.get();
