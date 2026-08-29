@@ -15,6 +15,8 @@ wxDECLARE_EVENT(wxEVT_SCAN_PROGRESS_UPDATE, wxThreadEvent);
 wxDECLARE_EVENT(wxEVT_SCAN_STOP, wxThreadEvent);
 // 扫描完成事件
 wxDECLARE_EVENT(wxEVT_SCAN_COMPLETE, wxThreadEvent);
+// 迁移扫描进度事件（迁移面板专用，worker 线程通过 wxQueueEvent 投递）
+wxDECLARE_EVENT(wxEVT_MIGRATION_SCAN_PROGRESS, wxThreadEvent);
 // 清理完成事件
 wxDECLARE_EVENT(wxEVT_CLEAN_COMPLETE, wxThreadEvent);
 // 清理进度事件

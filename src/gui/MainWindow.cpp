@@ -5,11 +5,9 @@
 #include "panels/DashboardPanel.h"
 #include "panels/ScanResultPanel.h"
 #include "panels/MigrationPanel.h"
-#include "panels/DuplicateFilePanel.h"
 #include "panels/StartupPanel.h"
 #include "panels/UninstallPanel.h"
 #include "panels/SoftwareRecommendPanel.h"
-#include "panels/DiskAnalyzerPanel.h"
 #include "panels/DriverPanel.h"
 #include "panels/NetworkPanel.h"
 #include "panels/SecurityPanel.h"
@@ -19,7 +17,6 @@
 #include "panels/WindowsDebloaterPanel.h"
 #include "panels/PrivacyOptimizerPanel.h"
 #include "panels/SystemFileManagerPanel.h"
-#include "panels/FileTypeAnalyzerPanel.h"
 #include "panels/DownloadManagerPanel.h"
 #include "gui/Events.h"
 #include "gui/dialogs/CleanProgressDialog.h"
@@ -44,13 +41,13 @@
 #include "core/optimizer/StartupOptimizer.h"
 #include "core/optimizer/ServiceOptimizer.h"
 #include "core/optimizer/ScheduledTaskOptimizer.h"
-#include "core/analyzer/DiskSpaceAnalyzer.h"
 #include "core/safety/RestorePointManager.h"
 #include "core/safety/OperationLogger.h"
 #include "core/safety/RollbackManager.h"
 #include "core/safety/UsageStats.h"
 #include "utils/Win32Util.h"
 #include "utils/FormatUtil.h"
+#include "App.h"
 
 #include <wx/dcbuffer.h>
 #include <wx/busyinfo.h>
@@ -80,7 +77,7 @@ MainWindow::MainWindow()
     : wxFrame(nullptr, wxID_ANY, L"IceClean - 智能C盘清理工具",
               wxDefaultPosition, wxSize(960, 680),
               wxNO_BORDER | wxCLIP_CHILDREN)
-{
+    {
     SetBackgroundColour(ThemeManager::Instance().GetColors().background);
     SetMinSize(wxSize(800, 600));
     CreateControls();
@@ -158,18 +155,9 @@ void MainWindow::CreateControls()
     m_scanResultPanel = new ScanResultPanel(m_contentBook);
 
     // ════════════════════════════════════════════════════════
-    //  2: 智能迁移（仅保留迁移+重复文件，磁盘分析移至独立导航项）
+    //  2: 智能迁移（仅保留迁移，重复文件扫描已移至独立导航项）
     // ════════════════════════════════════════════════════════
-    auto* migrationComboPanel = new wxPanel(m_contentBook);
-    migrationComboPanel->SetBackgroundColour(ThemeManager::Instance().GetColors().background);
-    auto* migrationNotebook = new wxNotebook(migrationComboPanel, wxID_ANY);
-    m_migrationPanel = new MigrationPanel(migrationNotebook);
-    m_duplicateFilePanel = new DuplicateFilePanel(migrationNotebook);
-    migrationNotebook->AddPage(m_migrationPanel, L"智能迁移");
-    migrationNotebook->AddPage(m_duplicateFilePanel, L"重复文件");
-    auto* migrationSizer = new wxBoxSizer(wxVERTICAL);
-    migrationSizer->Add(migrationNotebook, 1, wxEXPAND);
-    migrationComboPanel->SetSizer(migrationSizer);
+    m_migrationPanel = new MigrationPanel(m_contentBook);
 
     // ════════════════════════════════════════════════════════
     //  3: 加速优化（扩展为 wxNotebook，含 4 个子标签）
@@ -223,14 +211,14 @@ void MainWindow::CreateControls()
     networkComboPanel->SetSizer(networkSizer);
 
     // ════════════════════════════════════════════════════════
-    //  8: 磁盘分析（从智能迁移拆出，成为独立导航项）
+    //  8: 磁盘分析（从智能迁移拆出，成为独立导航项）—— 暂未启用
     // ════════════════════════════════════════════════════════
-    m_diskAnalyzerPanel = new DiskAnalyzerPanel(m_contentBook);
+    // m_diskAnalyzerPanel = new DiskAnalyzerPanel(m_contentBook);
 
     // ════════════════════════════════════════════════════════
-    //  9: 文件分类统计
+    //  9: 文件分类统计 —— 暂未启用
     // ════════════════════════════════════════════════════════
-    auto* fileTypePanel = new FileTypeAnalyzerPanel(m_contentBook);
+    // auto* fileTypePanel = new FileTypeAnalyzerPanel(m_contentBook);
 
     // ════════════════════════════════════════════════════════
     //  10: 下载文件管理
@@ -262,14 +250,14 @@ void MainWindow::CreateControls()
     // ── 按导航顺序添加页面（13 页） ──
     m_contentBook->AddPage(m_dashboardPanel, L"首页");                // 0
     m_contentBook->AddPage(m_scanResultPanel, L"深度清理");            // 1
-    m_contentBook->AddPage(migrationComboPanel, L"智能迁移");          // 2
+    m_contentBook->AddPage(m_migrationPanel, L"智能迁移");          // 2
     m_contentBook->AddPage(startupComboPanel, L"加速优化");         // 3
     m_contentBook->AddPage(m_uninstallPanel, L"软件管理");             // 4
     m_contentBook->AddPage(m_softwareRecommendPanel, L"软件推荐");     // 5
     m_contentBook->AddPage(m_securityPanel, L"安全防护");              // 6
     m_contentBook->AddPage(networkComboPanel, L"网络优化");            // 7
-    m_contentBook->AddPage(m_diskAnalyzerPanel, L"磁盘分析");          // 8
-    m_contentBook->AddPage(fileTypePanel, L"文件分类");            // 9
+    // m_contentBook->AddPage(m_diskAnalyzerPanel, L"磁盘分析");          // 8 (暂未启用)
+    // m_contentBook->AddPage(fileTypePanel, L"文件分类");            // 9 (暂未启用)
     m_contentBook->AddPage(downloadPanel, L"下载管理");            // 10
     m_contentBook->AddPage(m_settingsPanel, L"设置");                  // 11
     m_contentBook->AddPage(aboutComboPanel, L"关于");               // 12
@@ -367,36 +355,23 @@ void MainWindow::LayoutControls()
 
 void MainWindow::InitializeApp()
 {
-    // 加载设置
     m_settingsPanel->LoadSettings();
 
-    // 初始化系统托盘图标
     m_taskBarIcon = new wxTaskBarIcon();
     wxIcon trayIcon = wxArtProvider::GetIcon(wxART_INFORMATION, wxART_OTHER, wxSize(16, 16));
     if (trayIcon.IsOk()) {
         m_taskBarIcon->SetIcon(trayIcon, L"IceClean - 智能C盘清理工具");
     }
-
-    // 托盘图标菜单
     m_taskBarIcon->Bind(wxEVT_TASKBAR_LEFT_DOWN, [this](wxEvent&) {
         Show(true);
         Iconize(false);
         Raise();
     });
 
-    // 刷新C盘空间信息
     RefreshDiskInfo();
-
-    // 加载最近操作记录
     RefreshRecentOperations();
-
-    // 加载启动项数据
     LoadStartupData();
-
-    // 加载回滚日志
     IceClean::Core::Safety::RollbackManager::Instance().LoadRollbackLog();
-
-    // 启动时检查更新（静默）
     m_settingsPanel->CheckForUpdate();
 }
 
@@ -494,9 +469,15 @@ void MainWindow::OnScanStop(wxThreadEvent& event) {
         }
     }
 
-    // 停止磁盘分析器
-    if (m_diskAnalyzer) {
-        m_diskAnalyzer->Cancel();
+    // 停止磁盘分析器 / 迁移扫描探测器
+    {
+        std::lock_guard<std::mutex> lock(m_aggregatorMutex);
+        if (m_currentAggregator) {
+            m_currentAggregator->RequestStop();
+        }
+        if (m_activeFolderDetector) {
+            m_activeFolderDetector->Cancel();
+        }
     }
 
     // 启动3秒超时定时器，超时后自动强制停止
@@ -570,56 +551,97 @@ void MainWindow::StartScan(int scanType)
             wxQueueEvent(this, completeEvt);
         }
         else if (scanType == 1) {
-            // ── 迁移扫描（大文件检测）──
-            IceClean::Core::Migrator::LargeFolderDetector detector(500);
-            auto items = detector.Detect([this](const std::wstring& currentPath) {
-                // 进度回调（可选）
-            });
+            // ── 迁移扫描（大文件夹检测 + 应用迁移器，全程实况上报）──
+            std::vector<IceClean::Models::MigrationItem> items;
+            try {
+                auto detector = std::make_unique<IceClean::Core::Migrator::LargeFolderDetector>(500);
+                {
+                    std::lock_guard<std::mutex> lock(m_aggregatorMutex);
+                    m_activeFolderDetector = detector.get();
+                }
 
-            // 同时检测微信/QQ/Steam
-            IceClean::Core::Migrator::WeChatMigrator wechatMigrator;
-            auto wechatItems = wechatMigrator.Detect();
-            items.insert(items.end(), wechatItems.begin(), wechatItems.end());
+                // 实况直连投递：worker 线程通过 wxQueueEvent 把事件加入 m_migrationPanel
+                // 的事件队列；UI 线程的事件循环会按序处理，先于 wxEVT_SCAN_COMPLETE
+                // 节流 100ms 防止事件爆炸
+                auto lastPost = std::make_shared<std::chrono::steady_clock::time_point>(
+                    std::chrono::steady_clock::now());
+                int postCounter = 0;
+                auto post = [this, lastPost, &postCounter](const wchar_t* phase,
+                                             const std::wstring& path, int found) {
+                    auto now = std::chrono::steady_clock::now();
+                    auto since = std::chrono::duration_cast<std::chrono::milliseconds>(now - *lastPost).count();
+                    if (since < 100) {
+                        return;
+                    }
+                    *lastPost = now;
+                    ++postCounter;
+                    auto* evt = new wxThreadEvent(wxEVT_MIGRATION_SCAN_PROGRESS);
+                    MigrationScanProgressInfo info;
+                    info.phase = wxString(phase);
+                    info.path = wxString(path);
+                    info.foundCount = found;
+                    evt->SetPayload(info);
+                    wxQueueEvent(m_migrationPanel, evt);
+                };
+                // 立即发出首条，避免 100ms 节流吞掉阶段开始信号
+                auto phaseStart = [this, &post, lastPost](const wchar_t* phase) {
+                    *lastPost = std::chrono::steady_clock::time_point{};
+                    post(phase, L"", 0);
+                };
 
-            IceClean::Core::Migrator::QQMigrator qqMigrator;
-            auto qqItems = qqMigrator.Detect();
-            items.insert(items.end(), qqItems.begin(), qqItems.end());
+                auto detectItems = detector->Detect(
+                    [&post](const std::wstring& path, int found, uint64_t) {
+                        post(L"检测C盘大文件夹", path, found);
+                    });
+                items.insert(items.end(), detectItems.begin(), detectItems.end());
 
-            IceClean::Core::Migrator::SteamMigrator steamMigrator;
-            auto steamItems = steamMigrator.Detect();
-            items.insert(items.end(), steamItems.begin(), steamItems.end());
+                // 同时检测微信/QQ/Steam/用户文件夹（逐阶段上报）
+                phaseStart(L"检测微信数据目录");
+                IceClean::Core::Migrator::WeChatMigrator wechatMigrator;
+                auto wechatItems = wechatMigrator.Detect();
+                items.insert(items.end(), wechatItems.begin(), wechatItems.end());
 
-            IceClean::Core::Migrator::UserFolderMigrator userMigrator;
-            auto userItems = userMigrator.Detect();
-            items.insert(items.end(), userItems.begin(), userItems.end());
+                phaseStart(L"检测QQ数据目录");
+                IceClean::Core::Migrator::QQMigrator qqMigrator;
+                auto qqItems = qqMigrator.Detect();
+                items.insert(items.end(), qqItems.begin(), qqItems.end());
 
-            wxThreadEvent* completeEvt = new wxThreadEvent(wxEVT_SCAN_COMPLETE);
-            completeEvt->SetInt(1);
-            completeEvt->SetPayload(items);
-            wxQueueEvent(this, completeEvt);
+                phaseStart(L"检测Steam游戏库");
+                IceClean::Core::Migrator::SteamMigrator steamMigrator;
+                auto steamItems = steamMigrator.Detect();
+                items.insert(items.end(), steamItems.begin(), steamItems.end());
+
+                phaseStart(L"检测用户文件夹");
+                IceClean::Core::Migrator::UserFolderMigrator userMigrator;
+                auto userItems = userMigrator.Detect();
+                items.insert(items.end(), userItems.begin(), userItems.end());
+
+                {
+                    std::lock_guard<std::mutex> lock(m_aggregatorMutex);
+                    m_activeFolderDetector = nullptr;
+                }
+
+                wxThreadEvent* completeEvt = new wxThreadEvent(wxEVT_SCAN_COMPLETE);
+                completeEvt->SetInt(1);
+                completeEvt->SetPayload(items);
+                wxQueueEvent(this, completeEvt);
+            } catch (const std::exception& e) {
+                DebugLog("MainWindow", "迁移扫描异常: %s", e.what());
+                wxThreadEvent* completeEvt = new wxThreadEvent(wxEVT_SCAN_COMPLETE);
+                completeEvt->SetInt(1);
+                completeEvt->SetPayload(items);
+                wxQueueEvent(this, completeEvt);
+            } catch (...) {
+                DebugLog("MainWindow", "迁移扫描未知异常");
+                wxThreadEvent* completeEvt = new wxThreadEvent(wxEVT_SCAN_COMPLETE);
+                completeEvt->SetInt(1);
+                completeEvt->SetPayload(items);
+                wxQueueEvent(this, completeEvt);
+            }
         }
         else if (scanType == 3) {
-            // ── 磁盘分析扫描 ──
-            auto drive = m_diskAnalyzerPanel->GetSelectedDrive().ToStdWstring();
-            if (drive.empty()) drive = L"C:\\";
-
-            delete m_diskAnalyzer;
-            m_diskAnalyzer = new IceClean::Core::Analyzer::DiskSpaceAnalyzer();
-            auto rootNode = m_diskAnalyzer->Scan(drive, [this](const IceClean::Core::Analyzer::ScanProgress& progress) {
-                if (progress.scannedDirs % 100 == 0) {
-                    wxString status = wxString::Format(L"正在扫描: %s (已扫描 %llu 个目录)",
-                        progress.currentPath.c_str(), progress.scannedDirs);
-                    CallAfter([this, status]() {
-                        // 更新磁盘分析面板的状态栏
-                        // 注意：这里不能直接访问m_diskAnalyzerPanel的私有成员
-                    });
-                }
-            });
-
-            wxThreadEvent* completeEvt = new wxThreadEvent(wxEVT_SCAN_COMPLETE);
-            completeEvt->SetInt(3);
-            completeEvt->SetPayload(rootNode);
-            wxQueueEvent(this, completeEvt);
+            // ── 磁盘分析扫描 ── (磁盘分析模块已移除，此分支暂停)
+            (void)0;
         }
 
         m_workerRunning = false;
@@ -665,9 +687,7 @@ void MainWindow::OnScanComplete(wxThreadEvent& event)
         m_migrationPanel->SetMigrationItems(items);
     }
     else if (scanType == 3) {
-        // 磁盘分析完成
-        auto rootNode = event.GetPayload<std::shared_ptr<IceClean::Models::DiskNode>>();
-        m_diskAnalyzerPanel->SetDiskData(rootNode);
+        // 磁盘分析完成 —— 暂未启用
     }
 }
 
@@ -1218,7 +1238,7 @@ void MainWindow::OnKeyDown(wxKeyEvent& event) {
         case '6': SwitchPanel(static_cast<int>(NavPage::SoftwareRecommend)); break;
         case '7': SwitchPanel(static_cast<int>(NavPage::Security)); break;
         case '8': SwitchPanel(static_cast<int>(NavPage::NetworkOpt)); break;
-        case '9': SwitchPanel(static_cast<int>(NavPage::DiskAnalyzer)); break;
+        case '9': SwitchPanel(static_cast<int>(NavPage::DownloadManager)); break;
         case '0': SwitchPanel(static_cast<int>(NavPage::Settings)); break;
         default:
             event.Skip();

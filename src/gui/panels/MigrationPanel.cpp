@@ -3,6 +3,7 @@
 #include "gui/dialogs/MigrationProgressDlg.h"
 #include "gui/Events.h"
 #include "gui/controls/ThemeManager.h"
+#include "App.h"
 #include "utils/FormatUtil.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
@@ -19,6 +20,7 @@ MigrationPanel::MigrationPanel(wxWindow* parent, wxWindowID id)
     : wxPanel(parent, id)
 {
     SetBackgroundColour(ThemeManager::Instance().GetColors().background);
+    Bind(wxEVT_MIGRATION_SCAN_PROGRESS, &MigrationPanel::OnMigrationScanProgress, this);
     CreateControls();
 }
 
@@ -71,7 +73,23 @@ void MigrationPanel::CreateControls() {
     scanSizer->Add(m_statusLabel, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 12);
 
     mainSizer->Add(scanSizer, 0);
-    mainSizer->AddSpacer(12);
+    mainSizer->AddSpacer(8);
+
+    // 扫描实况条（当前阶段 + 正在遍历的路径）
+    m_scanInfoPanel = new IceClean::Gui::ScanInfoPanel(this, wxID_ANY);
+    m_scanInfoPanel->SetState(ScanInfoPanelState::Normal);
+    m_scanInfoPanel->SetMinSize(wxSize(300, 48));
+    mainSizer->Add(m_scanInfoPanel, 0, wxEXPAND | wxLEFT | wxRIGHT, 20);
+    mainSizer->AddSpacer(4);
+
+    // 当前正在扫描的目录路径（专行显示，实时刷新）
+    m_currentPathLabel = new wxStaticText(this, wxID_ANY, L"");
+    m_currentPathLabel->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+                                      false, L"Consolas"));
+    m_currentPathLabel->SetForegroundColour(ThemeManager::Instance().GetColors().textSecondary);
+    m_currentPathLabel->SetLabelText(L"");
+    mainSizer->Add(m_currentPathLabel, 0, wxLEFT | wxRIGHT, 20);
+    mainSizer->AddSpacer(8);
 
     // 文件列表
     m_fileList = new wxListCtrl(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
@@ -154,6 +172,14 @@ void MigrationPanel::SetMigrationItems(const std::vector<IceClean::Models::Migra
     m_stopButton->Hide();
     m_stopButton->Enable();
     m_stopButton->SetLabel(L"停止");
+    Layout();
+
+    if (m_scanInfoPanel) {
+        m_scanInfoPanel->SetState(ScanInfoPanelState::Normal);
+        m_scanInfoPanel->SetStatusText(L"扫描完成");
+        m_scanInfoPanel->SetProcessingItem(L"");
+    }
+    if (m_currentPathLabel) m_currentPathLabel->SetLabelText(L"");
 
     m_items = items;
     m_fileList->DeleteAllItems();
@@ -195,6 +221,33 @@ void MigrationPanel::SetMigrationItems(const std::vector<IceClean::Models::Migra
         static_cast<int>(items.size())));
 }
 
+void MigrationPanel::UpdateScanProgress(const wxString& phase, const wxString& currentPath,
+                                        int foundCount) {
+    if (!m_scanInfoPanel) return;
+    m_scanInfoPanel->SetState(ScanInfoPanelState::Processing);
+    wxString status = phase;
+    if (foundCount > 0) {
+        status += wxString::Format(L" · 已发现 %d 项", foundCount);
+    }
+    m_scanInfoPanel->SetStatusText(status);
+    if (!currentPath.empty()) {
+        m_scanInfoPanel->SetProcessingItem(currentPath);
+    }
+    if (m_currentPathLabel) {
+        if (currentPath.empty()) {
+            m_currentPathLabel->SetLabelText(L"");
+        } else {
+            m_currentPathLabel->SetLabelText(wxString::Format(L"  %s", currentPath));
+        }
+    }
+}
+
+void MigrationPanel::OnMigrationScanProgress(wxThreadEvent& event) {
+    if (IsBeingDeleted()) return;
+    auto info = event.GetPayload<MigrationScanProgressInfo>();
+    UpdateScanProgress(info.phase, info.path, info.foundCount);
+}
+
 std::vector<IceClean::Models::MigrationItem> MigrationPanel::GetSelectedItems() const {
     std::vector<IceClean::Models::MigrationItem> selected;
     for (size_t i = 0; i < m_items.size(); ++i) {
@@ -216,7 +269,17 @@ wxString MigrationPanel::GetTargetDrive() const {
 void MigrationPanel::OnScanButton(wxCommandEvent& event) {
     m_scanButton->Hide();
     m_stopButton->Show();
-    m_statusLabel->SetLabel(L"正在扫描...");
+    m_stopButton->Enable();
+    m_stopButton->SetLabel(L"停止");
+    Layout();
+    // 实况统一由下方信息条展示，按钮行不再重复"正在扫描"
+    m_statusLabel->SetLabel(L"");
+
+    if (m_scanInfoPanel) {
+        m_scanInfoPanel->SetState(ScanInfoPanelState::Processing);
+        m_scanInfoPanel->SetStatusText(L"正在扫描...");
+    }
+    if (m_currentPathLabel) m_currentPathLabel->SetLabelText(L"  准备开始扫描...");
 
     // 发送扫描事件，由MainWindow处理
     wxThreadEvent scanEvt(wxEVT_SCAN_REQUEST);
@@ -228,6 +291,7 @@ void MigrationPanel::OnStopButton(wxCommandEvent& event) {
     m_stopButton->Disable();
     m_stopButton->SetLabel(L"正在停止...");
     m_statusLabel->SetLabel(L"正在停止扫描...");
+    if (m_currentPathLabel) m_currentPathLabel->SetLabelText(L"  正在停止...");
 
     // 发送停止扫描事件
     wxThreadEvent stopEvt(wxEVT_SCAN_STOP);

@@ -1,74 +1,33 @@
+// 禁用所有 spdlog 调用（CRT vsprintf_s 在 GUI 应用中崩溃）
+#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_OFF
+#define SPDLOG_TRACE(...)    ((void)0)
+#define SPDLOG_DEBUG(...)    ((void)0)
+#define SPDLOG_INFO(...)     ((void)0)
+#define SPDLOG_WARN(...)     ((void)0)
+#define SPDLOG_ERROR(...)    ((void)0)
+#define SPDLOG_CRITICAL(...) ((void)0)
+#define spdlog(...)          ((void)0)
+
 #include "App.h"
 #include "gui/MainWindow.h"
 #include "gui/controls/ThemeManager.h"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <spdlog/sinks/stdout_color_sinks.h>
-
 #include <fstream>
+#include <mutex>
+#include <cstdarg>
 #include <crtdbg.h>
 
-// 获取断言日志文件路径（放在 exe 同目录）
-static std::wstring GetAssertLogPath() {
-    wchar_t exePath[MAX_PATH] = {0};
-    GetModuleFileNameW(NULL, exePath, MAX_PATH);
-    std::wstring path(exePath);
-    auto pos = path.find_last_of(L'\\');
-    if (pos != std::wstring::npos) {
-        path = path.substr(0, pos + 1) + L"assert_failures.log";
-    } else {
-        path = L"assert_failures.log";
-    }
-    return path;
-}
-
-// 自定义 wxWidgets 断言处理器 - 将断言信息写入日志文件而非弹窗
-static void CustomAssertHandler(const wxString& file,
-                                 int line,
-                                 const wxString& func,
-                                 const wxString& cond,
-                                 const wxString& msg)
-{
-    // 写入日志文件（使用窄字符串避免缓冲区问题）
-    std::ofstream assertLog(GetAssertLogPath(), std::ios::app);
-    if (assertLog.is_open()) {
-        assertLog << "[wxASSERT] " << file.ToUTF8().data()
-                  << "(" << line << "): assert \"" << cond.ToUTF8().data()
-                  << "\" failed in " << func.ToUTF8().data();
-        if (!msg.IsEmpty()) {
-            assertLog << ": " << msg.ToUTF8().data();
-        }
-        assertLog << std::endl;
-    }
-}
-
-// 自定义 CRT 断言处理器 - 将断言信息写入日志文件而非弹窗
+// 自定义 CRT 断言处理器 - 完全静默（避免 CRT debug assert 在 GUI 环境下持续触发）
 static int __cdecl CustomCrtReportHook(int reportType, char* message, int* returnValue) {
-    const char* typeStr = "UNKNOWN";
-    switch (reportType) {
-        case _CRT_ASSERT:  typeStr = "ASSERT"; break;
-        case _CRT_ERROR:   typeStr = "ERROR"; break;
-        case _CRT_WARN:    typeStr = "WARNING"; break;
-    }
-
-    // 写入日志文件
-    std::ofstream assertLog(GetAssertLogPath(), std::ios::app);
-    if (assertLog.is_open()) {
-        assertLog << "[CRT_" << typeStr << "] " << (message ? message : "(null)") << std::endl;
-    }
-
-    // 对于 ASSERT 和 ERROR，返回 1 表示不显示弹窗（不中断）
+    (void)message;
     if (reportType == _CRT_ASSERT || reportType == _CRT_ERROR) {
         if (returnValue) *returnValue = 0;
-        return 1;  // 不显示弹窗
+        return 1;
     }
-    return 0;  // 继续默认处理 WARNING
+    return 0;
 }
 
-// 自定义 CRT 无效参数处理器 - 防止 "Buffer too small" 等断言导致进程终止
-// CRT 内部的 sprintf/snprintf 缓冲区溢出会触发 _invalid_parameter_handler，
-// 默认处理器会调用 _invoke_watson 导致进程崩溃，自定义处理器仅记录日志
+// 自定义 CRT 无效参数处理器 - 完全静默，防止 "Buffer too small" 导致进程终止
 static void __cdecl CustomInvalidParameterHandler(
     const wchar_t* expression,
     const wchar_t* function,
@@ -76,30 +35,13 @@ static void __cdecl CustomInvalidParameterHandler(
     unsigned int line,
     uintptr_t reserved)
 {
-    // 写入日志文件
-    std::ofstream assertLog(GetAssertLogPath(), std::ios::app);
-    if (assertLog.is_open()) {
-        assertLog << "[CRT_INVALID_PARAM] ";
-        if (expression) assertLog << "expr=" << std::string(expression, expression + wcslen(expression)) << " ";
-        if (function) assertLog << "func=" << std::string(function, function + wcslen(function)) << " ";
-        if (file) assertLog << "file=" << std::string(file, file + wcslen(file)) << ":" << line;
-        assertLog << std::endl;
-    }
-    // 不调用默认处理器，防止进程终止
+    (void)expression; (void)function; (void)file; (void)line; (void)reserved;
+    // 完全静默，不记录，让调用继续执行
 }
 
 // 自定义未处理异常过滤器 - 防止 TerminateProcess 等操作触发的级联崩溃
 static LONG WINAPI CustomUnhandledExceptionFilter(EXCEPTION_POINTERS* ep) {
-    // 记录异常信息
-    std::ofstream assertLog(GetAssertLogPath(), std::ios::app);
-    if (assertLog.is_open()) {
-        assertLog << "[UNHANDLED_EXCEPTION] Code=0x"
-                  << std::hex << (ep ? ep->ExceptionRecord->ExceptionCode : 0)
-                  << " Addr=0x"
-                  << (ep ? reinterpret_cast<uintptr_t>(ep->ExceptionRecord->ExceptionAddress) : 0)
-                  << std::dec << std::endl;
-    }
-    // 返回 EXCEPTION_EXECUTE_HANDLER 让进程正常终止而非弹出 WER 对话框
+    (void)ep;
     return EXCEPTION_EXECUTE_HANDLER;
 }
 
@@ -107,46 +49,33 @@ namespace IceClean {
 
 bool App::OnInit()
 {
-    // 设置自定义 CRT 无效参数处理器（在所有初始化之前，防止 Buffer too small 崩溃）
+    // spdlog 初始化已禁用 - 在 GUI 应用中与 CRT 格式化冲突导致崩溃
+    // 改用 ofstream + DebugLog 函数
+    DebugLog("App", "OnInit called");
+    DebugLog("App", "IceClean starting");
+    DebugLog("App", "spdlog disabled, using ofstream DebugLog");
+
+    // 禁用 CRT debug assert 对话框（改为静默记录，防止 GUI 应用崩溃）
+    // _CRTDBG_MODE_DEBUG = 1：输出到调试器（无窗口）
+    // _CRTDBG_MODE_FILE = 2：输出到文件
+    // _CRTDBG_MODE_WNDW = 4：弹出窗口（要禁用）
+    _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_DEBUG);
+    _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_DEBUG);
+    // 安装 CRT 断言处理器 - 记录到日志文件
+    _CrtSetReportHook2(1, CustomCrtReportHook);
     _set_invalid_parameter_handler(CustomInvalidParameterHandler);
-
-    // 设置自定义未处理异常过滤器（防止级联崩溃导致进程意外终止）
     SetUnhandledExceptionFilter(CustomUnhandledExceptionFilter);
-
-    // 设置自定义 CRT 断言处理器（在 wxWidgets 初始化之前）
-    _CrtSetReportHook2(_CRT_RPTHOOK_INSTALL, CustomCrtReportHook);
-    // 同时禁用 CRT 断言弹窗模式
-    _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_DEBUG | _CRTDBG_MODE_FILE);
-    _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
-    _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_DEBUG | _CRTDBG_MODE_FILE);
-    _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
-
-    // 设置自定义 wxWidgets 断言处理器（将断言写入日志文件而非弹窗）
-    wxSetAssertHandler(CustomAssertHandler);
 
     // 初始化所有图片处理器（JPEG/PNG/BMP/GIF等）
     wxInitAllImageHandlers();
+    DebugLog("App", "wxInitAllImageHandlers done");
 
     // Set application name
     SetAppName("IceClean");
     SetVendorName("IceClean");
 
-    // Initialize spdlog logger
-    try {
-        auto consoleSink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-        auto fileSink = std::make_shared<spdlog::sinks::basic_file_sink_mt>("IceClean.log", true);
-
-        std::vector<spdlog::sink_ptr> sinks{ consoleSink, fileSink };
-        auto logger = std::make_shared<spdlog::logger>("default", sinks.begin(), sinks.end());
-        logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] %v");
-        logger->set_level(spdlog::level::debug);
-        spdlog::set_default_logger(logger);
-
-        spdlog::info("IceClean starting...");
-    }
-    catch (const spdlog::spdlog_ex& ex) {
-        // If logger init fails, continue without logging
-    }
+    // Create main window
+    IceClean::Gui::ThemeManager::Instance().Initialize();
 
     // Create main window
     IceClean::Gui::ThemeManager::Instance().Initialize();
@@ -161,9 +90,27 @@ bool App::OnInit()
 
 int App::OnExit()
 {
-    spdlog::info("IceClean exiting...");
-    spdlog::shutdown();
     return wxApp::OnExit();
+}
+
+// 临时调试日志函数
+void DebugLog(const char* tag, const char* fmt, ...) {
+    static std::mutex logMutex;
+    std::lock_guard<std::mutex> lock(logMutex);
+    std::ofstream log("IceClean.log", std::ios::app);
+    if (!log.is_open()) return;
+    SYSTEMTIME st;
+    GetLocalTime(&st);
+    char timeBuf[64];
+    sprintf_s(timeBuf, "[%04d-%02d-%02d %02d:%02d:%02d] [%s] ",
+              st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, tag);
+    log << timeBuf;
+    char msgBuf[2048];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(msgBuf, sizeof(msgBuf), fmt, args);
+    va_end(args);
+    log << msgBuf << "\n";
 }
 
 } // namespace IceClean

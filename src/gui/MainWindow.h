@@ -9,7 +9,7 @@
 #include <memory>
 
 #include "core/scanner/ScannerAggregator.h"
-#include "core/analyzer/DiskSpaceAnalyzer.h"
+#include "core/migrator/LargeFolderDetector.h"
 #include "models/ScanResult.h"
 #include "models/MigrationItem.h"
 #include "models/CleanItem.h"
@@ -22,11 +22,9 @@ class NavSidebar;
 class DashboardPanel;
 class ScanResultPanel;
 class MigrationPanel;
-class DuplicateFilePanel;
 class StartupPanel;
 class UninstallPanel;
 class SoftwareRecommendPanel;
-class DiskAnalyzerPanel;
 class DriverPanel;
 class NetworkPanel;
 class SecurityPanel;
@@ -46,8 +44,6 @@ enum class NavPage : int {
     SoftwareRecommend,   // 软件推荐
     Security,            // 安全防护
     NetworkOpt,          // 网络优化
-    DiskAnalyzer,        // 磁盘分析
-    FileTypeAnalyzer,    // 文件分类
     DownloadManager,     // 下载管理
     Settings,            // 设置
     About,               // 关于
@@ -74,6 +70,7 @@ private:
     void OnScanRequest(wxThreadEvent& event);
     void OnScanProgressUpdate(wxThreadEvent& event);
     void OnScanStop(wxThreadEvent& event);
+
     void OnStopTimeout(wxTimerEvent& event);
     void ForceStopScan();
     void StartScan(int scanType);
@@ -128,11 +125,9 @@ private:
     DashboardPanel* m_dashboardPanel = nullptr;
     ScanResultPanel* m_scanResultPanel = nullptr;
     MigrationPanel* m_migrationPanel = nullptr;
-    DuplicateFilePanel* m_duplicateFilePanel = nullptr;
     StartupPanel* m_startupPanel = nullptr;
     UninstallPanel* m_uninstallPanel = nullptr;
     SoftwareRecommendPanel* m_softwareRecommendPanel = nullptr;
-    DiskAnalyzerPanel* m_diskAnalyzerPanel = nullptr;
     DriverPanel* m_driverPanel = nullptr;
     NetworkPanel* m_networkPanel = nullptr;
     SecurityPanel* m_securityPanel = nullptr;
@@ -145,12 +140,13 @@ private:
     std::mutex m_workerMutex;
     std::mutex m_aggregatorMutex;
     IceClean::Core::Scanner::ScannerAggregator* m_currentAggregator = nullptr;
+    IceClean::Core::Migrator::LargeFolderDetector* m_activeFolderDetector = nullptr;  // 迁移扫描取消用（m_aggregatorMutex 保护）
     std::atomic<bool> m_stopRequested{false};
     wxTimer* m_stopTimeoutTimer = nullptr;
+    wxString m_lastOptimizeFailures;  // 最近一次启动优化的失败项明细（worker→UI 经 m_workerMutex 同步）
 
     // ── 数据 ──
     IceClean::Models::ScanResult m_lastScanResult;
-    IceClean::Core::Analyzer::DiskSpaceAnalyzer* m_diskAnalyzer = nullptr;
 
     // ── 系统托盘 ──
     wxTaskBarIcon* m_taskBarIcon = nullptr;
