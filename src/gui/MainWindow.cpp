@@ -88,6 +88,7 @@ MainWindow::MainWindow()
     m_contentBook->Bind(wxEVT_SCAN_STOP, &MainWindow::OnScanStop, this);
     m_contentBook->Bind(wxEVT_CLEAN_PROGRESS, &MainWindow::OnCleanRequest, this);
     m_contentBook->Bind(wxEVT_MIGRATE_PROGRESS, &MainWindow::OnMigrateRequest, this);
+    m_contentBook->Bind(wxEVT_MIGRATION_SCAN_REQUEST, &MainWindow::OnMigrationScanRequest, this);
 
     // 绑定完成事件到自身
     Bind(wxEVT_SCAN_COMPLETE, &MainWindow::OnScanComplete, this);
@@ -267,6 +268,7 @@ void MainWindow::CreateControls()
     m_contentBook->Bind(wxEVT_SCAN_STOP, &MainWindow::OnScanStop, this);
     m_contentBook->Bind(wxEVT_CLEAN_PROGRESS, &MainWindow::OnCleanRequest, this);
     m_contentBook->Bind(wxEVT_MIGRATE_PROGRESS, &MainWindow::OnMigrateRequest, this);
+    m_contentBook->Bind(wxEVT_MIGRATION_SCAN_REQUEST, &MainWindow::OnMigrationScanRequest, this);
 
     // 绑定完成事件到自身
     Bind(wxEVT_SCAN_COMPLETE, &MainWindow::OnScanComplete, this);
@@ -445,6 +447,13 @@ void MainWindow::OnScanRequest(wxThreadEvent& event)
     StartScan(scanType);
 }
 
+void MainWindow::OnMigrationScanRequest(wxThreadEvent& event)
+{
+    int thresholdMB = event.GetInt();  // 阈值（MB）
+    if (thresholdMB <= 0) thresholdMB = 100;
+    StartScan(1, thresholdMB);  // 1 = 迁移扫描类型
+}
+
 void MainWindow::OnScanProgressUpdate(wxThreadEvent& event)
 {
     auto progress = event.GetPayload<IceClean::Core::Scanner::ScanProgressInfo>();
@@ -517,12 +526,13 @@ void MainWindow::ForceStopScan() {
     m_dashboardPanel->RestoreDiskInfo();
 }
 
-void MainWindow::StartScan(int scanType)
+void MainWindow::StartScan(int scanType, int thresholdMB)
 {
     std::lock_guard<std::mutex> lock(m_workerMutex);
     if (m_workerRunning) return;
 
     m_workerRunning = true;
+    if (thresholdMB <= 0) thresholdMB = 100;
 
     if (scanType == 0) {
         // 普通扫描 - 更新仪表盘状态
@@ -530,7 +540,7 @@ void MainWindow::StartScan(int scanType)
         SetStatusBusy(L"正在扫描系统垃圾...");
     }
 
-    m_workerThread = std::thread([this, scanType]() {
+    m_workerThread = std::thread([this, scanType, thresholdMB]() {
         if (scanType == 0) {
             // ── 普通垃圾扫描 ──
             IceClean::Core::Scanner::ScannerAggregator aggregator;
@@ -554,9 +564,11 @@ void MainWindow::StartScan(int scanType)
             // ── 迁移扫描（大文件夹检测 + 应用迁移器，全程实况上报）──
             std::vector<IceClean::Models::MigrationItem> items;
             try {
-                // 100MB 阈值：覆盖用户级大目录（Unity、Adobe SDK、Docker 镜像等），
-                // 同时避免扫描结果中包含 1-2MB 的零碎文件夹
-                auto detector = std::make_unique<IceClean::Core::Migrator::LargeFolderDetector>(100);
+                // 阈值由 UI 传入（默认 100MB）：
+                //   - 100MB 覆盖用户级大目录（Unity、Adobe SDK、Docker 镜像等）
+                //   - 用户可在面板上选择 50/100/200/500/1000 MB
+                auto detector = std::make_unique<IceClean::Core::Migrator::LargeFolderDetector>(
+                    static_cast<uint64_t>(thresholdMB));
                 {
                     std::lock_guard<std::mutex> lock(m_aggregatorMutex);
                     m_activeFolderDetector = detector.get();

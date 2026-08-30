@@ -68,12 +68,13 @@ private:
 
     // 扫描请求/进度/停止/完成
     void OnScanRequest(wxThreadEvent& event);
+    void OnMigrationScanRequest(wxThreadEvent& event);  // 携带阈值的迁移扫描请求
     void OnScanProgressUpdate(wxThreadEvent& event);
     void OnScanStop(wxThreadEvent& event);
 
     void OnStopTimeout(wxTimerEvent& event);
     void ForceStopScan();
-    void StartScan(int scanType);
+    void StartScan(int scanType, int thresholdMB = 100);
 
     // 扫描完成
     void OnScanComplete(wxThreadEvent& event);

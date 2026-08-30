@@ -16,46 +16,61 @@ struct MigrationScanProgressInfo {
     int foundCount = 0;
 };
 
+// 迁移扫描请求载荷（UI 线程 → MainWindow）
+struct MigrationScanRequestInfo {
+    int scanType = 1;        // 1 = 迁移扫描
+    int thresholdMB = 100;   // 扫描阈值
+};
+
 // 智能迁移面板
 class MigrationPanel : public wxPanel {
 public:
     MigrationPanel(wxWindow* parent, wxWindowID id = wxID_ANY);
 
-    // 设置扫描到的大文件列表
     void SetMigrationItems(const std::vector<IceClean::Models::MigrationItem>& items);
-
-    // 获取选中的迁移项
     std::vector<IceClean::Models::MigrationItem> GetSelectedItems() const;
-
-    // 获取目标驱动器
     wxString GetTargetDrive() const;
-
-    // 扫描过程实况（由 MainWindow 从工作线程经事件转发，UI 线程调用）
     void UpdateScanProgress(const wxString& phase, const wxString& currentPath, int foundCount);
 
 private:
     std::vector<IceClean::Models::MigrationItem> m_items;
 
-    // 控件
     wxButton* m_scanButton = nullptr;
     wxButton* m_stopButton = nullptr;
+    wxCheckBox* m_headerCheckbox = nullptr;  // 列表上方全选 checkbox
     wxListCtrl* m_fileList = nullptr;
     wxChoice* m_targetDriveChoice = nullptr;
     wxButton* m_migrateButton = nullptr;
+    wxButton* m_deleteButton = nullptr;     // 删除按钮
     wxStaticText* m_statusLabel = nullptr;
-    IceClean::Gui::ScanInfoPanel* m_scanInfoPanel = nullptr;  // 扫描实况条
-    wxStaticText* m_currentPathLabel = nullptr;             // 当前扫描目录
-    wxString m_currentPath;                                  // 完整路径，仅在控件中显示省略版
+    IceClean::Gui::ScanInfoPanel* m_scanInfoPanel = nullptr;
+    wxStaticText* m_currentPathLabel = nullptr;
+    wxString m_currentPath;
+    wxChoice* m_thresholdChoice = nullptr;
+    int m_currentThresholdMB = 100;
+
+    wxPanel* m_expandPanel = nullptr;
+    wxStaticText* m_expandTitle = nullptr;
+    wxStaticText* m_expandContent = nullptr;
+    int m_expandedIndex = -1;
 
     void CreateControls();
     void PopulateDriveList();
+    void PopulateThresholdList();
+    void ShowExpandPanel(int itemIndex);
+    void HideExpandPanel();
+    std::wstring ScanLargeSubDirs(const std::wstring& parentPath, int thresholdBytes);
+    void UpdateHeaderCheckboxState();
 
-    // 事件处理
     void OnScanButton(wxCommandEvent& event);
     void OnStopButton(wxCommandEvent& event);
     void OnMigrateButton(wxCommandEvent& event);
-    void OnItemChecked(wxListEvent& event);
+    void OnDeleteButton(wxCommandEvent& event);
+    void OnHeaderCheckbox(wxCommandEvent& event);
+    void OnListItemChecked(wxListEvent& event);
+    void OnItemActivated(wxListEvent& event);
     void OnMigrationScanProgress(wxThreadEvent& event);
+    void OnThresholdChanged(wxCommandEvent& event);
 
     wxDECLARE_EVENT_TABLE();
 };
