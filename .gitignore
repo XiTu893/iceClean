@@ -23,6 +23,7 @@ cmake-build-*/
 
 # vcpkg installed packages
 vcpkg_installed/
+vcpkg/
 
 # OS
 Thumbs.db
@@ -31,3 +32,25 @@ Desktop.ini
 
 # Logs
 *.log
+build_log*.txt
+configure_out.txt
+out.txt
+err.txt
+
+# Developer test & check scripts
+run_core_checks.bat
+run_startup_checks.bat
+test_scan.bat
+
+# Development planning & internal docs (not for GitHub)
+.trae/
+doc/
+docs/
+
+# Redundant icon files at repo root (use src/gui/resources/ instead)
+tray.ico
+tray_16.png
+tray_24.png
+tray_32.png
+tray_48.png
+tray_256.png
