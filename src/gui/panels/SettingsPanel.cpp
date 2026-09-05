@@ -5,6 +5,7 @@
 #include "core/optimizer/ContextMenuManager.h"
 #include "gui/controls/ThemeManager.h"
 #include "utils/JsonUtil.h"
+#include "utils/Win32Util.h"
 #include "gui/resources/resource.h"
 #include <nlohmann/json.hpp>
 #include <wx/filename.h>
@@ -72,11 +73,63 @@ void SettingsPanel::CreateGeneralSection(wxWindow* parent, wxSizer* sizer) {
     m_autoRestoreCheck->SetValue(true);
     sizer->Add(m_autoRestoreCheck, 0, wxLEFT | wxBOTTOM, 8);
 
-    m_minimizeToTrayCheck = new wxCheckBox(parent, wxID_ANY, L"关闭时最小化到系统托盘");
-    m_minimizeToTrayCheck->SetFont(wxFont(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
-                                          false, L"微软雅黑"));
-    m_minimizeToTrayCheck->SetValue(false);
-    sizer->Add(m_minimizeToTrayCheck, 0, wxLEFT | wxBOTTOM, 8);
+    // 托盘与后台设置
+    auto* traySectionLabel = new wxStaticText(parent, wxID_ANY, L"托盘与后台");
+    traySectionLabel->SetFont(wxFont(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD,
+                                      false, L"微软雅黑"));
+    traySectionLabel->SetForegroundColour(colors.textPrimary);
+    sizer->Add(traySectionLabel, 0, wxLEFT | wxTOP | wxBOTTOM, 4);
+
+    auto* closeBehaviorLabel = new wxStaticText(parent, wxID_ANY, L"关闭主窗口时：");
+    closeBehaviorLabel->SetFont(wxFont(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+                                        false, L"微软雅黑"));
+    closeBehaviorLabel->SetForegroundColour(colors.textSecondary);
+    sizer->Add(closeBehaviorLabel, 0, wxLEFT | wxBOTTOM, 4);
+
+    auto* closeActionSizer = new wxBoxSizer(wxVERTICAL);
+    m_closeToTrayRadio = new wxRadioButton(parent, wxID_ANY, L"最小化到系统托盘（推荐）",
+                                            wxDefaultPosition, wxDefaultSize, wxRB_GROUP);
+    m_closeToTrayRadio->SetFont(wxFont(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+                                        false, L"微软雅黑"));
+    m_closeToTrayRadio->SetValue(true);
+    closeActionSizer->Add(m_closeToTrayRadio, 0, wxLEFT | wxBOTTOM, 4);
+
+    m_closeToExitRadio = new wxRadioButton(parent, wxID_ANY, L"退出程序");
+    m_closeToExitRadio->SetFont(wxFont(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+                                        false, L"微软雅黑"));
+    closeActionSizer->Add(m_closeToExitRadio, 0, wxLEFT | wxBOTTOM, 8);
+
+    sizer->Add(closeActionSizer, 0, wxLEFT);
+
+    m_startupCheck = new wxCheckBox(parent, wxID_ANY, L"开机时自动启动");
+    m_startupCheck->SetFont(wxFont(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+                                     false, L"微软雅黑"));
+    m_startupCheck->SetValue(false);
+    sizer->Add(m_startupCheck, 0, wxLEFT | wxBOTTOM, 8);
+
+    m_backgroundMonitorCheck = new wxCheckBox(parent, wxID_ANY, L"后台监控磁盘空间");
+    m_backgroundMonitorCheck->SetFont(wxFont(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+                                              false, L"微软雅黑"));
+    m_backgroundMonitorCheck->SetValue(false);
+    sizer->Add(m_backgroundMonitorCheck, 0, wxLEFT | wxBOTTOM, 8);
+
+    auto* notifyLabel = new wxStaticText(parent, wxID_ANY, L"通知设置：");
+    notifyLabel->SetFont(wxFont(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD,
+                                 false, L"微软雅黑"));
+    notifyLabel->SetForegroundColour(colors.textPrimary);
+    sizer->Add(notifyLabel, 0, wxLEFT | wxTOP | wxBOTTOM, 4);
+
+    m_notifyScanCheck = new wxCheckBox(parent, wxID_ANY, L"扫描完成后显示通知");
+    m_notifyScanCheck->SetFont(wxFont(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+                                        false, L"微软雅黑"));
+    m_notifyScanCheck->SetValue(true);
+    sizer->Add(m_notifyScanCheck, 0, wxLEFT | wxBOTTOM, 4);
+
+    m_notifyCleanCheck = new wxCheckBox(parent, wxID_ANY, L"清理完成后显示通知");
+    m_notifyCleanCheck->SetFont(wxFont(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+                                         false, L"微软雅黑"));
+    m_notifyCleanCheck->SetValue(true);
+    sizer->Add(m_notifyCleanCheck, 0, wxLEFT | wxBOTTOM, 8);
 
     // 主题选择
     auto* themeSizer = new wxBoxSizer(wxHORIZONTAL);
@@ -765,7 +818,27 @@ bool SettingsPanel::IsAutoRestoreEnabled() const {
 }
 
 bool SettingsPanel::IsMinimizeToTrayEnabled() const {
-    return m_minimizeToTrayCheck && m_minimizeToTrayCheck->GetValue();
+    return m_closeToTrayRadio && m_closeToTrayRadio->GetValue();
+}
+
+bool SettingsPanel::IsCloseToExitEnabled() const {
+    return m_closeToExitRadio && m_closeToExitRadio->GetValue();
+}
+
+bool SettingsPanel::IsStartupEnabled() const {
+    return m_startupCheck && m_startupCheck->GetValue();
+}
+
+bool SettingsPanel::IsBackgroundMonitorEnabled() const {
+    return m_backgroundMonitorCheck && m_backgroundMonitorCheck->GetValue();
+}
+
+bool SettingsPanel::IsNotifyOnScanComplete() const {
+    return m_notifyScanCheck && m_notifyScanCheck->GetValue();
+}
+
+bool SettingsPanel::IsNotifyOnCleanComplete() const {
+    return m_notifyCleanCheck && m_notifyCleanCheck->GetValue();
 }
 
 std::vector<int> SettingsPanel::GetEnabledCleanCategories() const {
@@ -788,8 +861,21 @@ void SettingsPanel::LoadSettings() {
     if (json.contains("autoRestore") && json["autoRestore"].is_boolean()) {
         m_autoRestoreCheck->SetValue(json["autoRestore"].get<bool>());
     }
-    if (json.contains("minimizeToTray") && json["minimizeToTray"].is_boolean()) {
-        m_minimizeToTrayCheck->SetValue(json["minimizeToTray"].get<bool>());
+    if (json.contains("closeToTray") && json["closeToTray"].is_boolean()) {
+        m_closeToTrayRadio->SetValue(json["closeToTray"].get<bool>());
+        m_closeToExitRadio->SetValue(!json["closeToTray"].get<bool>());
+    }
+    if (json.contains("startupEnabled") && json["startupEnabled"].is_boolean()) {
+        m_startupCheck->SetValue(json["startupEnabled"].get<bool>());
+    }
+    if (json.contains("backgroundMonitor") && json["backgroundMonitor"].is_boolean()) {
+        m_backgroundMonitorCheck->SetValue(json["backgroundMonitor"].get<bool>());
+    }
+    if (json.contains("notifyScan") && json["notifyScan"].is_boolean()) {
+        m_notifyScanCheck->SetValue(json["notifyScan"].get<bool>());
+    }
+    if (json.contains("notifyClean") && json["notifyClean"].is_boolean()) {
+        m_notifyCleanCheck->SetValue(json["notifyClean"].get<bool>());
     }
     if (json.contains("cleanCategories") && json["cleanCategories"].is_array()) {
         auto cats = json["cleanCategories"];
@@ -804,7 +890,11 @@ void SettingsPanel::LoadSettings() {
 void SettingsPanel::SaveSettings() {
     nlohmann::json json;
     json["autoRestore"] = m_autoRestoreCheck->GetValue();
-    json["minimizeToTray"] = m_minimizeToTrayCheck->GetValue();
+    json["closeToTray"] = m_closeToTrayRadio->GetValue();
+    json["startupEnabled"] = m_startupCheck->GetValue();
+    json["backgroundMonitor"] = m_backgroundMonitorCheck->GetValue();
+    json["notifyScan"] = m_notifyScanCheck->GetValue();
+    json["notifyClean"] = m_notifyCleanCheck->GetValue();
 
     auto cats = nlohmann::json::array();
     for (const auto* check : m_cleanRuleChecks) {
@@ -814,6 +904,9 @@ void SettingsPanel::SaveSettings() {
 
     auto configPath = IceClean::Utils::JsonUtil::GetConfigPath() + L"\\settings.json";
     IceClean::Utils::JsonUtil::SaveJson(configPath, json);
+
+    // Handle startup registration
+    IceClean::Utils::Win32Util::SetStartupEnabled(m_startupCheck->GetValue());
 }
 
 // ── 日志刷新 ──

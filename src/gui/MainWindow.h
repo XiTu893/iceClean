@@ -7,6 +7,7 @@
 #include <thread>
 #include <mutex>
 #include <memory>
+#include <vector>
 
 #include "core/scanner/ScannerAggregator.h"
 #include "core/migrator/LargeFolderDetector.h"
@@ -14,6 +15,7 @@
 #include "models/MigrationItem.h"
 #include "models/CleanItem.h"
 #include "models/StartupItem.h"
+#include "controls/TrayIcon.h"
 
 namespace IceClean::Gui {
 
@@ -27,24 +29,39 @@ class UninstallPanel;
 class SoftwareRecommendPanel;
 class DriverPanel;
 class NetworkPanel;
+class ProcessNetPanel;
 class SecurityPanel;
 class SettingsPanel;
 class AboutPanel;
+class HardwareMonitorPanel;
 
 class CleanProgressDialog;
 class UnifiedProgressDialog;
 
+// ── 托盘菜单命令 ID ──
+enum class TrayMenuId : int {
+    ShowWindow = 1000,
+    QuickClean,
+    SilentClean,
+    CheckUpdate,
+    OpenSettings,
+    Startup,
+    BackgroundMonitor,
+    CloseToTray,
+    CloseToExit,
+    About,
+    Exit,
+};
+
 // ── 内容书页索引（与 NavSidebar 导航项一一对应） ──
 enum class NavPage : int {
-    Dashboard = 0,       // 首页
+    Dashboard = 0,       // 首页（硬件监控）
     DeepClean,           // 深度清理
     Migration,           // 智能迁移
     Startup,             // 加速优化
     SoftwareManage,      // 软件管理
-    SoftwareRecommend,   // 软件推荐
     Security,            // 安全防护
     NetworkOpt,          // 网络优化
-    DownloadManager,     // 下载管理
     Settings,            // 设置
     About,               // 关于
 };
@@ -131,9 +148,11 @@ private:
     SoftwareRecommendPanel* m_softwareRecommendPanel = nullptr;
     DriverPanel* m_driverPanel = nullptr;
     NetworkPanel* m_networkPanel = nullptr;
+    ProcessNetPanel* m_processNetPanel = nullptr;
     SecurityPanel* m_securityPanel = nullptr;
     SettingsPanel* m_settingsPanel = nullptr;
     AboutPanel* m_aboutPanel = nullptr;
+    HardwareMonitorPanel* m_hardwareMonitorPanel = nullptr;
 
     // ── 工作线程 ──
     std::thread m_workerThread;
@@ -150,7 +169,12 @@ private:
     IceClean::Models::ScanResult m_lastScanResult;
 
     // ── 系统托盘 ──
-    wxTaskBarIcon* m_taskBarIcon = nullptr;
+    Gui::TrayIcon* m_taskBarIcon = nullptr;
+    wxMenu* CreateTrayMenuMenu();
+    void OnTrayLeftClick(wxEvent& event);
+    void OnTrayMenuCommand(wxCommandEvent& event);
+    void ShowTrayNotification(const wxString& title, const wxString& message, int flags = wxICON_INFORMATION);
+    void UpdateTrayIconState(bool isScanning);
 
     // ── 进度对话框 ──
     wxDialog* m_cleanProgressDlg = nullptr;

@@ -26,7 +26,7 @@ private:
     void OnThemeChanged(const struct ThemeColors& colors);
 
     wxFrame*   m_ownerFrame = nullptr;
-    wxString   m_title = L"IceClean";
+    wxString   m_title = L"极速冰清";
 
     // 标题栏按钮区域
     wxButton*  m_minBtn = nullptr;

@@ -16,6 +16,7 @@
 #include <mutex>
 #include <cstdarg>
 #include <crtdbg.h>
+#include <windows.h>
 
 // 自定义 CRT 断言处理器 - 完全静默（避免 CRT debug assert 在 GUI 环境下持续触发）
 static int __cdecl CustomCrtReportHook(int reportType, char* message, int* returnValue) {
@@ -55,6 +56,43 @@ bool App::OnInit()
     DebugLog("App", "IceClean starting");
     DebugLog("App", "spdlog disabled, using ofstream DebugLog");
 
+    // ── 单实例检查 ──
+    // 使用命名互斥体确保只有一个实例运行
+    HANDLE hMutex = CreateMutexW(nullptr, FALSE, L"IceClean_SingleInstance_Mutex");
+    if (!hMutex || GetLastError() == ERROR_ALREADY_EXISTS) {
+        // 已有实例在运行，尝试激活其窗口
+        HWND hwnd = FindWindowW(nullptr, L"IceClean 极速冰清");
+        if (hwnd) {
+            // 如果窗口最小化则恢复
+            if (IsIconic(hwnd)) {
+                ShowWindow(hwnd, SW_RESTORE);
+            } else {
+                ShowWindow(hwnd, SW_SHOW);
+            }
+            SetForegroundWindow(hwnd);
+        } else {
+            // 退而求其次：枚举所有顶层窗口查找 IceClean
+            struct FindData { HWND found; };
+            FindData fd{nullptr};
+            EnumWindows([](HWND hwnd, LPARAM lParam) -> BOOL {
+                auto* pFd = reinterpret_cast<FindData*>(lParam);
+                wchar_t title[256] = {};
+                GetWindowTextW(hwnd, title, 256);
+                if (wcsstr(title, L"IceClean") != nullptr && IsWindowVisible(hwnd)) {
+                    pFd->found = hwnd;
+                    return FALSE;  // 停止枚举
+                }
+                return TRUE;
+            }, reinterpret_cast<LPARAM>(&fd));
+            if (fd.found) {
+                if (IsIconic(fd.found)) ShowWindow(fd.found, SW_RESTORE);
+                SetForegroundWindow(fd.found);
+            }
+        }
+        if (hMutex) CloseHandle(hMutex);
+        return false;  // 退出，不创建新实例
+    }
+
     // 禁用 CRT debug assert 对话框（改为静默记录，防止 GUI 应用崩溃）
     // _CRTDBG_MODE_DEBUG = 1：输出到调试器（无窗口）
     // _CRTDBG_MODE_FILE = 2：输出到文件
@@ -67,19 +105,37 @@ bool App::OnInit()
     SetUnhandledExceptionFilter(CustomUnhandledExceptionFilter);
 
     // 初始化所有图片处理器（JPEG/PNG/BMP/GIF等）
-    wxInitAllImageHandlers();
-    DebugLog("App", "wxInitAllImageHandlers done");
+    try {
+        wxInitAllImageHandlers();
+        DebugLog("App", "wxInitAllImageHandlers done");
+    } catch (const std::exception& e) {
+        DebugLog("App", "wxInitAllImageHandlers FAILED: %s", e.what());
+    }
 
     // Set application name
     SetAppName("IceClean");
     SetVendorName("IceClean");
 
     // Create main window
-    IceClean::Gui::ThemeManager::Instance().Initialize();
+    Gui::MainWindow* mainWindow = nullptr;
+    try {
+        IceClean::Gui::ThemeManager::Instance().Initialize();
+        DebugLog("App", "ThemeManager initialized");
+    } catch (const std::exception& e) {
+        DebugLog("App", "ThemeManager init FAILED: %s", e.what());
+    }
 
-    // Create main window
-    IceClean::Gui::ThemeManager::Instance().Initialize();
-    auto* mainWindow = new Gui::MainWindow();
+    try {
+        mainWindow = new Gui::MainWindow();
+    } catch (const std::exception& e) {
+        DebugLog("App", "MainWindow construction FAILED: %s", e.what());
+        return false;
+    } catch (...) {
+        DebugLog("App", "MainWindow construction FAILED: unknown exception");
+        return false;
+    }
+    DebugLog("App", "MainWindow constructed");
+
     mainWindow->SetSize(1100, 700);
     mainWindow->Center();
     mainWindow->SetMinSize(wxSize(900, 600));

@@ -12,7 +12,12 @@
 
 ; Installer metadata
 Name "${APP_NAME} ${APP_VERSION}"
-OutFile "IceClean-${APP_VERSION}-setup.exe"
+
+; Output path can be overridden on the command line via -DOUTPATH for CI
+!ifndef OUTPATH
+  !define OUTPATH "IceClean-${APP_VERSION}-setup.exe"
+!endif
+OutFile "${OUTPATH}"
 InstallDir "$PROGRAMFILES64\${APP_NAME}"
 InstallDirRegKey HKCU "Software\${APP_NAME}" ""
 RequestExecutionLevel admin

@@ -229,6 +229,8 @@ void SoftwareCacheScanner::ScanYoudaoCache(Models::ScanCategory& category, const
 
 bool SoftwareCacheScanner::IsAvailable() const {
     // 检查至少一个软件缓存目录是否存在
+    std::wstring profile = Utils::Win32Util::ExpandEnvVars(L"%USERPROFILE%");
+    std::wstring local = Utils::Win32Util::ExpandEnvVars(L"%LOCALAPPDATA%");
     return Utils::FileUtil::Exists(Utils::Win32Util::ExpandEnvVars(L"%USERPROFILE%\\Documents\\WeChat Files")) ||
            Utils::FileUtil::Exists(Utils::Win32Util::ExpandEnvVars(L"%USERPROFILE%\\Documents\\Tencent Files")) ||
            Utils::FileUtil::Exists(Utils::Win32Util::ExpandEnvVars(L"%USERPROFILE%\\AppData\\Local\\Thunder Network")) ||
@@ -238,7 +240,16 @@ bool SoftwareCacheScanner::IsAvailable() const {
            Utils::FileUtil::Exists(Utils::Win32Util::ExpandEnvVars(L"%USERPROFILE%\\AppData\\Local\\bilibili")) ||
            Utils::FileUtil::Exists(Utils::Win32Util::ExpandEnvVars(L"%USERPROFILE%\\AppData\\Local\\Kingsoft")) ||
            Utils::FileUtil::Exists(Utils::Win32Util::ExpandEnvVars(L"%USERPROFILE%\\AppData\\Local\\DingTalk")) ||
-           Utils::FileUtil::Exists(Utils::Win32Util::ExpandEnvVars(L"%USERPROFILE%\\AppData\\Local\\Youdao"));
+           Utils::FileUtil::Exists(Utils::Win32Util::ExpandEnvVars(L"%USERPROFILE%\\AppData\\Local\\Youdao")) ||
+           Utils::FileUtil::Exists(profile + L"\\.npm") ||
+           Utils::FileUtil::Exists(profile + L"\\.yarn") ||
+           Utils::FileUtil::Exists(profile + L"\\.cargo") ||
+           Utils::FileUtil::Exists(profile + L"\\go\\pkg\\mod\\cache") ||
+           Utils::FileUtil::Exists(profile + L"\\.gradle") ||
+           Utils::FileUtil::Exists(profile + L"\\.m2") ||
+           Utils::FileUtil::Exists(local + L"\\pip\\Cache") ||
+           Utils::FileUtil::Exists(local + L"\\NuGet\\Cache") ||
+           Utils::FileUtil::Exists(local + L"\\vcpkg\\downloads");
 }
 
 // ── Electron 应用缓存 ──
@@ -302,20 +313,63 @@ void SoftwareCacheScanner::ScanPackageManagerCache(Models::ScanCategory& categor
     std::wstring localAppData = Utils::Win32Util::ExpandEnvVars(L"%LOCALAPPDATA%");
     std::wstring userProfile = Utils::Win32Util::ExpandEnvVars(L"%USERPROFILE%");
 
-    std::vector<std::wstring> cacheDirs = {
-        localAppData + L"\\npm-cache",
-        localAppData + L"\\NuGet\\Cache",
-        localAppData + L"\\pip\\Cache",
-        localAppData + L"\\Cargo\\Registry",
-        localAppData + L"\\vcpkg\\downloads",
-        userProfile + L"\\.gradle\\caches",
-        userProfile + L"\\.m2\\repository",
+    // Node 生态
+    std::vector<std::wstring> nodeCaches = {
+        userProfile + L"\\.npm\\_cacache",      // npm 7+ 内容寻址缓存
+        localAppData + L"\\npm-cache",          // npm 6 及以下
+        userProfile + L"\\.yarn\\cache",        // Yarn 1.x
+        userProfile + L"\\.yarn\\berry",        // Yarn Berry
+        localAppData + L"\\pnpm-store",         // pnpm 内容寻址存储
     };
-
-    for (const auto& dir : cacheDirs) {
+    for (const auto& dir : nodeCaches) {
         if (Utils::FileUtil::Exists(dir)) {
             ScanDirectory(dir, L"*", true, true, category, stopFlag, progressCb);
         }
+    }
+
+    // Python 生态
+    std::vector<std::wstring> pythonCaches = {
+        localAppData + L"\\pip\\Cache",
+        localAppData + L"\\uv\\cache",          // uv 包缓存
+        userProfile + L"\\.cache\\pypoetry\\cache",  // Poetry
+    };
+    for (const auto& dir : pythonCaches) {
+        if (Utils::FileUtil::Exists(dir)) {
+            ScanDirectory(dir, L"*", true, true, category, stopFlag, progressCb);
+        }
+    }
+
+    // .NET 生态
+    std::wstring nugetCache = localAppData + L"\\NuGet\\Cache";
+    if (Utils::FileUtil::Exists(nugetCache)) {
+        ScanDirectory(nugetCache, L"*", true, true, category, stopFlag, progressCb);
+    }
+
+    // Rust / Go 生态
+    std::wstring cargoRegistry = userProfile + L"\\.cargo\\registry";
+    if (Utils::FileUtil::Exists(cargoRegistry)) {
+        ScanDirectory(cargoRegistry, L"*", true, true, category, stopFlag, progressCb);
+    }
+    std::wstring goModCache = userProfile + L"\\go\\pkg\\mod\\cache";
+    if (Utils::FileUtil::Exists(goModCache)) {
+        ScanDirectory(goModCache, L"*", true, true, category, stopFlag, progressCb);
+    }
+
+    // Java 生态
+    std::vector<std::wstring> javaCaches = {
+        userProfile + L"\\.gradle\\caches",
+        userProfile + L"\\.m2\\repository",
+    };
+    for (const auto& dir : javaCaches) {
+        if (Utils::FileUtil::Exists(dir)) {
+            ScanDirectory(dir, L"*", true, true, category, stopFlag, progressCb);
+        }
+    }
+
+    // vcpkg 源码下载缓存
+    std::wstring vcpkgDownloads = localAppData + L"\\vcpkg\\downloads";
+    if (Utils::FileUtil::Exists(vcpkgDownloads)) {
+        ScanDirectory(vcpkgDownloads, L"*", true, true, category, stopFlag, progressCb);
     }
 }
 

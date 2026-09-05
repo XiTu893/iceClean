@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <nlohmann/json.hpp>
 #include <algorithm>
+#include <set>
 #include "core/driver/PnpUtilRunner.h"
 #include "core/safety/RestorePointManager.h"
 #include "core/safety/OperationLogger.h"
@@ -14,14 +15,14 @@ namespace IceClean::Core::Driver {
 
 namespace {
 
-std::wstring GetAppDataRoaming() {
+std::wstring GetDataDir() {
     wchar_t path[MAX_PATH] = {};
-    if (SUCCEEDED(SHGetFolderPathW(nullptr, CSIDL_APPDATA, nullptr, 0, path))) {
-        return path;
-    }
-    wchar_t local[MAX_PATH] = {};
-    if (SUCCEEDED(SHGetFolderPathW(nullptr, CSIDL_LOCAL_APPDATA, nullptr, 0, local))) {
-        return local;
+    if (GetModuleFileNameW(nullptr, path, MAX_PATH) > 0) {
+        std::filesystem::path p(path);
+        std::filesystem::path dataDir = p.parent_path() / L"data";
+        std::error_code ec;
+        std::filesystem::create_directories(dataDir, ec);
+        return dataDir.wstring();
     }
     return L".";
 }
@@ -62,7 +63,69 @@ std::wstring GetSystemVersion() {
 } // namespace
 
 std::wstring DriverBackupManager::GetDefaultBackupRoot() {
-    return GetAppDataRoaming() + L"\\IceClean\\Backups\\Drivers";
+    return GetDataDir() + L"\\Backups\\Drivers";
+}
+
+DriverBackupManager::BackupResult DriverBackupManager::BackupSelected(
+    const std::wstring& backupRoot,
+    const std::vector<std::wstring>& oemInfNames,
+    std::function<void(int, int, const std::wstring&)> progress) {
+    BackupResult result;
+    namespace fs = std::filesystem;
+
+    // 去重
+    std::set<std::wstring> unique;
+    for (const auto& n : oemInfNames) unique.insert(n);
+    const std::vector<std::wstring> targets(unique.begin(), unique.end());
+    if (targets.empty()) return result;
+
+    try {
+        fs::create_directories(backupRoot);
+    } catch (...) {
+        return result;
+    }
+
+    const std::wstring stamp = CurrentTimestamp();
+    const std::wstring backupDir = backupRoot + L"\\" + stamp;
+    try {
+        fs::create_directories(backupDir);
+    } catch (...) {
+        return result;
+    }
+
+    int done = 0;
+    int total = static_cast<int>(targets.size());
+    for (const auto& oem : targets) {
+        if (progress) progress(done, total, oem);
+        PnpUtilRunner::ExportOne(oem, backupDir);
+        done++;
+    }
+    if (progress) progress(done, total, L"");
+
+    // 统计
+    int count = 0;
+    std::error_code ec;
+    for (auto it = fs::recursive_directory_iterator(backupDir, ec);
+         it != fs::recursive_directory_iterator(); it.increment(ec)) {
+        if (ec) break;
+        if (it->path().extension().wstring() == L".inf") count++;
+    }
+    result.packageCount = count;
+    result.backupDir = backupDir;
+    result.success = count > 0;
+
+    // manifest
+    nlohmann::json manifest;
+    manifest["time"] = IceClean::Utils::JsonUtil::WideToUtf8(stamp);
+    manifest["systemVersion"] = IceClean::Utils::JsonUtil::WideToUtf8(GetSystemVersion());
+    manifest["packageCount"] = count;
+    manifest["mode"] = "selected";
+    nlohmann::json names = nlohmann::json::array();
+    for (const auto& n : targets) names.push_back(IceClean::Utils::JsonUtil::WideToUtf8(n));
+    manifest["packageNames"] = names;
+    IceClean::Utils::JsonUtil::SaveJson(backupDir + L"\\manifest.json", manifest);
+
+    return result;
 }
 
 DriverBackupManager::BackupResult DriverBackupManager::BackupAll(
@@ -156,6 +219,20 @@ std::vector<DriverBackupManager::BackupEntry> DriverBackupManager::ListBackups(
             be.systemVersion =
                 IceClean::Utils::JsonUtil::Utf8ToWide(manifest["systemVersion"].get<std::string>());
         }
+
+        // 统计总大小 + 列出所有 oemXX.inf 文件名
+        for (auto it = fs::recursive_directory_iterator(entry.path(), ec);
+             it != fs::recursive_directory_iterator(); it.increment(ec)) {
+            if (ec) break;
+            if (!it->is_regular_file()) continue;
+            std::error_code fec;
+            be.totalSize += it->file_size(fec);
+            if (it->path().extension().wstring() == L".inf") {
+                be.packageNames.push_back(it->path().filename().wstring());
+            }
+        }
+        std::sort(be.packageNames.begin(), be.packageNames.end());
+
         entries.push_back(std::move(be));
     }
 

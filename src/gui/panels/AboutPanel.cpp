@@ -62,8 +62,8 @@ void AboutPanel::CreateControls() {
     heroSizer->AddSpacer(12);
 
     // 应用名
-    auto* nameLabel = new wxStaticText(heroPanel, wxID_ANY, L"IceClean");
-    nameLabel->SetFont(wxFont(28, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD,
+    auto* nameLabel = new wxStaticText(heroPanel, wxID_ANY, L"IceClean 极速冰清");
+    nameLabel->SetFont(wxFont(24, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD,
                                false, L"微软雅黑"));
     nameLabel->SetForegroundColour(colors.accent);
     heroSizer->Add(nameLabel, 0, wxALIGN_CENTER_HORIZONTAL);
@@ -72,7 +72,7 @@ void AboutPanel::CreateControls() {
 
     // 副标题
     auto* subtitleLabel = new wxStaticText(heroPanel, wxID_ANY,
-        L"智能C盘清理与迁移工具");
+        L"智能C盘清理与系统优化工具");
     subtitleLabel->SetFont(wxFont(13, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
                                    false, L"微软雅黑"));
     subtitleLabel->SetForegroundColour(colors.textSecondary);
@@ -234,7 +234,7 @@ void AboutPanel::CreateControls() {
     MoreFeature moreFeatures[] = {
         { L"\U0001F6E1", L"三级安全标识",  L"安全/谨慎/危险三级分类，系统关键项不可操作，白名单50+路径保护" },
         { L"\U0001F4CB", L"进程管理",       L"按名称分组显示，安全等级标识，三级递进终止策略（普通→提权→SYSTEM）" },
-        { L"\U0001F4CA", L"磁盘分析",       L"可视化空间占用，树状结构浏览，快速定位大文件和大文件夹" },
+        { L"\U0001F5C4", L"下载管理",       L"下载目录文件管理，支持重复检测、分类查看与批量操作" },
         { L"\U0001F310", L"浏览器缓存",     L"Chrome/Edge/Firefox/Opera等8大浏览器缓存扫描与清理" },
         { L"\U0001F4BB", L"开发工具缓存",   L"Node.js/npm/pip/conda/Maven/Gradle等14种开发工具缓存清理与迁移" },
         { L"\U0001F504", L"系统还原点",     L"清理/迁移前自动创建系统还原点，支持操作日志回溯" },

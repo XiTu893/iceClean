@@ -36,9 +36,8 @@ private:
     void DrawNetworkIcon(wxGraphicsContext* gc, double cx, double cy, double size, const wxColour& color);
     void DrawPopupBlockerIcon(wxGraphicsContext* gc, double cx, double cy, double size, const wxColour& color);
     void DrawRecommendIcon(wxGraphicsContext* gc, double cx, double cy, double size, const wxColour& color);
-    void DrawDiskIcon(wxGraphicsContext* gc, double cx, double cy, double size, const wxColour& color);
-    void DrawFileTypeIcon(wxGraphicsContext* gc, double cx, double cy, double size, const wxColour& color);
     void DrawDownloadIcon(wxGraphicsContext* gc, double cx, double cy, double size, const wxColour& color);
+    void DrawMonitorIcon(wxGraphicsContext* gc, double cx, double cy, double size, const wxColour& color);
 
     int m_selection = 0;
     int m_hoverItem = -1;

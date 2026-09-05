@@ -48,6 +48,12 @@ std::vector<Models::MigrationItem> UserFolderMigrator::Detect() {
 
         uint64_t size = Utils::FileUtil::GetFolderSize(currentPath);
 
+        // 阈值过滤：跳过小于 100MB 的空/小文件夹，避免展示无意义项
+        constexpr uint64_t kMinSizeBytes = 100ULL * 1024 * 1024;
+        if (size < kMinSizeBytes) {
+            continue;
+        }
+
         Models::MigrationItem item;
         item.name = info.name;
         item.sourcePath = currentPath;

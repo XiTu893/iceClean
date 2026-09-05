@@ -1,18 +1,8 @@
 #include "ScannerAggregator.h"
 #include "gui/Events.h"
 #include "SystemTempScanner.h"
-#include "WindowsUpdateScanner.h"
 #include "BrowserCacheScanner.h"
 #include "RecycleBinScanner.h"
-#include "ThumbnailScanner.h"
-#include "PrefetchScanner.h"
-#include "LogScanner.h"
-#include "CrashDumpScanner.h"
-#include "DriverBackupScanner.h"
-#include "HibernationScanner.h"
-#include "WinSxSScanner.h"
-#include "DevCacheScanner.h"
-#include "SoftwareCacheScanner.h"
 #include "AppDataScanner.h"
 #include <thread>
 #include <mutex>
@@ -29,18 +19,8 @@ void ScannerAggregator::RegisterBuiltinScanners() {
     m_scanners.clear();
 
     m_scanners.push_back(std::make_unique<SystemTempScanner>());
-    m_scanners.push_back(std::make_unique<WindowsUpdateScanner>());
     m_scanners.push_back(std::make_unique<BrowserCacheScanner>());
     m_scanners.push_back(std::make_unique<RecycleBinScanner>());
-    m_scanners.push_back(std::make_unique<ThumbnailScanner>());
-    m_scanners.push_back(std::make_unique<PrefetchScanner>());
-    m_scanners.push_back(std::make_unique<LogScanner>());
-    m_scanners.push_back(std::make_unique<CrashDumpScanner>());
-    m_scanners.push_back(std::make_unique<DriverBackupScanner>());
-    m_scanners.push_back(std::make_unique<HibernationScanner>());
-    m_scanners.push_back(std::make_unique<WinSxSScanner>());
-    m_scanners.push_back(std::make_unique<DevCacheScanner>());
-    m_scanners.push_back(std::make_unique<SoftwareCacheScanner>());
     m_scanners.push_back(std::make_unique<AppDataScanner>());
 }
 
@@ -94,17 +74,17 @@ Models::ScanResult ScannerAggregator::ScanAll(wxEvtHandler* evtHandler) {
                 wxQueueEvent(evtHandler, event);
             }
 
-            // 执行扫描，传入停止标志和进度回调（带100ms时间节流）
+            // 执行扫描，传入停止标志和进度回调（带500ms时间节流）
             auto lastProgressTime = std::make_shared<std::chrono::steady_clock::time_point>(
                 std::chrono::steady_clock::now());
             auto progressCallback = [evtHandler, scanner, totalScanners, &completedCount,
                                       lastProgressTime](int filesScanned, const std::wstring& currentFile) {
                 if (evtHandler) {
-                    // 时间节流：距上次发送不足100ms则跳过
+                    // 时间节流：距上次发送不足500ms则跳过
                     auto now = std::chrono::steady_clock::now();
                     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
                         now - *lastProgressTime).count();
-                    if (elapsed < 100) return;
+                    if (elapsed < 500) return;
                     *lastProgressTime = now;
 
                     ScanProgressInfo progress;

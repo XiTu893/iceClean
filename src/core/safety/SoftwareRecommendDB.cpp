@@ -1,5 +1,7 @@
 #include "SoftwareRecommendDB.h"
 #include "SoftwareRecommendFetcher.h"
+#include "SoftwareRecommendSeed.h"
+#include "utils/JsonUtil.h"
 #include <spdlog/spdlog.h>
 #include <nlohmann/json.hpp>
 #include <sqlite3.h>
@@ -9,6 +11,22 @@
 namespace IceClean::Core::Safety {
 
 using json = nlohmann::json;
+
+// SQLite 文本为 UTF-8，宽字符为 UTF-16：统一使用 JsonUtil 的系统级转换
+using IceClean::Utils::JsonUtil;
+
+namespace {
+// meta 表复用：id=1 更新时间戳，id=2 数据集版本
+void SetMetaInt(sqlite3* db, int id, int value) {
+    if (!db) return;
+    std::string sql = "INSERT OR REPLACE INTO recommend_meta (id, update_time) VALUES (" +
+                      std::to_string(id) + ", " + std::to_string(value) + ");";
+    char* errMsg = nullptr;
+    if (sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &errMsg) != SQLITE_OK) {
+        if (errMsg) sqlite3_free(errMsg);
+    }
+}
+} // namespace
 
 // ── 单例 ──
 
@@ -95,9 +113,9 @@ bool SoftwareRecommendDB::SaveRecommendData(const Models::RecommendData& data) {
         }
 
         // 转换 wstring 到 UTF-8 string
-        std::string idUtf8(cat.id.begin(), cat.id.end());
-        std::string nameUtf8(cat.name.begin(), cat.name.end());
-        std::string iconUtf8(cat.icon.begin(), cat.icon.end());
+        std::string idUtf8 = JsonUtil::WideToUtf8(cat.id);
+        std::string nameUtf8 = JsonUtil::WideToUtf8(cat.name);
+        std::string iconUtf8 = JsonUtil::WideToUtf8(cat.icon);
 
         sqlite3_bind_text(stmt, 1, idUtf8.c_str(), -1, SQLITE_TRANSIENT);
         sqlite3_bind_text(stmt, 2, nameUtf8.c_str(), -1, SQLITE_TRANSIENT);
@@ -125,7 +143,7 @@ bool SoftwareRecommendDB::SaveRecommendData(const Models::RecommendData& data) {
         }
 
         auto toUtf8 = [](const std::wstring& ws) -> std::string {
-            return std::string(ws.begin(), ws.end());
+            return JsonUtil::WideToUtf8(ws);
         };
 
         // 拼接 tags 为逗号分隔字符串
@@ -156,8 +174,9 @@ bool SoftwareRecommendDB::SaveRecommendData(const Models::RecommendData& data) {
         sqlite3_finalize(stmt);
     }
 
-    // 记录更新时间
+    // 记录更新时间与数据集版本（远程/种子统一走此入口）
     RecordUpdateTime();
+    SetMetaInt(m_db, 2, data.version);
 
     spdlog::info("推荐软件数据保存成功: {} 个分类, {} 个软件",
                  data.categories.size(), data.software.size());
@@ -196,16 +215,11 @@ std::vector<Models::RecommendCategory> SoftwareRecommendDB::GetCategories() cons
     int rc = sqlite3_prepare_v2(m_db, sql, -1, &stmt, nullptr);
     if (rc != SQLITE_OK) return categories;
 
-    auto toWstr = [](const char* s) -> std::wstring {
-        if (!s) return L"";
-        return std::wstring(s, s + strlen(s));
-    };
-
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         Models::RecommendCategory cat;
-        cat.id = toWstr(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0)));
-        cat.name = toWstr(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
-        cat.icon = toWstr(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
+        cat.id = JsonUtil::Utf8ToWide(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0)));
+        cat.name = JsonUtil::Utf8ToWide(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
+        cat.icon = JsonUtil::Utf8ToWide(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
         cat.sortOrder = sqlite3_column_int(stmt, 3);
         categories.push_back(std::move(cat));
     }
@@ -235,36 +249,35 @@ std::vector<Models::RecommendedSoftware> SoftwareRecommendDB::GetAllSoftware() c
     int rc = sqlite3_prepare_v2(m_db, sql, -1, &stmt, nullptr);
     if (rc != SQLITE_OK) return software;
 
-    auto toWstr = [](const char* s) -> std::wstring {
-        if (!s) return L"";
-        return std::wstring(s, s + strlen(s));
+    auto colW = [&stmt](int col) -> std::wstring {
+        const auto* text = sqlite3_column_text(stmt, col);
+        return text ? JsonUtil::Utf8ToWide(reinterpret_cast<const char*>(text)) : std::wstring{};
     };
 
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         Models::RecommendedSoftware sw;
-        sw.id = toWstr(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0)));
-        sw.name = toWstr(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
-        sw.description = toWstr(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
-        sw.version = toWstr(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)));
-        sw.categoryId = toWstr(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4)));
-        sw.downloadUrl = toWstr(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5)));
-        sw.officialUrl = toWstr(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6)));
-        sw.iconUrl = toWstr(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7)));
+        sw.id = colW(0);
+        sw.name = colW(1);
+        sw.description = colW(2);
+        sw.version = colW(3);
+        sw.categoryId = colW(4);
+        sw.downloadUrl = colW(5);
+        sw.officialUrl = colW(6);
+        sw.iconUrl = colW(7);
         sw.sizeMb = sqlite3_column_int(stmt, 8);
-        sw.platform = toWstr(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 9)));
+        sw.platform = colW(9);
 
         // 解析 tags
-        std::string tagsStr = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 10));
-        if (!tagsStr.empty()) {
+        const auto* tagsText = sqlite3_column_text(stmt, 10);
+        if (tagsText) {
+            std::string tagsStr(reinterpret_cast<const char*>(tagsText));
             size_t start = 0, end = 0;
             while ((end = tagsStr.find(',', start)) != std::string::npos) {
-                std::string tag = tagsStr.substr(start, end - start);
-                sw.tags.push_back(std::wstring(tag.begin(), tag.end()));
+                sw.tags.push_back(JsonUtil::Utf8ToWide(tagsStr.substr(start, end - start)));
                 start = end + 1;
             }
             if (start < tagsStr.size()) {
-                std::string tag = tagsStr.substr(start);
-                sw.tags.push_back(std::wstring(tag.begin(), tag.end()));
+                sw.tags.push_back(JsonUtil::Utf8ToWide(tagsStr.substr(start)));
             }
         }
 
@@ -315,6 +328,35 @@ void SoftwareRecommendDB::RecordUpdateTime() {
     std::string sql = "INSERT OR REPLACE INTO recommend_meta (id, update_time) VALUES (1, " +
                       std::to_string(timestamp) + ");";
     ExecuteSQL(sql);
+}
+
+bool SoftwareRecommendDB::EnsureSeedLoaded() {
+    // 版本化同步：本地版本 >= 种子版本则不覆盖（联网更新写入更高版本后不会被回退）
+    const int seedVersion = GetSeedJsonVersion();
+    if (GetDataVersion() >= seedVersion) return true;
+
+    Models::RecommendData seed;
+    if (!SoftwareRecommendFetcher::Instance().ParseJson(GetSeedJsonUtf8(), seed)) {
+        spdlog::warn("解析内置推荐种子数据失败");
+        return false;
+    }
+    const bool ok = SaveRecommendData(seed);
+    spdlog::info("已导入/升级内置推荐种子 v{}: {} 分类 / {} 软件",
+                 seedVersion, seed.categories.size(), seed.software.size());
+    return ok;
+}
+
+int SoftwareRecommendDB::GetDataVersion() const {
+    if (!m_db) return 0;
+    const char* sql = "SELECT update_time FROM recommend_meta WHERE id = 2;";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(m_db, sql, -1, &stmt, nullptr) != SQLITE_OK) return 0;
+    int version = 0;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        version = sqlite3_column_int(stmt, 0);
+    }
+    sqlite3_finalize(stmt);
+    return version;
 }
 
 // ── 内部方法 ──

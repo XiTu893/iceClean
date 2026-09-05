@@ -3,8 +3,14 @@
 #include "resource.h"
 #include <winver.h>
 
+// ── 应用程序清单（UAC 管理员权限 / DPI 感知 / UTF-8 / Common Controls v6）──
+// 注意：必须用数字 24（RT_MANIFEST）。本 .rc 未包含 <winuser.h>，若写
+// "RT_MANIFEST" 字样会被 RC 当成字符串资源类型，Windows 将忽略整个清单。
+1 24 "app.manifest"
+
 // ── 图标 ──
-// IDI_APP_ICON    ICON    "app.ico"
+IDI_APP_ICON    ICON    "app.ico"
+IDI_TRAY_ICON   ICON    "tray.ico"
 
 // ── 图片 ──
 XITU_LOGO  RCDATA "XiTu-logo.jpg"

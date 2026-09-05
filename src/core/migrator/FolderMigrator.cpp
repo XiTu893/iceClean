@@ -33,12 +33,18 @@ std::vector<Models::MigrationItem> FolderMigrator::Detect() {
 
     uint64_t size = Utils::FileUtil::GetFolderSize(folderPath_);
 
+    // 阈值过滤：跳过小于 100MB 的空/小文件夹
+    constexpr uint64_t kMinSizeBytes = 100ULL * 1024 * 1024;
+    if (size < kMinSizeBytes) {
+        return items;
+    }
+
     Models::MigrationItem item;
     item.name = displayName_;
     item.sourcePath = folderPath_;
     item.size = size;
     item.type = Models::MigrationType::CustomFolder;
-    item.advice = size > 500ULL * 1024 * 1024
+    item.advice = size > 1024ULL * 1024 * 1024
         ? Models::MigrationAdvice::Recommended
         : Models::MigrationAdvice::Possible;
     item.selected = false;

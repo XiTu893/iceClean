@@ -301,21 +301,28 @@ void StartupPanel::BuildStartupList() {
 
         ti.rowPanel = new wxPanel(m_startupScroller, wxID_ANY);
         ti.rowPanel->SetBackgroundColour(colors.surface);
-        auto* rowSizer = new wxBoxSizer(wxHORIZONTAL);
-        rowSizer->AddSpacer(8);
+        auto* rowSizer = new wxBoxSizer(wxVERTICAL);
+        rowSizer->AddSpacer(6);
 
-        // 名称
+        // 第一行：名称 | 来源 | 状态 | 开关
+        auto* line1 = new wxBoxSizer(wxHORIZONTAL);
+        line1->AddSpacer(8);
+
         ti.nameLabel = new wxStaticText(ti.rowPanel, wxID_ANY, item.name);
-        ti.nameLabel->SetFont(wxFont(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+        ti.nameLabel->SetFont(wxFont(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD,
                                      false, L"微软雅黑"));
-        rowSizer->Add(ti.nameLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 12);
+        ti.nameLabel->SetMinSize(wxSize(180, -1));
+        line1->Add(ti.nameLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 12);
 
-        // 发布者
-        ti.publisherLabel = new wxStaticText(ti.rowPanel, wxID_ANY, item.publisher);
-        ti.publisherLabel->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
-                                          false, L"微软雅黑"));
-        ti.publisherLabel->SetForegroundColour(colors.textDisabled);
-        rowSizer->Add(ti.publisherLabel, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, 12);
+        // 来源类型
+        wxString typeStr = (item.type == IceClean::Models::StartupItemType::Registry)
+            ? L"注册表" : L"启动文件夹";
+        ti.typeLabel = new wxStaticText(ti.rowPanel, wxID_ANY, typeStr);
+        ti.typeLabel->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+                                     false, L"微软雅黑"));
+        ti.typeLabel->SetForegroundColour(colors.textDisabled);
+        ti.typeLabel->SetMinSize(wxSize(70, -1));
+        line1->Add(ti.typeLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 12);
 
         // 系统关键标识
         if (item.isSystemCritical) {
@@ -323,22 +330,55 @@ void StartupPanel::BuildStartupList() {
             criticalLabel->SetFont(wxFont(8, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
                                           false, L"微软雅黑"));
             criticalLabel->SetForegroundColour(colors.danger);
-            rowSizer->Add(criticalLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
+            line1->Add(criticalLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
         }
+
+        line1->AddStretchSpacer();
 
         // 运行状态标签
         ti.statusLabel = new wxStaticText(ti.rowPanel, wxID_ANY,
-            ti.isProcessRunning ? L"运行中" : L"");
+            ti.isProcessRunning ? L"● 运行中" : L"○ 未运行");
         ti.statusLabel->SetFont(wxFont(8, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
                                        false, L"微软雅黑"));
         if (ti.isProcessRunning) {
             ti.statusLabel->SetForegroundColour(colors.success);
+        } else {
+            ti.statusLabel->SetForegroundColour(colors.textDisabled);
         }
-        rowSizer->Add(ti.statusLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
+        line1->Add(ti.statusLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 12);
 
         // Toggle开关
         ti.togglePanel = CreateToggleSwitch(ti.rowPanel, item.isEnabled, item.canDisable);
-        rowSizer->Add(ti.togglePanel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
+        line1->Add(ti.togglePanel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
+
+        rowSizer->Add(line1, 0, wxEXPAND);
+        rowSizer->AddSpacer(2);
+
+        // 第二行：发布者 + 程序路径
+        auto* line2 = new wxBoxSizer(wxHORIZONTAL);
+        line2->AddSpacer(8);
+
+        wxString publisher = item.publisher.empty() ? L"未知发布者" : item.publisher;
+        ti.publisherLabel = new wxStaticText(ti.rowPanel, wxID_ANY, L"发布者: " + publisher);
+        ti.publisherLabel->SetFont(wxFont(8, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+                                          false, L"微软雅黑"));
+        ti.publisherLabel->SetForegroundColour(colors.textDisabled);
+        ti.publisherLabel->SetMinSize(wxSize(160, -1));
+        line2->Add(ti.publisherLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 12);
+
+        wxString displayPath = item.path;
+        if (displayPath.length() > 70) {
+            displayPath = displayPath.Mid(0, 67) + L"...";
+        }
+        ti.detailLabel = new wxStaticText(ti.rowPanel, wxID_ANY, L"路径: " + displayPath);
+        ti.detailLabel->SetFont(wxFont(8, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+                                       false, L"微软雅黑"));
+        ti.detailLabel->SetForegroundColour(colors.textDisabled);
+        ti.detailLabel->SetToolTip(item.path);
+        line2->Add(ti.detailLabel, 1, wxALIGN_CENTER_VERTICAL);
+
+        rowSizer->Add(line2, 0, wxEXPAND);
+        rowSizer->AddSpacer(6);
 
         ti.rowPanel->SetSizer(rowSizer);
         m_startupSizer->Add(ti.rowPanel, 0, wxEXPAND | wxTOP | wxBOTTOM, 2);
@@ -367,21 +407,18 @@ void StartupPanel::BuildServiceList() {
 
         ti.rowPanel = new wxPanel(m_serviceScroller, wxID_ANY);
         ti.rowPanel->SetBackgroundColour(colors.surface);
-        auto* rowSizer = new wxBoxSizer(wxHORIZONTAL);
-        rowSizer->AddSpacer(8);
+        auto* rowSizer = new wxBoxSizer(wxVERTICAL);
+        rowSizer->AddSpacer(6);
 
-        // 名称
+        // 第一行：显示名 | 状态 | 开关
+        auto* line1 = new wxBoxSizer(wxHORIZONTAL);
+        line1->AddSpacer(8);
+
         ti.nameLabel = new wxStaticText(ti.rowPanel, wxID_ANY, item.name);
-        ti.nameLabel->SetFont(wxFont(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+        ti.nameLabel->SetFont(wxFont(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD,
                                      false, L"微软雅黑"));
-        rowSizer->Add(ti.nameLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 12);
-
-        // 发布者
-        ti.publisherLabel = new wxStaticText(ti.rowPanel, wxID_ANY, item.publisher);
-        ti.publisherLabel->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
-                                          false, L"微软雅黑"));
-        ti.publisherLabel->SetForegroundColour(colors.textDisabled);
-        rowSizer->Add(ti.publisherLabel, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, 12);
+        ti.nameLabel->SetMinSize(wxSize(200, -1));
+        line1->Add(ti.nameLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 12);
 
         // 系统关键标识
         if (item.isSystemCritical) {
@@ -389,22 +426,52 @@ void StartupPanel::BuildServiceList() {
             criticalLabel->SetFont(wxFont(8, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
                                           false, L"微软雅黑"));
             criticalLabel->SetForegroundColour(colors.danger);
-            rowSizer->Add(criticalLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
+            line1->Add(criticalLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
         }
 
-        // 运行状态标签
+        line1->AddStretchSpacer();
+
+        // 服务状态文本
         ti.statusLabel = new wxStaticText(ti.rowPanel, wxID_ANY,
-            ti.isProcessRunning ? L"运行中" : L"");
+            item.statusText.empty() ? (ti.isProcessRunning ? L"运行中" : L"已停止") : item.statusText);
         ti.statusLabel->SetFont(wxFont(8, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
                                        false, L"微软雅黑"));
-        if (ti.isProcessRunning) {
+        if (ti.isProcessRunning || item.statusText == L"运行中") {
             ti.statusLabel->SetForegroundColour(colors.success);
+        } else {
+            ti.statusLabel->SetForegroundColour(colors.textDisabled);
         }
-        rowSizer->Add(ti.statusLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
+        line1->Add(ti.statusLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 12);
 
         // Toggle开关
         ti.togglePanel = CreateToggleSwitch(ti.rowPanel, item.isEnabled, item.canDisable);
-        rowSizer->Add(ti.togglePanel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
+        line1->Add(ti.togglePanel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
+
+        rowSizer->Add(line1, 0, wxEXPAND);
+        rowSizer->AddSpacer(2);
+
+        // 第二行：服务名 + 启动类型 + 当前状态
+        auto* line2 = new wxBoxSizer(wxHORIZONTAL);
+        line2->AddSpacer(8);
+
+        ti.publisherLabel = new wxStaticText(ti.rowPanel, wxID_ANY, L"服务名: " + item.path);
+        ti.publisherLabel->SetFont(wxFont(8, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+                                          false, L"微软雅黑"));
+        ti.publisherLabel->SetForegroundColour(colors.textDisabled);
+        ti.publisherLabel->SetMinSize(wxSize(200, -1));
+        line2->Add(ti.publisherLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 12);
+
+        ti.typeLabel = new wxStaticText(ti.rowPanel, wxID_ANY,
+            item.startTypeText.empty() ? L"启动类型: 自动" : L"启动类型: " + item.startTypeText);
+        ti.typeLabel->SetFont(wxFont(8, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+                                     false, L"微软雅黑"));
+        ti.typeLabel->SetForegroundColour(colors.textDisabled);
+        line2->Add(ti.typeLabel, 0, wxALIGN_CENTER_VERTICAL);
+
+        line2->AddStretchSpacer();
+
+        rowSizer->Add(line2, 0, wxEXPAND);
+        rowSizer->AddSpacer(6);
 
         ti.rowPanel->SetSizer(rowSizer);
         m_serviceSizer->Add(ti.rowPanel, 0, wxEXPAND | wxTOP | wxBOTTOM, 2);
@@ -500,16 +567,28 @@ void StartupPanel::OnOptimizeButton(wxCommandEvent& event) {
     // 确认对话框
     wxString desc = L"即将执行以下优化操作:\n\n";
     if (!modifiedStartup.empty()) {
-        desc += wxString::Format(L"• 禁用 %d 个启动项\n", static_cast<int>(modifiedStartup.size()));
+        desc += wxString::Format(L"• 禁用 %d 个启动项:\n", static_cast<int>(modifiedStartup.size()));
+        for (const auto& item : modifiedStartup) {
+            desc += wxString::Format(L"  · %s\n", item.name.c_str());
+        }
+        desc += L"\n";
     }
     if (!modifiedServices.empty()) {
-        desc += wxString::Format(L"• 禁用 %d 个服务\n", static_cast<int>(modifiedServices.size()));
+        desc += wxString::Format(L"• 禁用 %d 个服务:\n", static_cast<int>(modifiedServices.size()));
+        for (const auto& item : modifiedServices) {
+            desc += wxString::Format(L"  · %s (%s)\n", item.name.c_str(), item.path.c_str());
+        }
+        desc += L"\n";
     }
     if (!modifiedTasks.empty()) {
-        desc += wxString::Format(L"• 禁用 %d 个计划任务\n", static_cast<int>(modifiedTasks.size()));
+        desc += wxString::Format(L"• 禁用 %d 个计划任务:\n", static_cast<int>(modifiedTasks.size()));
+        for (const auto& item : modifiedTasks) {
+            desc += wxString::Format(L"  · %s\n", item.name.c_str());
+        }
+        desc += L"\n";
     }
     if (runningCount > 0) {
-        desc += wxString::Format(L"\n⚠ 将终止 %d 个运行中的进程", runningCount);
+        desc += wxString::Format(L"⚠ 将终止 %d 个运行中的进程", runningCount);
     }
     desc += L"\n\n系统关键项不会被修改。确定继续？";
 
@@ -555,25 +634,18 @@ void StartupPanel::BuildScheduledTaskList() {
 
         ti.rowPanel = new wxPanel(m_taskScroller, wxID_ANY);
         ti.rowPanel->SetBackgroundColour(colors.surface);
-        auto* rowSizer = new wxBoxSizer(wxHORIZONTAL);
-        rowSizer->AddSpacer(8);
+        auto* rowSizer = new wxBoxSizer(wxVERTICAL);
+        rowSizer->AddSpacer(6);
 
-        // 名称
+        // 第一行：任务名 | 触发条件 | 状态 | 开关
+        auto* line1 = new wxBoxSizer(wxHORIZONTAL);
+        line1->AddSpacer(8);
+
         ti.nameLabel = new wxStaticText(ti.rowPanel, wxID_ANY, item.name);
-        ti.nameLabel->SetFont(wxFont(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+        ti.nameLabel->SetFont(wxFont(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD,
                                      false, L"微软雅黑"));
-        rowSizer->Add(ti.nameLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 12);
-
-        // 路径（截断显示）
-        wxString displayPath = item.path;
-        if (displayPath.length() > 50) {
-            displayPath = displayPath.Mid(0, 47) + L"...";
-        }
-        ti.publisherLabel = new wxStaticText(ti.rowPanel, wxID_ANY, displayPath);
-        ti.publisherLabel->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
-                                          false, L"微软雅黑"));
-        ti.publisherLabel->SetForegroundColour(colors.textDisabled);
-        rowSizer->Add(ti.publisherLabel, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, 12);
+        ti.nameLabel->SetMinSize(wxSize(160, -1));
+        line1->Add(ti.nameLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 12);
 
         // 系统关键标识
         if (item.isSystemCritical) {
@@ -581,22 +653,92 @@ void StartupPanel::BuildScheduledTaskList() {
             criticalLabel->SetFont(wxFont(8, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
                                           false, L"微软雅黑"));
             criticalLabel->SetForegroundColour(colors.danger);
-            rowSizer->Add(criticalLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
+            line1->Add(criticalLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
         }
+
+        line1->AddStretchSpacer();
 
         // 运行状态标签
         ti.statusLabel = new wxStaticText(ti.rowPanel, wxID_ANY,
-            ti.isProcessRunning ? L"运行中" : L"");
+            ti.isProcessRunning ? L"● 运行中" : L"○ 未运行");
         ti.statusLabel->SetFont(wxFont(8, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
                                        false, L"微软雅黑"));
         if (ti.isProcessRunning) {
             ti.statusLabel->SetForegroundColour(colors.success);
+        } else {
+            ti.statusLabel->SetForegroundColour(colors.textDisabled);
         }
-        rowSizer->Add(ti.statusLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
+        line1->Add(ti.statusLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 12);
 
         // Toggle开关
         ti.togglePanel = CreateToggleSwitch(ti.rowPanel, item.isEnabled, item.canDisable);
-        rowSizer->Add(ti.togglePanel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
+        line1->Add(ti.togglePanel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
+
+        rowSizer->Add(line1, 0, wxEXPAND);
+        rowSizer->AddSpacer(2);
+
+        // 第二行：触发 + 下次运行
+        auto* line2 = new wxBoxSizer(wxHORIZONTAL);
+        line2->AddSpacer(8);
+
+        wxString triggerText = item.triggerText.empty() ? L"启动触发" : item.triggerText;
+        ti.typeLabel = new wxStaticText(ti.rowPanel, wxID_ANY, L"触发: " + triggerText);
+        ti.typeLabel->SetFont(wxFont(8, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+                                     false, L"微软雅黑"));
+        ti.typeLabel->SetForegroundColour(colors.textDisabled);
+        ti.typeLabel->SetMinSize(wxSize(110, -1));
+        line2->Add(ti.typeLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 12);
+
+        wxString nextRun = item.nextRunTime.empty() ? L"暂无" : item.nextRunTime;
+        ti.publisherLabel = new wxStaticText(ti.rowPanel, wxID_ANY, L"下次运行: " + nextRun);
+        ti.publisherLabel->SetFont(wxFont(8, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+                                          false, L"微软雅黑"));
+        ti.publisherLabel->SetForegroundColour(colors.textDisabled);
+        line2->Add(ti.publisherLabel, 0, wxALIGN_CENTER_VERTICAL);
+
+        line2->AddStretchSpacer();
+
+        rowSizer->Add(line2, 0, wxEXPAND);
+        rowSizer->AddSpacer(2);
+
+        // 第三行：任务路径 + 上次运行/结果
+        auto* line3 = new wxBoxSizer(wxHORIZONTAL);
+        line3->AddSpacer(8);
+
+        wxString displayPath = item.path;
+        if (displayPath.length() > 60) {
+            displayPath = displayPath.Mid(0, 57) + L"...";
+        }
+        ti.detailLabel = new wxStaticText(ti.rowPanel, wxID_ANY, L"任务路径: " + displayPath);
+        ti.detailLabel->SetFont(wxFont(8, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+                                       false, L"微软雅黑"));
+        ti.detailLabel->SetForegroundColour(colors.textDisabled);
+        ti.detailLabel->SetToolTip(item.path);
+        line3->Add(ti.detailLabel, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, 12);
+
+        wxString lastRun = item.lastRunTime.empty() ? L"从未运行" : item.lastRunTime;
+        auto* lastRunLabel = new wxStaticText(ti.rowPanel, wxID_ANY, L"上次: " + lastRun);
+        lastRunLabel->SetFont(wxFont(8, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+                                     false, L"微软雅黑"));
+        lastRunLabel->SetForegroundColour(colors.textDisabled);
+        line3->Add(lastRunLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 12);
+
+        if (!item.lastRunResultText.empty()) {
+            auto* resultLabel = new wxStaticText(ti.rowPanel, wxID_ANY, L"结果: " + item.lastRunResultText);
+            resultLabel->SetFont(wxFont(8, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+                                        false, L"微软雅黑"));
+            if (item.lastRunResultText == L"成功") {
+                resultLabel->SetForegroundColour(colors.success);
+            } else if (item.lastRunResultText.rfind(L"失败", 0) == 0) {
+                resultLabel->SetForegroundColour(colors.danger);
+            } else {
+                resultLabel->SetForegroundColour(colors.textDisabled);
+            }
+            line3->Add(resultLabel, 0, wxALIGN_CENTER_VERTICAL);
+        }
+
+        rowSizer->Add(line3, 0, wxEXPAND);
+        rowSizer->AddSpacer(6);
 
         ti.rowPanel->SetSizer(rowSizer);
         m_taskSizer->Add(ti.rowPanel, 0, wxEXPAND | wxTOP | wxBOTTOM, 2);

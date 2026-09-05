@@ -23,6 +23,12 @@ public:
     static BackupResult BackupAll(const std::wstring& backupRoot,
         std::function<void(int, int, const std::wstring&)> progress = nullptr);
 
+    // 选择性备份：按 oemXX.inf 列表导出到 backupRoot 下新建的时间戳子目录
+    // 重复 oem 名称自动去重；progress 语义同 BackupAll
+    static BackupResult BackupSelected(const std::wstring& backupRoot,
+        const std::vector<std::wstring>& oemInfNames,
+        std::function<void(int, int, const std::wstring&)> progress = nullptr);
+
     // 还原：自动创建系统还原点 → 导入并安装备份目录内全部 INF
     // 返回是否成功（还原点失败会中止，不执行导入）
     static bool RestoreFrom(const std::wstring& backupDir);
@@ -30,9 +36,11 @@ public:
     // 列举历史备份（含 manifest.json 的目录及其元信息）
     struct BackupEntry {
         std::wstring dir;
-        std::wstring time;        // 目录名（时间戳）
+        std::wstring time;           // 目录名（时间戳）
         int packageCount = 0;
         std::wstring systemVersion;
+        uint64_t totalSize = 0;      // 备份目录总字节数
+        std::vector<std::wstring> packageNames;  // 所有 oemXX.inf 名（供展开查看）
     };
     static std::vector<BackupEntry> ListBackups(const std::wstring& backupRoot);
 

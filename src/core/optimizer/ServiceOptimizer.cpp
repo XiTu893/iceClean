@@ -220,6 +220,27 @@ std::vector<Models::StartupItem> ServiceOptimizer::GetDisablableServices() {
         item.isSystemCritical = false;
         item.canDisable = true;
 
+        // 状态文本
+        switch (svc.status) {
+            case SERVICE_STOPPED:          item.statusText = L"已停止"; break;
+            case SERVICE_START_PENDING:    item.statusText = L"启动中"; break;
+            case SERVICE_STOP_PENDING:     item.statusText = L"停止中"; break;
+            case SERVICE_PAUSED:           item.statusText = L"已暂停"; break;
+            case SERVICE_PAUSE_PENDING:    item.statusText = L"暂停中"; break;
+            case SERVICE_CONTINUE_PENDING: item.statusText = L"继续中"; break;
+            default:                       item.statusText = L"运行中"; break;
+        }
+
+        // 启动类型文本
+        switch (svc.startType) {
+            case SERVICE_AUTO_START:  item.startTypeText = L"自动"; break;
+            case SERVICE_DEMAND_START: item.startTypeText = L"手动"; break;
+            case SERVICE_DISABLED:    item.startTypeText = L"禁用"; break;
+            case SERVICE_BOOT_START:  item.startTypeText = L"引导启动"; break;
+            case SERVICE_SYSTEM_START: item.startTypeText = L"系统启动"; break;
+            default:                  item.startTypeText = L"未知"; break;
+        }
+
         items.push_back(item);
     }
 
@@ -230,7 +251,7 @@ bool ServiceOptimizer::SetServiceStartType(const std::wstring& serviceName, DWOR
     SC_HANDLE hScManager = OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CONNECT);
     if (!hScManager) return false;
 
-    SC_HANDLE hService = OpenServiceW(hScManager, serviceName.c_str(), SERVICE_CHANGE_CONFIG);
+    SC_HANDLE hService = OpenServiceW(hScManager, serviceName.c_str(), SERVICE_CHANGE_CONFIG | SERVICE_QUERY_CONFIG);
     if (!hService) {
         CloseServiceHandle(hScManager);
         return false;
@@ -249,6 +270,24 @@ bool ServiceOptimizer::SetServiceStartType(const std::wstring& serviceName, DWOR
         nullptr,               // lpPassword
         nullptr                // lpDisplayName
     );
+
+    // 回读验证：ChangeServiceConfig 成功但状态未生效时视为失败，
+    // 避免界面显示"已禁用"而实际未生效
+    if (result) {
+        DWORD bytesNeeded = 0;
+        result = QueryServiceConfigW(hService, nullptr, 0, &bytesNeeded);
+        if (!result && GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
+            std::vector<BYTE> configBuffer(bytesNeeded);
+            auto* config = reinterpret_cast<QUERY_SERVICE_CONFIGW*>(configBuffer.data());
+            if (QueryServiceConfigW(hService, config, bytesNeeded, &bytesNeeded)) {
+                result = (config->dwStartType == startType);
+            } else {
+                result = FALSE;
+            }
+        } else {
+            result = FALSE;
+        }
+    }
 
     CloseServiceHandle(hService);
     CloseServiceHandle(hScManager);

@@ -41,6 +41,7 @@ set(MIGRATOR_SOURCES
     core/migrator/SteamMigrator.cpp
     core/migrator/UserFolderMigrator.cpp
     core/migrator/DevCacheMigrator.cpp
+    core/migrator/ProgramMigrator.cpp
     core/migrator/FolderMigrator.cpp
     core/migrator/MigratorBase.cpp
     utils/Win32Util.cpp
@@ -62,6 +63,7 @@ target_include_directories(IceCleanCliTest PRIVATE
 target_link_libraries(IceCleanCliTest PRIVATE
     nlohmann_json::nlohmann_json
     unofficial::sqlite3::sqlite3
+    spdlog::spdlog
     ${SYSTEM_LIBS}
 )
 
@@ -106,3 +108,13 @@ target_compile_definitions(IceClean PRIVATE $<$<CONFIG:Debug>:${wxWidgets_DEFINI
 if(MSVC)
     target_link_options(IceClean PRIVATE "/MANIFEST:NO")
 endif()
+
+# ── 复制运行时资源到输出目录 ──
+# resources/ 下包含：app.ico、tray.ico、app.manifest、XiTu-logo.jpg、QrReward.jpg
+# 以及托盘/应用图标的 PNG 预览文件
+add_custom_command(TARGET IceClean POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_CURRENT_SOURCE_DIR}/gui/resources
+        $<TARGET_FILE_DIR:IceClean>/resources
+    COMMENT "Copying resources/ to build output"
+)

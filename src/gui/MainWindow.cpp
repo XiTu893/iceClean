@@ -10,6 +10,7 @@
 #include "panels/SoftwareRecommendPanel.h"
 #include "panels/DriverPanel.h"
 #include "panels/NetworkPanel.h"
+#include "panels/ProcessNetPanel.h"
 #include "panels/SecurityPanel.h"
 #include "panels/SettingsPanel.h"
 #include "panels/AboutPanel.h"
@@ -17,10 +18,11 @@
 #include "panels/WindowsDebloaterPanel.h"
 #include "panels/PrivacyOptimizerPanel.h"
 #include "panels/SystemFileManagerPanel.h"
-#include "panels/DownloadManagerPanel.h"
+#include "panels/HardwareMonitorPanel.h"
 #include "gui/Events.h"
 #include "gui/dialogs/CleanProgressDialog.h"
 #include "gui/dialogs/UnifiedProgressDialog.h"
+#include "gui/resources/resource.h"
 #include "core/utils/ProgressReporter.h"
 
 // Core logic
@@ -38,6 +40,7 @@
 #include "core/migrator/SteamMigrator.h"
 #include "core/migrator/UserFolderMigrator.h"
 #include "core/migrator/DevCacheMigrator.h"
+#include "core/migrator/ProgramMigrator.h"
 #include "core/optimizer/StartupOptimizer.h"
 #include "core/optimizer/ServiceOptimizer.h"
 #include "core/optimizer/ScheduledTaskOptimizer.h"
@@ -53,8 +56,12 @@
 #include <wx/busyinfo.h>
 #include <wx/artprov.h>
 #include <wx/notebook.h>
+#include <wx/mstream.h>
+#include <wx/stdpaths.h>
+#include <filesystem>
 
 #ifdef __WXMSW__
+#include <windows.h>
 #include <windowsx.h>
 // windowsx.h 定义了 IsMaximized(hwnd) 宏，会与 wxFrame::IsMaximized() 成员函数冲突
 #ifdef IsMaximized
@@ -74,7 +81,7 @@ wxEND_EVENT_TABLE()
 // ── Constructor / Destructor ──
 
 MainWindow::MainWindow()
-    : wxFrame(nullptr, wxID_ANY, L"IceClean - 智能C盘清理工具",
+    : wxFrame(nullptr, wxID_ANY, L"IceClean 极速冰清",
               wxDefaultPosition, wxSize(960, 680),
               wxNO_BORDER | wxCLIP_CHILDREN)
     {
@@ -124,6 +131,12 @@ MainWindow::~MainWindow() {
         delete m_stopTimeoutTimer;
         m_stopTimeoutTimer = nullptr;
     }
+    // 确保托盘已清理（防御性）
+    if (m_taskBarIcon) {
+        m_taskBarIcon->RemoveIcon();
+        delete m_taskBarIcon;
+        m_taskBarIcon = nullptr;
+    }
     // 确保工作线程结束
     if (m_workerThread.joinable()) {
         m_workerRunning = false;
@@ -135,48 +148,73 @@ MainWindow::~MainWindow() {
 
 void MainWindow::CreateControls()
 {
-    // Create custom title bar
-    m_titleBar = new CustomTitleBar(this, this);
+    DebugLog("MainWindow", "CreateControls begin");
 
-    // Create sidebar
-    m_sidebar = new NavSidebar(this);
+    try {
+        m_titleBar = new CustomTitleBar(this, this);
+    } catch (const std::exception& e) {
+        DebugLog("MainWindow", "CustomTitleBar failed: %s", e.what());
+    }
 
-    // Create content area (simplebook for panel switching)
+    try {
+        m_sidebar = new NavSidebar(this);
+    } catch (const std::exception& e) {
+        DebugLog("MainWindow", "NavSidebar failed: %s", e.what());
+    }
+
     m_contentBook = new wxSimplebook(this, wxID_ANY);
     m_contentBook->SetBackgroundColour(ThemeManager::Instance().GetColors().background);
 
     // ════════════════════════════════════════════════════════
-    //  0: 首页
+    //  0: 首页 = 硬件监控（实时显示系统状态）
     // ════════════════════════════════════════════════════════
-    m_dashboardPanel = new DashboardPanel(m_contentBook);
+    try {
+        m_hardwareMonitorPanel = new HardwareMonitorPanel(m_contentBook);
+    } catch (const std::exception& e) {
+        DebugLog("MainWindow", "HardwareMonitorPanel failed: %s", e.what());
+        m_hardwareMonitorPanel = nullptr;
+    }
 
     // ════════════════════════════════════════════════════════
     //  1: 深度清理
     // ════════════════════════════════════════════════════════
-    m_scanResultPanel = new ScanResultPanel(m_contentBook);
+    try {
+        m_scanResultPanel = new ScanResultPanel(m_contentBook);
+    } catch (const std::exception& e) {
+        DebugLog("MainWindow", "ScanResultPanel failed: %s", e.what());
+        m_scanResultPanel = nullptr;
+    }
 
     // ════════════════════════════════════════════════════════
-    //  2: 智能迁移（仅保留迁移，重复文件扫描已移至独立导航项）
+    //  2: 智能迁移
     // ════════════════════════════════════════════════════════
-    m_migrationPanel = new MigrationPanel(m_contentBook);
+    try {
+        m_migrationPanel = new MigrationPanel(m_contentBook);
+    } catch (const std::exception& e) {
+        DebugLog("MainWindow", "MigrationPanel failed: %s", e.what());
+        m_migrationPanel = nullptr;
+    }
 
     // ════════════════════════════════════════════════════════
-    //  3: 加速优化（扩展为 wxNotebook，含 4 个子标签）
-    //     启动管理 / Windows组件精简 / 隐私策略 / 系统文件
+    //  3: 加速优化
     // ════════════════════════════════════════════════════════
     auto* startupComboPanel = new wxPanel(m_contentBook);
     startupComboPanel->SetBackgroundColour(ThemeManager::Instance().GetColors().background);
     auto* startupNotebook = new wxNotebook(startupComboPanel, wxID_ANY);
 
-    m_startupPanel = new StartupPanel(startupNotebook);
-    auto* debloatPanel = new WindowsDebloaterPanel(startupNotebook);
-    auto* privacyPanel = new PrivacyOptimizerPanel(startupNotebook);
-    auto* sysFilePanel = new SystemFileManagerPanel(startupNotebook);
+    try { m_startupPanel = new StartupPanel(startupNotebook); }
+    catch (const std::exception& e) { DebugLog("MainWindow", "StartupPanel failed: %s", e.what()); m_startupPanel = nullptr; }
+    try { (void)new WindowsDebloaterPanel(startupNotebook); }
+    catch (const std::exception& e) { DebugLog("MainWindow", "WindowsDebloaterPanel failed: %s", e.what()); }
+    try { (void)new PrivacyOptimizerPanel(startupNotebook); }
+    catch (const std::exception& e) { DebugLog("MainWindow", "PrivacyOptimizerPanel failed: %s", e.what()); }
+    try { (void)new SystemFileManagerPanel(startupNotebook); }
+    catch (const std::exception& e) { DebugLog("MainWindow", "SystemFileManagerPanel failed: %s", e.what()); }
 
     startupNotebook->AddPage(m_startupPanel, L"启动管理");
-    startupNotebook->AddPage(debloatPanel, L"Windows组件精简");
-    startupNotebook->AddPage(privacyPanel, L"隐私策略");
-    startupNotebook->AddPage(sysFilePanel, L"系统文件");
+    startupNotebook->AddPage(new wxPanel(startupNotebook, wxID_ANY), L"Windows组件精简");
+    startupNotebook->AddPage(new wxPanel(startupNotebook, wxID_ANY), L"隐私策略");
+    startupNotebook->AddPage(new wxPanel(startupNotebook, wxID_ANY), L"系统文件");
 
     auto* startupSizer = new wxBoxSizer(wxVERTICAL);
     startupSizer->Add(startupNotebook, 1, wxEXPAND);
@@ -185,83 +223,91 @@ void MainWindow::CreateControls()
     // ════════════════════════════════════════════════════════
     //  4: 软件管理
     // ════════════════════════════════════════════════════════
-    m_uninstallPanel = new UninstallPanel(m_contentBook);
-
-    // ════════════════════════════════════════════════════════
-    //  5: 软件推荐
-    // ════════════════════════════════════════════════════════
-    m_softwareRecommendPanel = new SoftwareRecommendPanel(m_contentBook);
+    auto* softwareComboPanel = new wxPanel(m_contentBook);
+    softwareComboPanel->SetBackgroundColour(ThemeManager::Instance().GetColors().background);
+    auto* softwareNotebook = new wxNotebook(softwareComboPanel, wxID_ANY);
+    try { m_uninstallPanel = new UninstallPanel(softwareNotebook); }
+    catch (const std::exception& e) { DebugLog("MainWindow", "UninstallPanel failed: %s", e.what()); m_uninstallPanel = nullptr; }
+    try { m_driverPanel = new DriverPanel(softwareNotebook); }
+    catch (const std::exception& e) { DebugLog("MainWindow", "DriverPanel failed: %s", e.what()); m_driverPanel = nullptr; }
+    try { m_softwareRecommendPanel = new SoftwareRecommendPanel(softwareNotebook); }
+    catch (const std::exception& e) { DebugLog("MainWindow", "SoftwareRecommendPanel failed: %s", e.what()); m_softwareRecommendPanel = nullptr; }
+    softwareNotebook->AddPage(m_uninstallPanel, L"软件卸载");
+    softwareNotebook->AddPage(m_driverPanel, L"驱动管理");
+    softwareNotebook->AddPage(m_softwareRecommendPanel, L"软件推荐");
+    auto* softwareSizer = new wxBoxSizer(wxVERTICAL);
+    softwareSizer->Add(softwareNotebook, 1, wxEXPAND);
+    softwareComboPanel->SetSizer(softwareSizer);
 
     // ════════════════════════════════════════════════════════
     //  6: 安全防护
     // ════════════════════════════════════════════════════════
-    m_securityPanel = new SecurityPanel(m_contentBook);
+    try { m_securityPanel = new SecurityPanel(m_contentBook); }
+    catch (const std::exception& e) { DebugLog("MainWindow", "SecurityPanel failed: %s", e.what()); m_securityPanel = nullptr; }
 
     // ════════════════════════════════════════════════════════
-    //  7: 网络优化（网络优化 + 驱动管理）
+    //  7: 网络优化
     // ════════════════════════════════════════════════════════
     auto* networkComboPanel = new wxPanel(m_contentBook);
     networkComboPanel->SetBackgroundColour(ThemeManager::Instance().GetColors().background);
     auto* networkNotebook = new wxNotebook(networkComboPanel, wxID_ANY);
-    m_networkPanel = new NetworkPanel(networkNotebook);
-    m_driverPanel = new DriverPanel(networkNotebook);
+    try { m_processNetPanel = new ProcessNetPanel(networkNotebook); }
+    catch (const std::exception& e) { DebugLog("MainWindow", "ProcessNetPanel failed: %s", e.what()); m_processNetPanel = nullptr; }
+    try { m_networkPanel = new NetworkPanel(networkNotebook); }
+    catch (const std::exception& e) { DebugLog("MainWindow", "NetworkPanel failed: %s", e.what()); m_networkPanel = nullptr; }
+    networkNotebook->AddPage(m_processNetPanel, L"应用流量");
     networkNotebook->AddPage(m_networkPanel, L"网络优化");
-    networkNotebook->AddPage(m_driverPanel, L"驱动管理");
     auto* networkSizer = new wxBoxSizer(wxVERTICAL);
     networkSizer->Add(networkNotebook, 1, wxEXPAND);
     networkComboPanel->SetSizer(networkSizer);
 
     // ════════════════════════════════════════════════════════
-    //  8: 磁盘分析（从智能迁移拆出，成为独立导航项）—— 暂未启用
-    // ════════════════════════════════════════════════════════
-    // m_diskAnalyzerPanel = new DiskAnalyzerPanel(m_contentBook);
-
-    // ════════════════════════════════════════════════════════
-    //  9: 文件分类统计 —— 暂未启用
-    // ════════════════════════════════════════════════════════
-    // auto* fileTypePanel = new FileTypeAnalyzerPanel(m_contentBook);
-
-    // ════════════════════════════════════════════════════════
-    //  10: 下载文件管理
-    // ════════════════════════════════════════════════════════
-    auto* downloadPanel = new DownloadManagerPanel(m_contentBook);
-
-    // ════════════════════════════════════════════════════════
     //  11: 设置
     // ════════════════════════════════════════════════════════
-    m_settingsPanel = new SettingsPanel(m_contentBook);
+    try { m_settingsPanel = new SettingsPanel(m_contentBook); }
+    catch (const std::exception& e) { DebugLog("MainWindow", "SettingsPanel failed: %s", e.what()); m_settingsPanel = nullptr; }
 
     // ════════════════════════════════════════════════════════
-    //  12: 关于 + 硬件信息（wxNotebook 组合）
+    //  12: 关于 + 硬件信息
     // ════════════════════════════════════════════════════════
     auto* aboutComboPanel = new wxPanel(m_contentBook);
     aboutComboPanel->SetBackgroundColour(ThemeManager::Instance().GetColors().background);
     auto* aboutNotebook = new wxNotebook(aboutComboPanel, wxID_ANY);
 
-    m_aboutPanel = new AboutPanel(aboutNotebook);
-    auto* hardwarePanel = new HardwareInfoPanel(aboutNotebook);
+    try { m_aboutPanel = new AboutPanel(aboutNotebook); }
+    catch (const std::exception& e) { DebugLog("MainWindow", "AboutPanel failed: %s", e.what()); m_aboutPanel = nullptr; }
+    try { (void)new HardwareInfoPanel(aboutNotebook); }
+    catch (const std::exception& e) { DebugLog("MainWindow", "HardwareInfoPanel failed: %s", e.what()); }
 
     aboutNotebook->AddPage(m_aboutPanel, L"关于 IceClean");
-    aboutNotebook->AddPage(hardwarePanel, L"硬件信息");
+    aboutNotebook->AddPage(new wxPanel(aboutNotebook, wxID_ANY), L"硬件信息");
 
     auto* aboutSizer = new wxBoxSizer(wxVERTICAL);
     aboutSizer->Add(aboutNotebook, 1, wxEXPAND);
     aboutComboPanel->SetSizer(aboutSizer);
 
-    // ── 按导航顺序添加页面（13 页） ──
-    m_contentBook->AddPage(m_dashboardPanel, L"首页");                // 0
-    m_contentBook->AddPage(m_scanResultPanel, L"深度清理");            // 1
-    m_contentBook->AddPage(m_migrationPanel, L"智能迁移");          // 2
-    m_contentBook->AddPage(startupComboPanel, L"加速优化");         // 3
-    m_contentBook->AddPage(m_uninstallPanel, L"软件管理");             // 4
-    m_contentBook->AddPage(m_softwareRecommendPanel, L"软件推荐");     // 5
-    m_contentBook->AddPage(m_securityPanel, L"安全防护");              // 6
-    m_contentBook->AddPage(networkComboPanel, L"网络优化");            // 7
-    // m_contentBook->AddPage(m_diskAnalyzerPanel, L"磁盘分析");          // 8 (暂未启用)
-    // m_contentBook->AddPage(fileTypePanel, L"文件分类");            // 9 (暂未启用)
-    m_contentBook->AddPage(downloadPanel, L"下载管理");            // 10
-    m_contentBook->AddPage(m_settingsPanel, L"设置");                  // 11
-    m_contentBook->AddPage(aboutComboPanel, L"关于");               // 12
+    // ── 按导航顺序添加页面（10 页；null 面板用占位面板代替） ──
+    auto makePlaceholder = [this](const wxString& label) {
+        auto* p = new wxPanel(m_contentBook, wxID_ANY);
+        p->SetBackgroundColour(ThemeManager::Instance().GetColors().surface);
+        auto* s = new wxBoxSizer(wxVERTICAL);
+        auto* t = new wxStaticText(p, wxID_ANY, label + L" - 加载失败");
+        t->SetForegroundColour(ThemeManager::Instance().GetColors().textSecondary);
+        s->AddStretchSpacer();
+        s->Add(t, 0, wxALIGN_CENTER);
+        s->AddStretchSpacer();
+        p->SetSizer(s);
+        return p;
+    };
+    m_contentBook->AddPage(m_hardwareMonitorPanel ? static_cast<wxWindow*>(m_hardwareMonitorPanel) : makePlaceholder(L"首页"), L"首页");
+    m_contentBook->AddPage(m_scanResultPanel ? static_cast<wxWindow*>(m_scanResultPanel) : makePlaceholder(L"深度清理"), L"深度清理");
+    m_contentBook->AddPage(m_migrationPanel ? static_cast<wxWindow*>(m_migrationPanel) : makePlaceholder(L"智能迁移"), L"智能迁移");
+    m_contentBook->AddPage(startupComboPanel, L"加速优化");
+    m_contentBook->AddPage(softwareComboPanel, L"软件管理");
+    m_contentBook->AddPage(m_securityPanel ? static_cast<wxWindow*>(m_securityPanel) : makePlaceholder(L"安全防护"), L"安全防护");
+    m_contentBook->AddPage(networkComboPanel, L"网络优化");
+    m_contentBook->AddPage(m_settingsPanel ? static_cast<wxWindow*>(m_settingsPanel) : makePlaceholder(L"设置"), L"设置");
+    m_contentBook->AddPage(aboutComboPanel, L"关于");
 
     // 绑定面板事件
     m_contentBook->Bind(wxEVT_SCAN_REQUEST, &MainWindow::OnScanRequest, this);
@@ -286,36 +332,36 @@ void MainWindow::CreateControls()
     m_stopTimeoutTimer = new wxTimer(this);
     Bind(wxEVT_TIMER, &MainWindow::OnStopTimeout, this, m_stopTimeoutTimer->GetId());
 
-    // 延迟初始化
-    CallAfter([this]() { InitializeApp(); });
-
-    // 注册主题变更回调
-    ThemeManager::Instance().RegisterChangeCallback([this](const ThemeColors& colors) {
-        CallAfter([this, colors]() {
-            ThemeManager::Instance().ApplyTheme(this);
-            Refresh();
-        });
-    });
-
     // 绑定侧边栏切换事件
-    m_sidebar->Bind(wxEVT_NAV_SELECTION_CHANGED, [this](wxCommandEvent& event) {
+    Bind(wxEVT_NAV_SELECTION_CHANGED, [this](wxCommandEvent& event) {
         SwitchPanel(event.GetInt());
     });
 }
 
 void MainWindow::LayoutControls()
 {
-    // 整体垂直布局：标题栏在顶部，侧边栏+内容区在下方
     auto* rootSizer = new wxBoxSizer(wxVERTICAL);
 
-    // 标题栏 - 固定高度在顶部
-    rootSizer->Add(m_titleBar, 0, wxEXPAND);
+    // 标题栏 - 固定高度在顶部（若构造失败则为 nullptr，用占位符代替）
+    if (m_titleBar) {
+        rootSizer->Add(m_titleBar, 0, wxEXPAND);
+    } else {
+        auto* ph = new wxPanel(this, wxID_ANY);
+        ph->SetBackgroundColour(ThemeManager::Instance().GetColors().sidebar);
+        rootSizer->Add(ph, 0, wxEXPAND);
+    }
 
     // 下方区域：侧边栏 + 内容区
     auto* bodySizer = new wxBoxSizer(wxHORIZONTAL);
 
-    // Sidebar: fixed 200px width, full height
-    bodySizer->Add(m_sidebar, 0, wxEXPAND);
+    if (m_sidebar) {
+        bodySizer->Add(m_sidebar, 0, wxEXPAND);
+    } else {
+        auto* ph = new wxPanel(this, wxID_ANY);
+        ph->SetBackgroundColour(ThemeManager::Instance().GetColors().sidebar);
+        ph->SetMinSize(wxSize(200, -1));
+        bodySizer->Add(ph, 0, wxEXPAND);
+    }
 
     // Separator line between sidebar and content
     auto* separator = new wxPanel(this, wxID_ANY);
@@ -359,16 +405,117 @@ void MainWindow::InitializeApp()
 {
     m_settingsPanel->LoadSettings();
 
-    m_taskBarIcon = new wxTaskBarIcon();
-    wxIcon trayIcon = wxArtProvider::GetIcon(wxART_INFORMATION, wxART_OTHER, wxSize(16, 16));
-    if (trayIcon.IsOk()) {
-        m_taskBarIcon->SetIcon(trayIcon, L"IceClean - 智能C盘清理工具");
+    // 从嵌入的 exe 资源中加载图标（无需外部资源文件）
+    // 使用 LoadImage 自动处理 RT_GROUP_ICON + RT_ICON 转换
+    auto loadIconFromResource = [&](int resourceId, int targetSize) -> wxImage {
+        HMODULE hModule = GetModuleHandle(nullptr);
+        // LoadImage 会自动从 RT_GROUP_ICON 查找到 RT_ICON 单图
+        HICON hIcon = (HICON)LoadImage(
+            hModule, MAKEINTRESOURCE(resourceId), IMAGE_ICON,
+            targetSize, targetSize, LR_SHARED);
+        if (!hIcon) {
+            hIcon = (HICON)LoadImage(
+                hModule, MAKEINTRESOURCE(resourceId), IMAGE_ICON,
+                0, 0, LR_SHARED | LR_DEFAULTSIZE);
+        }
+        if (!hIcon) {
+            DebugLog("MainWindow", "LoadImage icon %d failed (err=%lu)", resourceId, GetLastError());
+            return wxImage();
+        }
+
+        // 提取尺寸
+        ICONINFO info{};
+        if (!GetIconInfo(hIcon, &info)) {
+            return wxImage();
+        }
+        BITMAP gdiBmp{};
+        GetObject(info.hbmColor, sizeof(BITMAP), &gdiBmp);
+        int w = gdiBmp.bmWidth;
+        int h = gdiBmp.bmHeight;
+        int bmpBpp = gdiBmp.bmBitsPixel;
+        if (w <= 0 || h <= 0) {
+            DeleteObject(info.hbmColor);
+            DeleteObject(info.hbmMask);
+            return wxImage();
+        }
+        DebugLog("MainWindow", "Icon %d: %dx%d %dbpp", resourceId, w, h, bmpBpp);
+
+        // 直接用 DrawIcon 把 HICON 绘制到 32bpp 内存位图（保证有 alpha）
+        HDC hdcScreen = GetDC(nullptr);
+        HDC hdcMem = CreateCompatibleDC(hdcScreen);
+        BITMAPINFO bmi{};
+        bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+        bmi.bmiHeader.biWidth = w;
+        bmi.bmiHeader.biHeight = -h;  // top-down
+        bmi.bmiHeader.biPlanes = 1;
+        bmi.bmiHeader.biBitCount = 32;
+        bmi.bmiHeader.biCompression = BI_RGB;
+
+        void* bits = nullptr;
+        HBITMAP hBitmap = CreateDIBSection(hdcMem, &bmi, DIB_RGB_COLORS, &bits, nullptr, 0);
+        if (!hBitmap || !bits) {
+            DeleteDC(hdcMem);
+            ReleaseDC(nullptr, hdcScreen);
+            DeleteObject(info.hbmColor);
+            DeleteObject(info.hbmMask);
+            return wxImage();
+        }
+        HBITMAP hOldBmp = (HBITMAP)SelectObject(hdcMem, hBitmap);
+        DrawIconEx(hdcMem, 0, 0, hIcon, w, h, 0, nullptr, DI_NORMAL);
+        SelectObject(hdcMem, hOldBmp);
+        DeleteDC(hdcMem);
+        ReleaseDC(nullptr, hdcScreen);
+        DeleteObject(info.hbmColor);
+        DeleteObject(info.hbmMask);
+
+        // 直接构造 wxImage（BGR 顺序 → RGB）
+        wxImage result(w, h);
+        result.InitAlpha();
+        const unsigned char* src = static_cast<const unsigned char*>(bits);
+        for (int y = 0; y < h; ++y) {
+            for (int x = 0; x < w; ++x) {
+                int idx = (y * w + x) * 4;
+                result.SetRGB(x, y, src[idx + 2], src[idx + 1], src[idx + 0]);
+                result.SetAlpha(x, y, src[idx + 3]);
+            }
+        }
+        DeleteObject(hBitmap);
+        if (targetSize > 0 && targetSize < w) {
+            result.Rescale(wxSize(targetSize, targetSize), wxIMAGE_QUALITY_HIGH);
+        }
+        return result;
+    };
+
+    // 应用窗口图标
+    wxImage appImg = loadIconFromResource(IDI_APP_ICON, 32);
+    wxIcon appIcon;
+    if (appImg.IsOk()) {
+        appIcon.CopyFromBitmap(wxBitmap(appImg));
+        SetIcon(appIcon);
     }
-    m_taskBarIcon->Bind(wxEVT_TASKBAR_LEFT_DOWN, [this](wxEvent&) {
-        Show(true);
-        Iconize(false);
-        Raise();
-    });
+
+    // 托盘图标
+    wxImage trayImg = loadIconFromResource(IDI_TRAY_ICON, 16);
+    if (!trayImg.IsOk()) {
+        trayImg = appImg;  // 回退到应用图标
+    }
+    wxIcon trayIcon;
+    if (trayImg.IsOk()) {
+        trayIcon.CopyFromBitmap(wxBitmap(trayImg));
+    }
+
+    m_taskBarIcon = new Gui::TrayIcon([this]() { return this->CreateTrayMenuMenu(); });
+
+    if (!trayIcon.IsOk()) {
+        trayIcon = appIcon;
+    }
+
+    bool ok = m_taskBarIcon->SetIcon(trayIcon, L"IceClean 极速冰清");
+    DebugLog("MainWindow", "Tray set: ok=%d installed=%d", ok ? 1 : 0,
+             m_taskBarIcon->IsIconInstalled() ? 1 : 0);
+
+    m_taskBarIcon->Bind(wxEVT_TASKBAR_LEFT_DOWN, &MainWindow::OnTrayLeftClick, this);
+    m_taskBarIcon->Bind(wxEVT_MENU, &MainWindow::OnTrayMenuCommand, this);
 
     RefreshDiskInfo();
     RefreshRecentOperations();
@@ -392,6 +539,22 @@ void MainWindow::SwitchPanel(int index)
         else if (index == static_cast<int>(NavPage::Settings)) {
             m_settingsPanel->RefreshLog();
         }
+        // 切换到首页（硬件监控）时启动实时监控
+        else if (index == static_cast<int>(NavPage::Dashboard)) {
+            if (m_hardwareMonitorPanel) m_hardwareMonitorPanel->StartMonitoring();
+        }
+        // 离开首页（硬件监控）时停止监控
+        else if (m_contentBook->GetSelection() == static_cast<int>(NavPage::Dashboard)) {
+            if (m_hardwareMonitorPanel) m_hardwareMonitorPanel->StopMonitoring();
+        }
+        // 切换到网络优化面板时启动应用流量监控
+        else if (index == static_cast<int>(NavPage::NetworkOpt)) {
+            if (m_processNetPanel) m_processNetPanel->StartMonitoring();
+        }
+        // 离开网络优化面板时停止应用流量监控
+        else if (m_contentBook->GetSelection() == static_cast<int>(NavPage::NetworkOpt)) {
+            if (m_processNetPanel) m_processNetPanel->StopMonitoring();
+        }
     }
 }
 
@@ -399,32 +562,44 @@ void MainWindow::SwitchPanel(int index)
 
 void MainWindow::OnClose(wxCloseEvent& event)
 {
+    // 强制退出标志：Close(true) 调用时 CanVeto() 返回 false
+    bool forceExit = !event.CanVeto();
+
     if (m_workerRunning) {
-        // 工作线程正在运行，等待完成
-        if (event.CanVeto()) {
+        if (forceExit) {
+            m_stopRequested = true;
+        } else {
             event.Veto();
             return;
         }
     }
 
     // 检查是否最小化到托盘
-    if (m_settingsPanel->IsMinimizeToTrayEnabled() && m_taskBarIcon && m_taskBarIcon->IsIconInstalled()) {
-        // 最小化到托盘而不是关闭
-        if (event.CanVeto()) {
-            Hide();
-            event.Veto();
-            return;
-        }
+    bool minimizeToTray = true;
+    if (m_settingsPanel) {
+        minimizeToTray = m_settingsPanel->IsMinimizeToTrayEnabled();
     }
 
-    // 保存设置
-    m_settingsPanel->SaveSettings();
+    // 只要托盘存在就允许最小化（即使 IsIconInstalled() 返回 false）
+    if (!forceExit && minimizeToTray && m_taskBarIcon) {
+        if (!IsShown()) {
+            // 已经在隐藏状态
+            return;
+        }
+        Hide();
+        event.Veto();
+        return;
+    }
 
-    // 移除托盘图标
+    // 先移除托盘图标（在窗口销毁前）
     if (m_taskBarIcon) {
         m_taskBarIcon->RemoveIcon();
         delete m_taskBarIcon;
         m_taskBarIcon = nullptr;
+    }
+
+    if (m_settingsPanel) {
+        m_settingsPanel->SaveSettings();
     }
 
     if (m_workerThread.joinable()) {
@@ -439,6 +614,123 @@ void MainWindow::OnSize(wxSizeEvent& event)
     event.Skip();
 }
 
+// ── 系统托盘 ──
+
+wxMenu* MainWindow::CreateTrayMenuMenu()
+{
+    auto* menu = new wxMenu();
+
+    menu->Append(static_cast<int>(TrayMenuId::ShowWindow), L"打开主窗口");
+    menu->AppendSeparator();
+
+    menu->Append(static_cast<int>(TrayMenuId::QuickClean), L"一键清理");
+    menu->Append(static_cast<int>(TrayMenuId::SilentClean), L"静默清理");
+    menu->AppendSeparator();
+
+    menu->Append(static_cast<int>(TrayMenuId::CheckUpdate), L"检查更新");
+    menu->Append(static_cast<int>(TrayMenuId::OpenSettings), L"设置");
+    menu->AppendSeparator();
+
+    auto* settingsMenu = new wxMenu();
+    settingsMenu->AppendCheckItem(static_cast<int>(TrayMenuId::Startup), L"开机自启动");
+    settingsMenu->AppendCheckItem(static_cast<int>(TrayMenuId::BackgroundMonitor), L"后台监控");
+    settingsMenu->AppendSeparator();
+    settingsMenu->AppendRadioItem(static_cast<int>(TrayMenuId::CloseToTray), L"关闭时最小化到托盘");
+    settingsMenu->AppendRadioItem(static_cast<int>(TrayMenuId::CloseToExit), L"关闭时退出程序");
+    menu->AppendSubMenu(settingsMenu, L"托盘设置");
+
+    menu->AppendSeparator();
+    menu->Append(static_cast<int>(TrayMenuId::About), L"关于");
+    menu->Append(static_cast<int>(TrayMenuId::Exit), L"退出");
+
+    if (m_settingsPanel) {
+        settingsMenu->Check(static_cast<int>(TrayMenuId::Startup), m_settingsPanel->IsStartupEnabled() ? true : false);
+        settingsMenu->Check(static_cast<int>(TrayMenuId::BackgroundMonitor), m_settingsPanel->IsBackgroundMonitorEnabled() ? true : false);
+        settingsMenu->Check(static_cast<int>(TrayMenuId::CloseToTray), m_settingsPanel->IsMinimizeToTrayEnabled() ? true : false);
+        settingsMenu->Check(static_cast<int>(TrayMenuId::CloseToExit), m_settingsPanel->IsCloseToExitEnabled() ? true : false);
+    }
+
+    return menu;
+}
+
+void MainWindow::OnTrayLeftClick(wxEvent&)
+{
+    if (IsShown()) {
+        Hide();
+    } else {
+        Show(true);
+        Iconize(false);
+        Raise();
+    }
+}
+
+void MainWindow::OnTrayMenuCommand(wxCommandEvent& event)
+{
+    int id = event.GetId();
+    switch (static_cast<TrayMenuId>(id)) {
+        case TrayMenuId::ShowWindow:
+            Show(true);
+            Iconize(false);
+            Raise();
+            break;
+        case TrayMenuId::QuickClean:
+            SwitchPanel(static_cast<int>(NavPage::DeepClean));
+            {
+                wxThreadEvent evt(wxEVT_SCAN_REQUEST);
+                evt.SetInt(0);
+                wxPostEvent(m_contentBook, evt);
+            }
+            break;
+        case TrayMenuId::SilentClean:
+            ShowTrayNotification(L"IceClean 极速冰清", L"正在后台执行静默清理...");
+            {
+                wxThreadEvent evt(wxEVT_SCAN_REQUEST);
+                evt.SetInt(0);
+                wxPostEvent(m_contentBook, evt);
+            }
+            break;
+        case TrayMenuId::CheckUpdate:
+            if (m_settingsPanel) {
+                m_settingsPanel->CheckForUpdate();
+            }
+            break;
+        case TrayMenuId::OpenSettings:
+            SwitchPanel(static_cast<int>(NavPage::Settings));
+            Show(true);
+            Iconize(false);
+            Raise();
+            break;
+        case TrayMenuId::About:
+            SwitchPanel(static_cast<int>(NavPage::About));
+            Show(true);
+            Iconize(false);
+            Raise();
+            break;
+        case TrayMenuId::Exit:
+            // 延迟关闭，避免在 wxEVT_MENU 回调中销毁 MainWindow
+            CallAfter([this]() { Destroy(); });
+            break;
+        default:
+            break;
+    }
+}
+
+void MainWindow::ShowTrayNotification(const wxString& title, const wxString& message, int flags)
+{
+    if (m_taskBarIcon && m_taskBarIcon->IsIconInstalled()) {
+        m_taskBarIcon->ShowBalloon(title, message, 5000, flags);
+    }
+}
+
+void MainWindow::UpdateTrayIconState(bool isScanning)
+{
+    if (m_taskBarIcon && m_taskBarIcon->IsIconInstalled()) {
+        // 暂不更换图标（保持托盘图标稳定）
+        // 未来可加载 IDI_TRAY_ICON_SCAN 资源显示扫描状态
+        (void)isScanning;
+    }
+}
+
 // ── 扫描请求处理 ──
 
 void MainWindow::OnScanRequest(wxThreadEvent& event)
@@ -449,15 +741,18 @@ void MainWindow::OnScanRequest(wxThreadEvent& event)
 
 void MainWindow::OnMigrationScanRequest(wxThreadEvent& event)
 {
-    int thresholdMB = event.GetInt();  // 阈值（MB）
-    if (thresholdMB <= 0) thresholdMB = 100;
-    StartScan(1, thresholdMB);  // 1 = 迁移扫描类型
+    int thresholdMB = event.GetInt();  // 阈值（MB），0 表示应用迁移扫描
+    if (thresholdMB <= 0) {
+        StartScan(2, 0);  // 2 = 应用迁移扫描
+    } else {
+        StartScan(1, thresholdMB);  // 1 = 大文件夹迁移扫描
+    }
 }
 
 void MainWindow::OnScanProgressUpdate(wxThreadEvent& event)
 {
-    auto progress = event.GetPayload<IceClean::Core::Scanner::ScanProgressInfo>();
-    m_dashboardPanel->UpdateScanProgress(progress);
+    // 仪表盘已简化为纯监控面板，不再接收扫描进度
+    (void)event;
 }
 
 void MainWindow::OnScanStop(wxThreadEvent& event) {
@@ -520,10 +815,6 @@ void MainWindow::ForceStopScan() {
         m_workerThread.detach();
     }
     m_workerRunning = false;
-
-    // 立即恢复UI
-    m_dashboardPanel->SetScanning(false);
-    m_dashboardPanel->RestoreDiskInfo();
 }
 
 void MainWindow::StartScan(int scanType, int thresholdMB)
@@ -535,8 +826,7 @@ void MainWindow::StartScan(int scanType, int thresholdMB)
     if (thresholdMB <= 0) thresholdMB = 100;
 
     if (scanType == 0) {
-        // 普通扫描 - 更新仪表盘状态
-        m_dashboardPanel->SetScanning(true);
+        // 普通扫描 - 更新状态
         SetStatusBusy(L"正在扫描系统垃圾...");
     }
 
@@ -653,6 +943,58 @@ void MainWindow::StartScan(int scanType, int thresholdMB)
                 wxQueueEvent(this, completeEvt);
             }
         }
+        else if (scanType == 2) {
+            // ── 应用迁移扫描（ProgramMigrator）──
+            std::vector<IceClean::Models::MigrationItem> items;
+            try {
+                IceClean::Core::Migrator::ProgramMigrator programMigrator;
+
+                auto lastPost = std::make_shared<std::chrono::steady_clock::time_point>(
+                    std::chrono::steady_clock::now());
+                auto post = [this, lastPost](const wchar_t* phase,
+                                            const std::wstring& path, int found) {
+                    auto now = std::chrono::steady_clock::now();
+                    auto since = std::chrono::duration_cast<std::chrono::milliseconds>(now - *lastPost).count();
+                    if (since < 200) return;
+                    *lastPost = now;
+                    auto* evt = new wxThreadEvent(wxEVT_MIGRATION_SCAN_PROGRESS);
+                    MigrationScanProgressInfo info;
+                    info.phase = wxString(phase);
+                    info.path = wxString(path);
+                    info.foundCount = found;
+                    evt->SetPayload(info);
+                    wxQueueEvent(m_migrationPanel, evt);
+                };
+
+                auto phaseStart = [this, &post, lastPost](const wchar_t* phase) {
+                    *lastPost = std::chrono::steady_clock::time_point{};
+                    post(phase, L"", 0);
+                };
+
+                phaseStart(L"扫描已安装应用");
+                items = programMigrator.DetectWithCallback(
+                    [&post](const std::wstring& path, int found, uint64_t) {
+                        post(L"检测 Program Files 应用", path, found);
+                    });
+
+                wxThreadEvent* completeEvt = new wxThreadEvent(wxEVT_SCAN_COMPLETE);
+                completeEvt->SetInt(2);
+                completeEvt->SetPayload(items);
+                wxQueueEvent(this, completeEvt);
+            } catch (const std::exception& e) {
+                DebugLog("MainWindow", "应用迁移扫描异常: %s", e.what());
+                wxThreadEvent* completeEvt = new wxThreadEvent(wxEVT_SCAN_COMPLETE);
+                completeEvt->SetInt(2);
+                completeEvt->SetPayload(items);
+                wxQueueEvent(this, completeEvt);
+            } catch (...) {
+                DebugLog("MainWindow", "应用迁移扫描未知异常");
+                wxThreadEvent* completeEvt = new wxThreadEvent(wxEVT_SCAN_COMPLETE);
+                completeEvt->SetInt(2);
+                completeEvt->SetPayload(items);
+                wxQueueEvent(this, completeEvt);
+            }
+        }
         else if (scanType == 3) {
             // ── 磁盘分析扫描 ── (磁盘分析模块已移除，此分支暂停)
             (void)0;
@@ -678,27 +1020,21 @@ void MainWindow::OnScanComplete(wxThreadEvent& event)
 
     if (scanType == 0) {
         // 普通扫描完成
-        m_dashboardPanel->SetScanning(false);
-        m_dashboardPanel->RestoreDiskInfo();  // 恢复磁盘信息显示
-
         auto result = event.GetPayload<IceClean::Models::ScanResult>();
         m_lastScanResult = result;
 
-        // 将结果传递给扫描结果面板（深度清理标签页仍可访问）
+        // 将结果传递给扫描结果面板
         m_scanResultPanel->SetScanResult(result);
-
-        // 更新健康评分
-        m_dashboardPanel->SetLastScanResult(result);
-
-        // 将结果显示在首页面板中，不再切换到扫描结果面板
-        if (!result.categories.empty()) {
-            m_dashboardPanel->SetScanResult(result);
-        }
     }
     else if (scanType == 1) {
-        // 迁移扫描完成
+        // 迁移扫描完成（大文件夹）
         auto items = event.GetPayload<std::vector<IceClean::Models::MigrationItem>>();
         m_migrationPanel->SetMigrationItems(items);
+    }
+    else if (scanType == 2) {
+        // 应用迁移扫描完成
+        auto items = event.GetPayload<std::vector<IceClean::Models::MigrationItem>>();
+        m_migrationPanel->SetProgramItems(items);
     }
     else if (scanType == 3) {
         // 磁盘分析完成 —— 暂未启用
@@ -712,11 +1048,8 @@ void MainWindow::OnCleanRequest(wxThreadEvent& event)
     int cleanType = event.GetInt();
 
     if (cleanType == 0) {
-        // 普通清理 - 优先从仪表盘面板获取选中路径，其次从扫描结果面板获取
-        auto paths = m_dashboardPanel->GetSelectedPaths();
-        if (paths.empty()) {
-            paths = m_scanResultPanel->GetSelectedPaths();
-        }
+        // 普通清理 - 从扫描结果面板获取选中路径
+        auto paths = m_scanResultPanel->GetSelectedPaths();
         if (paths.empty()) return;
         StartClean(cleanType, paths);
     }
@@ -913,9 +1246,8 @@ void MainWindow::OnCleanComplete(wxThreadEvent& event)
     int cleanType = event.GetInt();
     auto totalCleanedSize = event.GetPayload<uint64_t>();
 
-    // 刷新磁盘信息并恢复仪表盘默认视图（隐藏扫描结果）
+    // 刷新磁盘信息
     RefreshDiskInfo();
-    m_dashboardPanel->RestoreDiskInfo();
 
     // 刷新最近操作
     RefreshRecentOperations();
@@ -934,8 +1266,6 @@ void MainWindow::OnCleanComplete(wxThreadEvent& event)
             IceClean::Core::Safety::UsageStats::Instance().RecordClean(totalCleanedSize);
         }
         CloseCleanProgress(totalCleanedSize);
-        // 刷新仪表盘累计统计
-        m_dashboardPanel->LoadCumulativeStats();
     }
 }
 
@@ -1125,8 +1455,8 @@ void MainWindow::RefreshDiskInfo()
 {
     uint64_t totalBytes = 0, freeBytes = 0;
     if (IceClean::Utils::Win32Util::GetDiskSpace(L"C:\\", totalBytes, freeBytes)) {
-        uint64_t usedBytes = totalBytes - freeBytes;
-        m_dashboardPanel->UpdateDiskInfo(usedBytes, totalBytes);
+        // 仪表盘已简化为纯监控面板，内部自动刷新磁盘信息
+        (void)totalBytes;
     }
 }
 
@@ -1249,11 +1579,10 @@ void MainWindow::OnKeyDown(wxKeyEvent& event) {
         case '3': SwitchPanel(static_cast<int>(NavPage::Migration)); break;
         case '4': SwitchPanel(static_cast<int>(NavPage::Startup)); break;
         case '5': SwitchPanel(static_cast<int>(NavPage::SoftwareManage)); break;
-        case '6': SwitchPanel(static_cast<int>(NavPage::SoftwareRecommend)); break;
-        case '7': SwitchPanel(static_cast<int>(NavPage::Security)); break;
-        case '8': SwitchPanel(static_cast<int>(NavPage::NetworkOpt)); break;
-        case '9': SwitchPanel(static_cast<int>(NavPage::DownloadManager)); break;
-        case '0': SwitchPanel(static_cast<int>(NavPage::Settings)); break;
+        case '6': SwitchPanel(static_cast<int>(NavPage::Security)); break;
+        case '7': SwitchPanel(static_cast<int>(NavPage::NetworkOpt)); break;
+        case '9': SwitchPanel(static_cast<int>(NavPage::Settings)); break;
+        case '0': SwitchPanel(static_cast<int>(NavPage::About)); break;
         default:
             event.Skip();
             break;

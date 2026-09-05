@@ -52,11 +52,21 @@ public:
     // 从程序路径中提取进程名（如 "C:\\QQ\\QQProtect.exe" → "QQProtect.exe"）
     static std::wstring ExtractProcessName(const std::wstring& path);
 
+    // 从程序路径中提取发布者/公司名(读取文件版本信息)
+    static std::wstring GetFilePublisher(const std::wstring& path);
+
     // 强制删除文件（先终止占用进程再删除）
     static bool ForceDeleteFile(const std::wstring& path);
 
     // 强制删除目录（递归终止占用进程+删除）
     static bool ForceDeleteDirectory(const std::wstring& path);
+
+    // 判断是否为用户配置文件目录（含 AppData/Desktop/Documents 等特征）
+    static bool IsUserProfileDir(const std::wstring& path);
+
+    // 开机自启动注册（HKCU，当前用户）
+    static bool SetStartupEnabled(bool enabled);
+    static bool IsStartupEnabled();
 };
 
 } // namespace IceClean::Utils

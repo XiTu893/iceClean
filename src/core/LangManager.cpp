@@ -8,6 +8,19 @@
 
 namespace IceClean::Core {
 
+namespace {
+    std::wstring GetDataDir() {
+        wchar_t exePath[MAX_PATH] = {};
+        DWORD len = GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+        if (len == 0) return L"";
+        std::filesystem::path p(exePath);
+        std::filesystem::path dataDir = p.parent_path() / L"data";
+        std::error_code ec;
+        std::filesystem::create_directories(dataDir, ec);
+        return dataDir.wstring();
+    }
+}
+
 using json = nlohmann::json;
 
 // ── 单例 ──
@@ -184,18 +197,17 @@ void LangManager::FlattenJson(const std::string& prefix, const void* jsonObj,
 // ── 语言偏好持久化 ──
 
 void LangManager::SaveLanguagePreference() const {
-    wchar_t appDataPath[MAX_PATH] = {0};
-    if (FAILED(SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, 0, appDataPath))) return;
+    std::wstring dataDir = GetDataDir();
+    if (dataDir.empty()) return;
 
-    auto configPath = std::wstring(appDataPath) + L"\\IceClean\\lang_config.json";
+    auto configPath = std::filesystem::path(dataDir) / L"config" / L"lang_config.json";
 
     try {
+        std::error_code ec;
+        std::filesystem::create_directories(configPath.parent_path(), ec);
+
         json j;
         j["language"] = std::string(m_currentLang.begin(), m_currentLang.end());
-
-        // 确保目录存在
-        auto dir = configPath.substr(0, configPath.find_last_of(L'\\'));
-        CreateDirectoryW(dir.c_str(), NULL);
 
         std::ofstream file(configPath);
         if (file.is_open()) {
@@ -208,13 +220,13 @@ void LangManager::SaveLanguagePreference() const {
 }
 
 void LangManager::LoadLanguagePreference() {
-    wchar_t appDataPath[MAX_PATH] = {0};
-    if (FAILED(SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, 0, appDataPath))) {
+    std::wstring dataDir = GetDataDir();
+    if (dataDir.empty()) {
         m_currentLang = kDefaultLang;
         return;
     }
 
-    auto configPath = std::wstring(appDataPath) + L"\\IceClean\\lang_config.json";
+    auto configPath = std::filesystem::path(dataDir) / L"config" / L"lang_config.json";
 
     try {
         std::ifstream file(configPath);

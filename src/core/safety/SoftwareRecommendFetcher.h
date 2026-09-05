@@ -26,6 +26,9 @@ public:
     // 是否正在获取中
     bool IsFetching() const { return m_fetching; }
 
+    // 解析 JSON 数据为 RecommendData（公开：内置种子导入与离线校验复用）
+    bool ParseJson(const std::string& jsonStr, Models::RecommendData& outData);
+
 private:
     SoftwareRecommendFetcher() = default;
     ~SoftwareRecommendFetcher() = default;
@@ -35,9 +38,6 @@ private:
 
     // 使用 WinHTTP 发送 GET 请求
     bool HttpGet(const std::wstring& server, const std::wstring& path, std::string& response);
-
-    // 解析 JSON 数据为 RecommendData
-    bool ParseJson(const std::string& jsonStr, Models::RecommendData& outData);
 
     std::atomic<bool> m_fetching{false};
     mutable std::mutex m_mutex;

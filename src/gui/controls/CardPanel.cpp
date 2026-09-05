@@ -24,7 +24,7 @@ CardPanel::CardPanel(wxWindow* parent, wxWindowID id, const wxString& title)
         auto* titleLabel = new wxStaticText(this, wxID_ANY, m_title);
         titleLabel->SetFont(ThemeManager::GetSubtitleFont());
         titleLabel->SetForegroundColour(colors.textPrimary);
-        innerSizer->Add(titleLabel, 0, wxBOTTOM, 8);
+        innerSizer->Add(titleLabel, 0, wxBOTTOM, 2);
     }
 
     m_cardSizer = new wxBoxSizer(wxVERTICAL);
@@ -148,7 +148,7 @@ void CardPanel::OnPaint(wxPaintEvent& /*event*/)
     // Draw border - 使用 ThemeManager 边框颜色
     wxColour borderColor = colors.border;
     if (m_clickable && m_isHovered) {
-        borderColor = colors.accent;  // 品牌蓝边框悬停
+        borderColor = colors.accent;  // 品牌绿边框悬停
     }
     gc->SetPen(gc->CreatePen(wxPen(borderColor, 1)));
     gc->SetBrush(*wxTRANSPARENT_BRUSH);

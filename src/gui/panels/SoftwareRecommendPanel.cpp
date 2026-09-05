@@ -53,43 +53,29 @@ void SoftwareRecommendPanel::CreateControls() {
 
     mainSizer->Add(headerSizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 24);
 
-    // ── 分类标签栏 ──
-    m_categoryBar = new wxPanel(this, wxID_ANY);
-    m_categoryBar->SetBackgroundColour(colors.background);
-    m_categorySizer = new wxBoxSizer(wxHORIZONTAL);
-    m_categoryBar->SetSizer(m_categorySizer);
-
-    mainSizer->Add(m_categoryBar, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 16);
-
     // ── 分隔线 ──
     auto* divider = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxSize(-1, 1));
     divider->SetBackgroundColour(colors.divider);
-    mainSizer->Add(divider, 0, wxEXPAND | wxLEFT | wxRIGHT, 24);
+    mainSizer->Add(divider, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 16);
 
-    // ── 内容滚动区域 ──
-    m_contentScroller = new wxScrolledWindow(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
-                                              wxVSCROLL);
-    m_contentScroller->SetBackgroundColour(colors.background);
-    m_contentScroller->SetScrollRate(0, 10);
-
-    auto* contentSizer = new wxBoxSizer(wxVERTICAL);
-    m_contentScroller->SetSizer(contentSizer);
-
-    mainSizer->Add(m_contentScroller, 1, wxEXPAND | wxALL, 0);
+    // ── 分类 Tab 页：全部 + 各分类，每页单列软件列表 ──
+    m_categoryNotebook = new wxNotebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+                                        wxNB_TOP | wxBORDER_NONE);
+    m_categoryNotebook->SetFont(ThemeManager::GetSmallFont());
+    mainSizer->Add(m_categoryNotebook, 1, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 12);
 
     // ── 状态标签 ──
     m_statusLabel = new wxStaticText(this, wxID_ANY, L"");
     m_statusLabel->SetFont(ThemeManager::GetSmallFont());
     m_statusLabel->SetForegroundColour(colors.textSecondary);
-    mainSizer->Add(m_statusLabel, 0, wxALIGN_CENTER | wxBOTTOM, 12);
+    mainSizer->Add(m_statusLabel, 0, wxALIGN_CENTER | wxTOP | wxBOTTOM, 8);
 
     SetSizer(mainSizer);
 
     // 注册主题变更回调
     ThemeManager::Instance().RegisterChangeCallback([this](const ThemeColors& newColors) {
         SetBackgroundColour(newColors.background);
-        m_categoryBar->SetBackgroundColour(newColors.background);
-        m_contentScroller->SetBackgroundColour(newColors.background);
+        m_categoryNotebook->Refresh();
         Refresh();
     });
 }
@@ -105,6 +91,9 @@ void SoftwareRecommendPanel::LoadFromDB() {
             return;
         }
     }
+
+    // 离线首启兜底：本地无数据时导入内置精选列表（7-Zip / FileZilla / RustDesk 等）
+    db.EnsureSeedLoaded();
 
     m_data = db.LoadRecommendData();
 
@@ -122,7 +111,7 @@ void SoftwareRecommendPanel::LoadFromDB() {
                     RefreshList();
                     m_statusLabel->SetLabel(L"数据获取成功");
                 } else {
-                    m_statusLabel->SetLabel(L"网络获取失败，请稍后重试");
+                    m_statusLabel->SetLabel(L"网络不可用 · 已使用本地列表");
                 }
             });
         });
@@ -165,98 +154,55 @@ void SoftwareRecommendPanel::LoadFromDB() {
 void SoftwareRecommendPanel::RefreshList() {
     const auto& colors = ThemeManager::Instance().GetColors();
 
-    // 清空分类按钮
-    for (auto* btn : m_categoryButtons) {
-        m_categorySizer->Detach(btn);
-        btn->Destroy();
-    }
-    m_categoryButtons.clear();
+    m_categoryNotebook->Freeze();
+    m_categoryNotebook->DeleteAllPages();
 
-    // 添加"全部"按钮
-    auto* allBtn = new wxButton(m_categoryBar, wxID_ANY, L"全部");
-    allBtn->SetFont(ThemeManager::GetSmallButtonFont());
-    allBtn->SetMinSize(wxSize(60, 30));
-    allBtn->SetName("btn_category_all");
-    if (m_selectedCategoryIndex == 0) {
-        allBtn->SetBackgroundColour(colors.accent);
-        allBtn->SetForegroundColour(*wxWHITE);
-    } else {
-        allBtn->SetBackgroundColour(colors.surface);
-        allBtn->SetForegroundColour(colors.textPrimary);
-    }
-    allBtn->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
-        m_selectedCategoryIndex = 0;
-        RefreshList();
-    });
-    m_categorySizer->Add(allBtn, 0, wxRIGHT, 6);
-    m_categoryButtons.push_back(allBtn);
+    // 单个 Tab 页工厂：title + 过滤后的软件列表
+    auto addTab = [&](const wxString& title,
+                      const std::vector<IceClean::Models::RecommendedSoftware>& items) {
+        auto* page = new wxPanel(m_categoryNotebook, wxID_ANY);
+        page->SetBackgroundColour(colors.background);
 
-    // 添加各分类按钮
-    for (int i = 0; i < static_cast<int>(m_data.categories.size()); ++i) {
-        const auto& cat = m_data.categories[i];
-        auto* btn = new wxButton(m_categoryBar, wxID_ANY, cat.name);
-        btn->SetFont(ThemeManager::GetSmallButtonFont());
-        btn->SetMinSize(wxSize(70, 30));
-        btn->SetName("btn_category");
+        auto* pageSizer = new wxBoxSizer(wxVERTICAL);
+        auto* scroll = new wxScrolledWindow(page, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+                                            wxVSCROLL | wxBORDER_NONE);
+        scroll->SetBackgroundColour(colors.background);
+        scroll->SetScrollRate(0, 10);
 
-        if (m_selectedCategoryIndex == i + 1) {
-            btn->SetBackgroundColour(colors.accent);
-            btn->SetForegroundColour(*wxWHITE);
-        } else {
-            btn->SetBackgroundColour(colors.surface);
-            btn->SetForegroundColour(colors.textPrimary);
+        auto* listSizer = new wxBoxSizer(wxVERTICAL);
+        for (const auto& sw : items) {
+            listSizer->Add(CreateSoftwareCard(scroll, sw), 0, wxEXPAND | wxBOTTOM, 10);
         }
+        listSizer->AddStretchSpacer();
+        scroll->SetSizer(listSizer);
+        scroll->FitInside();
 
-        btn->Bind(wxEVT_BUTTON, [this, i](wxCommandEvent&) {
-            m_selectedCategoryIndex = i + 1;
-            RefreshList();
-        });
+        pageSizer->Add(scroll, 1, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 8);
+        page->SetSizer(pageSizer);
+        m_categoryNotebook->AddPage(page, title, false);
+    };
 
-        m_categorySizer->Add(btn, 0, wxRIGHT, 6);
-        m_categoryButtons.push_back(btn);
-    }
+    // 全部
+    addTab(L"全部", m_data.software);
 
-    m_categoryBar->Layout();
-
-    // 清空内容区域
-    auto* contentSizer = m_contentScroller->GetSizer();
-    contentSizer->Clear(true);
-
-    // 获取要显示的软件
-    std::vector<IceClean::Models::RecommendedSoftware> displaySoftware;
-    if (m_selectedCategoryIndex == 0) {
-        // 全部
-        displaySoftware = m_data.software;
-    } else {
-        int catIdx = m_selectedCategoryIndex - 1;
-        if (catIdx < static_cast<int>(m_data.categories.size())) {
-            const auto& catId = m_data.categories[catIdx].id;
-            for (const auto& sw : m_data.software) {
-                if (sw.categoryId == catId) {
-                    displaySoftware.push_back(sw);
-                }
-            }
+    // 各分类
+    for (const auto& cat : m_data.categories) {
+        std::vector<IceClean::Models::RecommendedSoftware> filtered;
+        for (const auto& sw : m_data.software) {
+            if (sw.categoryId == cat.id) filtered.push_back(sw);
         }
+        addTab(cat.name, filtered);
     }
 
-    // 创建软件卡片网格
-    auto* gridSizer = new wxGridSizer(2, 16, 12);
+    m_categoryNotebook->Thaw();
 
-    for (const auto& sw : displaySoftware) {
-        auto* card = CreateSoftwareCard(m_contentScroller, sw);
-        gridSizer->Add(card, 0, wxEXPAND);
-    }
-
-    contentSizer->Add(gridSizer, 0, wxEXPAND | wxALL, 24);
-    contentSizer->Layout();
-    m_contentScroller->FitInside();
-
-    // 更新状态
     m_statusLabel->SetLabel(
-        wxString::Format(L"共 %d 款软件", static_cast<int>(displaySoftware.size())));
+        wxString::Format(L"共 %d 款软件 · %d 个分类",
+                         static_cast<int>(m_data.software.size()),
+                         static_cast<int>(m_data.categories.size())));
 }
 
-// ── 创建软件卡片 ──
+// ── 创建单列行式卡片 ──
 
 wxPanel* SoftwareRecommendPanel::CreateSoftwareCard(
     wxWindow* parent,
@@ -264,41 +210,35 @@ wxPanel* SoftwareRecommendPanel::CreateSoftwareCard(
 
     const auto& colors = ThemeManager::Instance().GetColors();
 
-    auto* card = new wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(-1, 120));
+    // 单列行式卡片：横向铺满，[图标 | 名称/描述/元信息 | 操作按钮]
+    auto* card = new wxPanel(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize);
     card->SetName("card");
     card->SetBackgroundColour(colors.surface);
-    card->SetMinSize(wxSize(300, 120));
-    card->SetMaxSize(wxSize(500, 120));
+    card->SetMinSize(wxSize(-1, 76));
 
     auto* cardSizer = new wxBoxSizer(wxHORIZONTAL);
 
-    // ── 左侧：图标区域 ──
-    auto* iconPanel = new wxPanel(card, wxID_ANY, wxDefaultPosition, wxSize(56, 56));
+    // ── 左侧：图标（软件首字符）──
+    auto* iconPanel = new wxPanel(card, wxID_ANY, wxDefaultPosition, wxSize(48, 48));
     iconPanel->SetBackgroundColour(colors.accent);
-    // 绘制软件首字母作为图标
     auto* iconLabel = new wxStaticText(iconPanel, wxID_ANY,
-        software.name.substr(0, 1));
-    iconLabel->SetFont(wxFont(20, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL,
+        wxString(software.name).Left(1).Upper());
+    iconLabel->SetFont(wxFont(18, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL,
                               wxFONTWEIGHT_BOLD, false, L"微软雅黑"));
     iconLabel->SetForegroundColour(*wxWHITE);
     iconLabel->SetBackgroundColour(colors.accent);
 
-    auto* iconSizer = new wxBoxSizer(wxHORIZONTAL);
-    iconSizer->AddStretchSpacer();
-    iconSizer->Add(iconLabel, 0, wxALIGN_CENTER);
-    iconSizer->AddStretchSpacer();
     auto* iconVSizer = new wxBoxSizer(wxVERTICAL);
     iconVSizer->AddStretchSpacer();
-    iconVSizer->Add(iconSizer, 0, wxALIGN_CENTER);
+    iconVSizer->Add(iconLabel, 0, wxALIGN_CENTER_HORIZONTAL);
     iconVSizer->AddStretchSpacer();
     iconPanel->SetSizer(iconVSizer);
 
-    cardSizer->Add(iconPanel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 12);
+    cardSizer->Add(iconPanel, 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT, 14);
 
-    // ── 中间：软件信息 ──
+    // ── 中间：信息区 ──
     auto* infoSizer = new wxBoxSizer(wxVERTICAL);
 
-    // 软件名称 + 推荐标签
     auto* nameRow = new wxBoxSizer(wxHORIZONTAL);
     auto* nameLabel = new wxStaticText(card, wxID_ANY, software.name);
     nameLabel->SetFont(ThemeManager::GetSubtitleFont());
@@ -311,39 +251,57 @@ wxPanel* SoftwareRecommendPanel::CreateSoftwareCard(
                                  wxFONTWEIGHT_BOLD, false, L"微软雅黑"));
         recLabel->SetForegroundColour(*wxWHITE);
         recLabel->SetBackgroundColour(colors.accent);
-        recLabel->SetMinSize(wxSize(32, 16));
         nameRow->Add(recLabel, 0, wxALIGN_CENTER_VERTICAL);
     }
-    infoSizer->Add(nameRow, 0, wxBOTTOM, 4);
+    if (!software.version.empty()) {
+        auto* verLabel = new wxStaticText(card, wxID_ANY,
+                                          L"v" + software.version);
+        verLabel->SetFont(ThemeManager::GetSmallFont());
+        verLabel->SetForegroundColour(colors.textDisabled);
+        nameRow->Add(verLabel, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 4);
+    }
+    infoSizer->Add(nameRow, 0, wxBOTTOM, 3);
 
-    // 描述
+    // 描述（限宽换行，行式卡片内不无限拉长）
     auto* descLabel = new wxStaticText(card, wxID_ANY, software.description);
     descLabel->SetFont(ThemeManager::GetSmallFont());
     descLabel->SetForegroundColour(colors.textSecondary);
-    descLabel->SetMaxSize(wxSize(250, -1));
+    descLabel->Wrap(560);
     infoSizer->Add(descLabel, 0, wxBOTTOM, 4);
 
-    // 大小 + 标签
-    wxString sizeInfo = wxString::Format(L"%d MB", software.sizeMb);
-    if (!software.tags.empty()) {
-        sizeInfo += L"  |  ";
-        for (size_t i = 0; i < software.tags.size() && i < 3; ++i) {
-            if (i > 0) sizeInfo += L" ";
-            sizeInfo += software.tags[i];
-        }
+    // 元信息：大小 + 标签
+    wxString metaInfo = software.sizeMb > 0
+        ? wxString::Format(L"%d MB", software.sizeMb) : wxString(L"");
+    for (size_t i = 0; i < software.tags.size() && i < 3; ++i) {
+        if (!metaInfo.empty()) metaInfo += L"  ·  ";
+        metaInfo += software.tags[i];
     }
-    auto* sizeLabel = new wxStaticText(card, wxID_ANY, sizeInfo);
-    sizeLabel->SetFont(ThemeManager::GetSmallFont());
-    sizeLabel->SetForegroundColour(colors.textDisabled);
-    infoSizer->Add(sizeLabel, 0);
+    if (!metaInfo.empty()) {
+        auto* metaLabel = new wxStaticText(card, wxID_ANY, metaInfo);
+        metaLabel->SetFont(ThemeManager::GetSmallFont());
+        metaLabel->SetForegroundColour(colors.textDisabled);
+        infoSizer->Add(metaLabel, 0);
+    }
 
-    cardSizer->Add(infoSizer, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
+    cardSizer->Add(infoSizer, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, 12);
 
     // ── 右侧：操作按钮 ──
-    auto* btnSizer = new wxBoxSizer(wxVERTICAL);
+    auto* btnSizer = new wxBoxSizer(wxHORIZONTAL);
+
+    auto* visitBtn = new wxButton(card, wxID_ANY, L"官网",
+                                   wxDefaultPosition, wxSize(64, 30));
+    visitBtn->SetName("btn_visit");
+    visitBtn->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL,
+                             wxFONTWEIGHT_NORMAL, false, L"微软雅黑"));
+    visitBtn->Bind(wxEVT_BUTTON, [software](wxCommandEvent&) {
+        if (!software.officialUrl.empty()) {
+            wxLaunchDefaultBrowser(software.officialUrl);
+        }
+    });
+    btnSizer->Add(visitBtn, 0, wxRIGHT, 8);
 
     auto* downloadBtn = new wxButton(card, wxID_ANY, L"下载",
-                                      wxDefaultPosition, wxSize(64, 28));
+                                      wxDefaultPosition, wxSize(72, 30));
     downloadBtn->SetName("btn_primary_download");
     downloadBtn->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL,
                                 wxFONTWEIGHT_BOLD, false, L"微软雅黑"));
@@ -352,21 +310,9 @@ wxPanel* SoftwareRecommendPanel::CreateSoftwareCard(
             wxLaunchDefaultBrowser(software.downloadUrl);
         }
     });
-    btnSizer->Add(downloadBtn, 0, wxBOTTOM, 4);
+    btnSizer->Add(downloadBtn, 0, wxRIGHT, 16);
 
-    auto* visitBtn = new wxButton(card, wxID_ANY, L"官网",
-                                   wxDefaultPosition, wxSize(64, 24));
-    visitBtn->SetName("btn_visit");
-    visitBtn->SetFont(wxFont(8, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL,
-                             wxFONTWEIGHT_NORMAL, false, L"微软雅黑"));
-    visitBtn->Bind(wxEVT_BUTTON, [software](wxCommandEvent&) {
-        if (!software.officialUrl.empty()) {
-            wxLaunchDefaultBrowser(software.officialUrl);
-        }
-    });
-    btnSizer->Add(visitBtn, 0);
-
-    cardSizer->Add(btnSizer, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
+    cardSizer->Add(btnSizer, 0, wxALIGN_CENTER_VERTICAL);
 
     card->SetSizer(cardSizer);
     return card;
@@ -404,11 +350,6 @@ void SoftwareRecommendPanel::OnRefreshFromNetwork(wxCommandEvent& /*event*/) {
             }
         });
     });
-}
-
-void SoftwareRecommendPanel::OnCategorySelected(wxCommandEvent& event) {
-    m_selectedCategoryIndex = event.GetInt();
-    RefreshList();
 }
 
 void SoftwareRecommendPanel::OnDownloadClick(wxCommandEvent& /*event*/) {

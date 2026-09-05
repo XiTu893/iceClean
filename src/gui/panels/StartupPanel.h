@@ -78,6 +78,7 @@ private:
         wxStaticText* publisherLabel = nullptr;
         wxStaticText* typeLabel = nullptr;
         wxStaticText* statusLabel = nullptr;  // 运行状态标签
+        wxStaticText* detailLabel = nullptr;  // 明细行标签(来源/路径/描述等)
         bool isOn = true;
         bool isSystemCritical = false;
         bool isProcessRunning = false;  // 关联进程是否正在运行

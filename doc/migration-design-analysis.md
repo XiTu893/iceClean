@@ -1,11 +1,36 @@
 # 智能迁移方案设计分析
 
 > 分析日期：2026-08-29
-> 更新：2026-08-29（补充阈值调整 + 跳过列表完善 + CLI 测试验证）
+> 更新：2026-08-29（补充阈值调整 + 跳过列表完善 + CLI 测试验证 + 扫描下钻修复）
 
 ---
 
 ## 一、修复记录
+
+### 1.0 扫描下钻修复（2026-08-29 新增）
+
+**问题**：
+- 阈值 200MB 选择后，仍出现大量 < 200MB 的小文件夹（UserFolderMigrator 无阈值过滤）
+- `C:\Users` 被加入跳过列表，导致扫描器无法进入用户目录
+- `AppData\Local\vcpkg` (659MB) 永远找不到——因为 `AppData` 整体（27GB）先入列，阻止下钻
+
+**修复**：
+1. `UserFolderMigrator::Detect()` 加 100MB 阈值过滤（`constexpr kMinSizeBytes = 100MB`）
+2. 从跳过列表移除 `users`, `public`, `default`, `google`, `microsoft`, `mozilla`, `.config`, `.cache`, `.local`
+3. 新增容器下钻逻辑：
+   - `C:\Users` → `ScanUsersContainer`：枚举用户目录，Public/Default 特殊处理，用户配置目录（zeus-zzp）永远不入列但始终下钻
+   - `AppData` 跳过自身但调用 `ScanContainerChildren` 深入子目录
+   - 大于 5GB 的目录（`kContainerThreshold`）强制下钻而非入列，防止容器目录屏蔽内部可迁移项
+   - 新增 `IsUserProfileDir()` 检测用户配置目录（含 AppData/Desktop/Documents/Downloads 等特征）
+
+**验证结果**（100MB 阈值）：
+- `C:\vcpkg` (227 MB) ✓
+- `AppData\Local\vcpkg` (931 MB) ✓
+- `AppData\Local\Google` (1565 MB) ✓
+- `AppData\Roaming\Code` (4383 MB) ✓ — VSCode
+- `AppData\Roaming\Tencent` (1327 MB) ✓ — QQ
+- `.lmstudio` (2115 MB) ✓
+- `Public\Documents\Unity Projects` (532 MB) ✓
 
 ### 1.1 阈值调整
 - **原阈值**：500MB → **新阈值**：100MB

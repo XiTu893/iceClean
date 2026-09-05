@@ -49,6 +49,12 @@ public:
     // 数据库是否已初始化
     bool IsInitialized() const { return m_initialized; }
 
+    // 本地数据版本落后于内置种子时自动升级（联网更新写入更高版本后不会被回退）
+    bool EnsureSeedLoaded();
+
+    // 本地数据集版本号（无数据为 0）
+    int GetDataVersion() const;
+
 private:
     SoftwareRecommendDB() = default;
     ~SoftwareRecommendDB();

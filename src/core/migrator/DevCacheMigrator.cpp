@@ -88,6 +88,10 @@ std::vector<Models::MigrationItem> DevCacheMigrator::Detect() {
         uint64_t size = CalculateDirectorySize(cache.sourcePath);
         if (size == 0) continue;
 
+        // 阈值过滤：跳过小于 100MB 的小缓存
+        constexpr uint64_t kMinSizeBytes = 100ULL * 1024 * 1024;
+        if (size < kMinSizeBytes) continue;
+
         Models::MigrationItem item;
         item.name = cache.name;
         item.sourcePath = cache.sourcePath;

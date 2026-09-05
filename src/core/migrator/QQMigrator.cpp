@@ -91,12 +91,16 @@ std::vector<Models::MigrationItem> QQMigrator::Detect() {
 
         uint64_t size = Utils::FileUtil::GetFolderSize(qqDirPath);
 
+        // 阈值过滤：跳过小于 100MB 的小缓存目录
+        constexpr uint64_t kMinSizeBytes = 100ULL * 1024 * 1024;
+        if (size < kMinSizeBytes) continue;
+
         Models::MigrationItem item;
         item.name = std::wstring(L"QQ - ") + findData.cFileName;
         item.sourcePath = qqDirPath;
         item.size = size;
         item.type = Models::MigrationType::QQCache;
-        item.advice = size > 500ULL * 1024 * 1024
+        item.advice = size > 1024ULL * 1024 * 1024
             ? Models::MigrationAdvice::Recommended
             : Models::MigrationAdvice::Possible;
         item.selected = false;

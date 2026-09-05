@@ -27,6 +27,9 @@ public:
     // 操作系统信息
     void GetOsInfo(std::wstring& osVersion, std::wstring& osBuild);
 
+    // 网络适配器详情
+    std::vector<IceClean::Models::NetworkAdapterDetail> GetNetworkAdaptersDetail();
+
     // 系统运行时间
     std::wstring GetSystemUptime();
 

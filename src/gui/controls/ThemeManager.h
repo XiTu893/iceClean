@@ -88,6 +88,11 @@ public:
     using ThemeChangeCallback = std::function<void(const ThemeColors& newColors)>;
     void RegisterChangeCallback(ThemeChangeCallback callback);
 
+    // 为按钮添加悬停效果（进入时背景变亮/变深，离开时恢复）
+    // 适用于使用 accent/danger/success 等实色背景的按钮
+    // 返回计算出的悬停色
+    wxColour ApplyButtonHover(wxButton* btn, const wxColour& normalBg, const wxColour& hoverBg);
+
     // 应用主题到窗口及其子控件
     void ApplyTheme(wxWindow* window) const;
 

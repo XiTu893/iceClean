@@ -1,4 +1,5 @@
-#include "SoftwareRecommendFetcher.h"
+﻿#include "SoftwareRecommendFetcher.h"
+#include "utils/JsonUtil.h"
 #include <spdlog/spdlog.h>
 #include <nlohmann/json.hpp>
 #include <windows.h>
@@ -10,6 +11,12 @@
 namespace IceClean::Core::Safety {
 
 using json = nlohmann::json;
+
+// JSON 为 UTF-8，宽字符为 UTF-16：统一走 JsonUtil 的系统级转换（此前逐字节 widen 会损坏中文）
+using IceClean::Utils::JsonUtil;
+namespace {
+auto& Utf8ToWide = JsonUtil::Utf8ToWide;
+} // namespace
 
 // ── 单例 ──
 
@@ -187,17 +194,16 @@ bool SoftwareRecommendFetcher::ParseJson(const std::string& jsonStr,
 
         // 解析 updated_at
         if (j.contains("updated_at")) {
-            std::string updatedAt = j["updated_at"].get<std::string>();
-            outData.updatedAt = std::wstring(updatedAt.begin(), updatedAt.end());
+            outData.updatedAt = Utf8ToWide(j["updated_at"].get<std::string>());
         }
 
         // 解析分类
         if (j.contains("categories") && j["categories"].is_array()) {
             for (const auto& catJ : j["categories"]) {
                 Models::RecommendCategory cat;
-                cat.id = std::wstring(catJ.value("id", "").begin(), catJ.value("id", "").end());
-                cat.name = std::wstring(catJ.value("name", "").begin(), catJ.value("name", "").end());
-                cat.icon = std::wstring(catJ.value("icon", "").begin(), catJ.value("icon", "").end());
+                cat.id = Utf8ToWide(catJ.value("id", ""));
+                cat.name = Utf8ToWide(catJ.value("name", ""));
+                cat.icon = Utf8ToWide(catJ.value("icon", ""));
                 cat.sortOrder = catJ.value("sort_order", 0);
                 outData.categories.push_back(std::move(cat));
 
@@ -205,24 +211,23 @@ bool SoftwareRecommendFetcher::ParseJson(const std::string& jsonStr,
                 if (catJ.contains("software") && catJ["software"].is_array()) {
                     for (const auto& swJ : catJ["software"]) {
                         Models::RecommendedSoftware sw;
-                        sw.id = std::wstring(swJ.value("id", "").begin(), swJ.value("id", "").end());
-                        sw.name = std::wstring(swJ.value("name", "").begin(), swJ.value("name", "").end());
-                        sw.description = std::wstring(swJ.value("description", "").begin(), swJ.value("description", "").end());
-                        sw.version = std::wstring(swJ.value("version", "").begin(), swJ.value("version", "").end());
-                        sw.categoryId = std::wstring(swJ.value("category_id", "").begin(), swJ.value("category_id", "").end());
-                        sw.downloadUrl = std::wstring(swJ.value("download_url", "").begin(), swJ.value("download_url", "").end());
-                        sw.officialUrl = std::wstring(swJ.value("official_url", "").begin(), swJ.value("official_url", "").end());
-                        sw.iconUrl = std::wstring(swJ.value("icon_url", "").begin(), swJ.value("icon_url", "").end());
+                        sw.id = Utf8ToWide(swJ.value("id", ""));
+                        sw.name = Utf8ToWide(swJ.value("name", ""));
+                        sw.description = Utf8ToWide(swJ.value("description", ""));
+                        sw.version = Utf8ToWide(swJ.value("version", ""));
+                        sw.categoryId = Utf8ToWide(swJ.value("category_id", ""));
+                        sw.downloadUrl = Utf8ToWide(swJ.value("download_url", ""));
+                        sw.officialUrl = Utf8ToWide(swJ.value("official_url", ""));
+                        sw.iconUrl = Utf8ToWide(swJ.value("icon_url", ""));
                         sw.sizeMb = swJ.value("size_mb", 0);
-                        sw.platform = std::wstring(swJ.value("platform", "").begin(), swJ.value("platform", "").end());
+                        sw.platform = Utf8ToWide(swJ.value("platform", ""));
                         sw.isRecommended = swJ.value("is_recommended", false);
                         sw.sortOrder = swJ.value("sort_order", 0);
 
                         // 解析 tags
                         if (swJ.contains("tags") && swJ["tags"].is_array()) {
                             for (const auto& tagJ : swJ["tags"]) {
-                                std::string tag = tagJ.get<std::string>();
-                                sw.tags.push_back(std::wstring(tag.begin(), tag.end()));
+                                sw.tags.push_back(Utf8ToWide(tagJ.get<std::string>()));
                             }
                         }
 

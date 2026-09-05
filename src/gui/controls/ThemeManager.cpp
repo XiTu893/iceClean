@@ -5,15 +5,30 @@
 #include <wx/checkbox.h>
 #include <wx/choice.h>
 #include <wx/textctrl.h>
+#include <wx/button.h>
 #include <spdlog/spdlog.h>
 #include <nlohmann/json.hpp>
 #include <fstream>
+#include <filesystem>
 #include <windows.h>
 #include <shlobj.h>
 
 namespace IceClean::Gui {
 
 using json = nlohmann::json;
+
+namespace {
+    std::wstring GetDataDir() {
+        wchar_t exePath[MAX_PATH] = {};
+        DWORD len = GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+        if (len == 0) return L"";
+        std::filesystem::path p(exePath);
+        std::filesystem::path dataDir = p.parent_path() / L"data";
+        std::error_code ec;
+        std::filesystem::create_directories(dataDir, ec);
+        return dataDir.wstring();
+    }
+}
 
 // ── 单例 ──
 
@@ -124,61 +139,61 @@ void ThemeManager::RegisterChangeCallback(ThemeChangeCallback callback) {
 
 void ThemeManager::InitLightTheme() {
     // 参考 QQ/Arco Design/Ant Design 商业级浅色主题
-    // 侧边栏采用明亮的蓝灰色调，渐变效果清晰可见
+    // 侧边栏采用清新的深绿色调，渐变效果清晰可见
     m_colors.background          = wxColour(242, 244, 248);   // #F2F4F8 - 内容区背景
     m_colors.surface             = wxColour(255, 255, 255);   // #FFFFFF - 卡片表面
     m_colors.surfaceHover        = wxColour(240, 242, 246);   // #F0F2F6
     m_colors.textPrimary         = wxColour(29, 33, 41);      // #1D2129
     m_colors.textSecondary       = wxColour(78, 89, 105);     // #4E5969
     m_colors.textDisabled        = wxColour(201, 205, 212);   // #C9CDD4
-    m_colors.accent              = wxColour(22, 93, 255);      // #165DFF - Arco Blue
-    m_colors.accentHover         = wxColour(53, 118, 255);     // #3576FF
-    m_colors.accentGradientEnd   = wxColour(80, 160, 255);    // #50A0FF
+    m_colors.accent              = wxColour(0, 180, 42);       // #00B42A - Arco Green（清新绿）
+    m_colors.accentHover         = wxColour(35, 195, 67);     // #23C343
+    m_colors.accentGradientEnd   = wxColour(123, 225, 136);   // #7BE188
     m_colors.danger              = wxColour(245, 63, 63);     // #F53F3F
     m_colors.warning             = wxColour(255, 156, 0);     // #FF9C00
-    m_colors.success             = wxColour(0, 180, 42);      // #00B42A
-    m_colors.sidebar             = wxColour(55, 80, 140);      // #37508C - 明亮蓝灰（清晰可辨）
-    m_colors.sidebarGradientEnd  = wxColour(75, 105, 170);     // #4B69AA - 渐变终止（明显提亮）
-    m_colors.sidebarText         = wxColour(220, 228, 242);   // #DCE4F2 - 亮文字
-    m_colors.sidebarSelected     = wxColour(22, 93, 255);     // #165DFF
+    m_colors.success             = wxColour(0, 200, 83);      // #00C853 - 明亮翠绿（区分主色）
+    m_colors.sidebar             = wxColour(24, 138, 76);      // #188A4C - 浓郁深绿（清晰可辨）
+    m_colors.sidebarGradientEnd  = wxColour(36, 166, 91);      // #24A65B - 渐变终止（明显提亮）
+    m_colors.sidebarText         = wxColour(225, 246, 232);   // #E1F6E8 - 亮文字
+    m_colors.sidebarSelected     = wxColour(0, 180, 42);     // #00B42A
     m_colors.sidebarSelectedText = wxColour(255, 255, 255);   // #FFFFFF
-    m_colors.sidebarHover        = wxColour(65, 92, 155);     // #415C9B
+    m_colors.sidebarHover        = wxColour(31, 154, 83);     // #1F9A53
     m_colors.border              = wxColour(229, 230, 235);   // #E5E6EB
     m_colors.divider             = wxColour(229, 230, 235);   // #E5E6EB
     m_colors.cardShadow          = wxColour(0, 0, 0, 15);    // rgba(0,0,0,0.06)
     m_colors.cardGradientStart   = wxColour(255, 255, 255);   // #FFFFFF
     m_colors.cardGradientEnd     = wxColour(250, 251, 253);   // #FAFBFD
-    m_colors.progressBar         = wxColour(22, 93, 255);     // #165DFF
+    m_colors.progressBar         = wxColour(0, 180, 42);     // #00B42A
     m_colors.progressBarBg       = wxColour(229, 230, 235);   // #E5E6EB
 }
 
 void ThemeManager::InitDarkTheme() {
     // 参考 Arco Design/Ant Design/QQ 暗色规范
-    // 侧边栏使用明显蓝灰色调，与内容区形成层次
+    // 侧边栏使用明显绿灰调，与内容区形成层次
     m_colors.background          = wxColour(26, 26, 31);       // #1A1A1F - 深灰蓝
     m_colors.surface             = wxColour(37, 37, 42);       // #25252A - 卡片表面
     m_colors.surfaceHover        = wxColour(46, 46, 53);       // #2E2E35
     m_colors.textPrimary         = wxColour(232, 234, 240);    // #E8EAF0 - 主文字
     m_colors.textSecondary       = wxColour(160, 166, 182);    // #A0A6B6 - 次要文字
     m_colors.textDisabled        = wxColour(92, 93, 110);      // #5C5D6E
-    m_colors.accent              = wxColour(61, 127, 255);     // #3D7FFF
-    m_colors.accentHover         = wxColour(91, 148, 255);     // #5B94FF
-    m_colors.accentGradientEnd   = wxColour(107, 164, 255);    // #6BA4FF
-    m_colors.danger              = wxColour(247, 105, 101);    // #F76965
-    m_colors.warning             = wxColour(255, 183, 50);     // #FFB732
-    m_colors.success             = wxColour(52, 209, 144);     // #34D190
-    m_colors.sidebar             = wxColour(32, 42, 72);       // #202A48 - 深蓝灰（明显蓝色调）
-    m_colors.sidebarGradientEnd  = wxColour(45, 58, 95);       // #2D3A5F - 渐变终止（更亮）
-    m_colors.sidebarText         = wxColour(192, 200, 216);    // #C0C8D8 - 亮文字
-    m_colors.sidebarSelected     = wxColour(61, 127, 255);     // #3D7FFF
-    m_colors.sidebarSelectedText = wxColour(255, 255, 255);    // #FFFFFF
-    m_colors.sidebarHover        = wxColour(40, 52, 85);       // #283455
+    m_colors.accent              = wxColour(35, 195, 67);     // #23C343
+    m_colors.accentHover         = wxColour(76, 210, 99);     // #4CD263
+    m_colors.accentGradientEnd   = wxColour(123, 225, 136);   // #7BE188
+    m_colors.danger              = wxColour(247, 105, 101);   // #F76965
+    m_colors.warning             = wxColour(255, 183, 50);    // #FFB732
+    m_colors.success             = wxColour(52, 209, 144);    // #34D190
+    m_colors.sidebar             = wxColour(22, 59, 39);      // #163B27 - 深绿（明显绿色调）
+    m_colors.sidebarGradientEnd  = wxColour(32, 82, 56);      // #205238 - 渐变终止（更亮）
+    m_colors.sidebarText         = wxColour(194, 230, 208);   // #C2E6D0 - 亮文字
+    m_colors.sidebarSelected     = wxColour(35, 195, 67);     // #23C343
+    m_colors.sidebarSelectedText = wxColour(255, 255, 255);   // #FFFFFF
+    m_colors.sidebarHover        = wxColour(27, 69, 47);      // #1B452F
     m_colors.border              = wxColour(51, 51, 58);       // #33333A
     m_colors.divider             = wxColour(46, 46, 54);       // #2E2E36
     m_colors.cardShadow          = wxColour(0, 0, 0, 64);     // rgba(0,0,0,0.25)
     m_colors.cardGradientStart   = wxColour(37, 37, 42);       // #25252A
     m_colors.cardGradientEnd     = wxColour(42, 42, 48);       // #2A2A30
-    m_colors.progressBar         = wxColour(61, 127, 255);     // #3D7FFF
+    m_colors.progressBar         = wxColour(35, 195, 67);     // #23C343
     m_colors.progressBarBg       = wxColour(51, 51, 58);       // #33333A
 }
 
@@ -304,20 +319,68 @@ void ThemeManager::ApplyTheme(wxWindow* window) const {
     window->Refresh();
 }
 
+// ── 按钮悬停辅助 ──
+
+// 提升亮度（用于深色背景的悬停态：轻微提亮让按钮"浮"起来）
+static wxColour Lighten(const wxColour& c, int delta) {
+    auto clamp = [](int v) { return v > 255 ? 255 : (v < 0 ? 0 : v); };
+    return wxColour(clamp(c.Red() + delta), clamp(c.Green() + delta), clamp(c.Blue() + delta));
+}
+
+// 降低亮度（用于浅色背景的悬停态：轻微变暗让按钮"下沉"一点）
+static wxColour Darken(const wxColour& c, int delta) {
+    auto clamp = [](int v) { return v > 255 ? 255 : (v < 0 ? 0 : v); };
+    return wxColour(clamp(c.Red() - delta), clamp(c.Green() - delta), clamp(c.Blue() - delta));
+}
+
+// 自动计算微调后的悬停色：根据背景亮度决定加深还是提亮，但变化幅度很小
+// 浅色 → 略微变深（< 10% 亮度），深色 → 略微提亮
+// 目的：仅提示"可点击"，不改变整体观感
+static wxColour AutoHoverColor(const wxColour& base) {
+    double luminance = 0.299 * base.Red() + 0.587 * base.Green() + 0.114 * base.Blue();
+    if (luminance > 128.0) {
+        // 浅色背景：轻微变暗，delta=12（约 5% 亮度变化）
+        return Darken(base, 12);
+    }
+    // 深色背景：轻微提亮，delta=15
+    return Lighten(base, 15);
+}
+
+wxColour ThemeManager::ApplyButtonHover(wxButton* btn, const wxColour& normalBg, const wxColour& hoverBg) {
+    if (!btn) return wxColour();
+    const wxColour effectiveHover = hoverBg.IsOk() ? hoverBg : AutoHoverColor(normalBg);
+    const wxColour normal = normalBg;
+    const wxColour hover = effectiveHover;
+
+    btn->Bind(wxEVT_ENTER_WINDOW, [btn, normal, hover](wxMouseEvent&) {
+        if (!btn->IsEnabled()) return;
+        btn->SetBackgroundColour(hover);
+        btn->Refresh();
+    });
+    btn->Bind(wxEVT_LEAVE_WINDOW, [btn, normal](wxMouseEvent&) {
+        if (!btn->IsEnabled()) return;
+        btn->SetBackgroundColour(normal);
+        btn->Refresh();
+    });
+    // 按钮被禁用时：背景色由 ApplyTheme / SetBackgroundColour 统一控制，不再重复设置
+
+    return effectiveHover;
+}
+
 // ── 持久化 ──
 
 void ThemeManager::SavePreference() const {
-    wchar_t appDataPath[MAX_PATH] = {0};
-    if (FAILED(SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, 0, appDataPath))) return;
+    std::wstring dataDir = GetDataDir();
+    if (dataDir.empty()) return;
 
-    auto configPath = std::wstring(appDataPath) + L"\\IceClean\\" + kConfigFileName;
+    auto configPath = std::filesystem::path(dataDir) / L"config" / kConfigFileName;
 
     try {
+        std::error_code ec;
+        std::filesystem::create_directories(configPath.parent_path(), ec);
+
         json j;
         j["theme"] = static_cast<int>(m_currentTheme);
-
-        auto dir = configPath.substr(0, configPath.find_last_of(L'\\'));
-        CreateDirectoryW(dir.c_str(), NULL);
 
         std::ofstream file(configPath);
         if (file.is_open()) {
@@ -330,13 +393,13 @@ void ThemeManager::SavePreference() const {
 }
 
 void ThemeManager::LoadPreference() {
-    wchar_t appDataPath[MAX_PATH] = {0};
-    if (FAILED(SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, 0, appDataPath))) {
+    std::wstring dataDir = GetDataDir();
+    if (dataDir.empty()) {
         m_currentTheme = ThemeType::Light;
         return;
     }
 
-    auto configPath = std::wstring(appDataPath) + L"\\IceClean\\" + kConfigFileName;
+    auto configPath = std::filesystem::path(dataDir) / L"config" / kConfigFileName;
 
     try {
         std::ifstream file(configPath);

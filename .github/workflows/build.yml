@@ -63,7 +63,7 @@ jobs:
       run: |
         # Copy build artifacts to scripts directory for NSIS
         Write-Output "=== Copying files ==="
-        $srcExe = "build\${{ env.BUILD_TYPE }}\IceClean.exe"
+        $srcExe = "build\src\${{ env.BUILD_TYPE }}\IceClean.exe"
         $srcManifest = "src\gui\resources\app.manifest"
         $srcQr = "src\gui\resources\QrReward.jpg"
         $srcLogo = "src\gui\resources\XiTu-logo.jpg"
@@ -81,8 +81,9 @@ jobs:
         Write-Output "=== Files in scripts dir ==="
         Get-ChildItem scripts
         
-        # Run makensis from root with explicit script path
-        makensis -V4 -DVERSION=${{ env.APP_VERSION }} scripts/installer.nsi 2>&1 | Tee-Object -FilePath installer_log.txt
+        # Run makensis from root with explicit script path and absolute output path
+        $outPath = "${{ github.workspace }}\IceClean-${{ env.APP_VERSION }}-setup.exe" -replace '\\', '/'
+        makensis -V4 -DVERSION=${{ env.APP_VERSION }} "-DOUTPATH=$outPath" scripts/installer.nsi 2>&1 | Tee-Object -FilePath installer_log.txt
         $exit = $LASTEXITCODE
         if ($exit -ne 0) {
           Write-Output "===== INSTALLER BUILD FAILED. Full log: ====="
@@ -98,6 +99,6 @@ jobs:
       with:
         name: IceClean-${{ env.BUILD_TYPE }}
         path: |
-          ${{ github.workspace }}/build/${{ env.BUILD_TYPE }}/IceClean.exe
+          ${{ github.workspace }}/build/src/${{ env.BUILD_TYPE }}/IceClean.exe
           ${{ github.workspace }}/IceClean-${{ env.APP_VERSION }}-setup.exe
         if-no-files-found: warn

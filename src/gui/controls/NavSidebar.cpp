@@ -1,12 +1,11 @@
 #include "NavSidebar.h"
 #include "ThemeManager.h"
+#include "../MainWindow.h"  // for NavPage enum
 
 #include <wx/dcbuffer.h>
 #include <wx/graphics.h>
 
 namespace IceClean::Gui {
-
-wxDEFINE_EVENT(wxEVT_NAV_SELECTION_CHANGED, wxCommandEvent);
 
 NavSidebar::NavSidebar(wxWindow* parent)
     : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(200, -1))
@@ -23,23 +22,20 @@ NavSidebar::NavSidebar(wxWindow* parent)
     SetName("NavSidebar");
     SetMinSize(wxSize(200, -1));
 
-    // 13 items with separators at index 4 and 8
+    // 10 items with separators after items 3 and 6
+    // iconId 同时是 m_contentBook 的页面索引（NavPage enum 值）
     m_items = {
-        { L"首页",       0 },
-        { L"深度清理",   1 },
-        { L"智能迁移",   2 },
-        { L"加速优化",   3 },
+        { L"首页",       static_cast<int>(NavPage::Dashboard) },       // 0
+        { L"深度清理",   static_cast<int>(NavPage::DeepClean) },       // 1
+        { L"智能迁移",   static_cast<int>(NavPage::Migration) },       // 2
+        { L"加速优化",   static_cast<int>(NavPage::Startup) },         // 3
         { L"",          -1 },  // separator
-        { L"软件管理",   4 },
-        { L"软件推荐",   5 },
-        { L"安全防护",   6 },
-        { L"网络优化",   7 },
+        { L"软件管理",   static_cast<int>(NavPage::SoftwareManage) },  // 4
+        { L"安全防护",   static_cast<int>(NavPage::Security) },        // 5
+        { L"网络优化",   static_cast<int>(NavPage::NetworkOpt) },      // 6
         { L"",          -1 },  // separator
-        { L"磁盘分析",   8 },
-        { L"文件分类",   9 },
-        { L"下载管理",  10 },
-        { L"设置",      11 },
-        { L"关于",      12 },
+        { L"设置",       static_cast<int>(NavPage::Settings) },        // 7
+        { L"关于",       static_cast<int>(NavPage::About) },           // 8
     };
 
     Bind(wxEVT_PAINT, &NavSidebar::OnPaint, this);
@@ -66,7 +62,7 @@ void NavSidebar::SetSelection(int index)
         Refresh();
 
         wxCommandEvent event(wxEVT_NAV_SELECTION_CHANGED, GetId());
-        event.SetInt(m_selection);
+        event.SetInt(m_items[index].iconId);
         event.SetEventObject(this);
         ProcessWindowEvent(event);
     }
@@ -244,42 +240,6 @@ void NavSidebar::DrawRecommendIcon(wxGraphicsContext* gc, double cx, double cy, 
     gc->StrokePath(star);
 }
 
-void NavSidebar::DrawDiskIcon(wxGraphicsContext* gc, double cx, double cy, double size, const wxColour& color) {
-    double s = size * 0.4;
-    gc->SetPen(gc->CreatePen(wxPen(color, 2.0)));
-    gc->SetBrush(*wxTRANSPARENT_BRUSH);
-    // 硬盘：椭圆 + 内部同心圆
-    wxGraphicsPath disk = gc->CreatePath();
-    disk.AddEllipse(cx - s, cy - s * 0.7, s * 2, s * 1.4);
-    gc->StrokePath(disk);
-
-    wxGraphicsPath inner = gc->CreatePath();
-    inner.AddEllipse(cx - s * 0.5, cy - s * 0.35, s, s * 0.7);
-    gc->StrokePath(inner);
-
-    gc->StrokeLine(cx - s * 1.1, cy - s * 0.2, cx - s * 0.6, cy - s * 0.2);
-    gc->StrokeLine(cx - s * 1.1, cy + s * 0.2, cx - s * 0.6, cy + s * 0.2);
-}
-
-void NavSidebar::DrawFileTypeIcon(wxGraphicsContext* gc, double cx, double cy, double size, const wxColour& color) {
-    double s = size * 0.4;
-    gc->SetPen(gc->CreatePen(wxPen(color, 2.0)));
-    gc->SetBrush(*wxTRANSPARENT_BRUSH);
-    // 文档 + 分类线条
-    wxGraphicsPath doc = gc->CreatePath();
-    doc.AddRectangle(cx - s * 0.6, cy - s, s * 1.2, s * 2.0);
-    gc->StrokePath(doc);
-
-    // 文件夹标签
-    gc->StrokeLine(cx - s * 0.6, cy - s * 0.7, cx + s * 0.3, cy - s * 0.7);
-    gc->StrokeLine(cx - s * 0.6, cy - s * 0.3, cx + s * 0.4, cy - s * 0.3);
-
-    // 分类线条（3条）
-    gc->StrokeLine(cx - s * 0.35, cy + s * 0.1, cx + s * 0.35, cy + s * 0.1);
-    gc->StrokeLine(cx - s * 0.35, cy + s * 0.4, cx + s * 0.35, cy + s * 0.4);
-    gc->StrokeLine(cx - s * 0.35, cy + s * 0.7, cx + s * 0.2, cy + s * 0.7);
-}
-
 void NavSidebar::DrawDownloadIcon(wxGraphicsContext* gc, double cx, double cy, double size, const wxColour& color) {
     double s = size * 0.4;
     gc->SetPen(gc->CreatePen(wxPen(color, 2.0)));
@@ -297,6 +257,32 @@ void NavSidebar::DrawDownloadIcon(wxGraphicsContext* gc, double cx, double cy, d
 
     // 底部横线
     gc->StrokeLine(cx - s * 0.7, cy + s * 1.2, cx + s * 0.7, cy + s * 1.2);
+}
+
+void NavSidebar::DrawMonitorIcon(wxGraphicsContext* gc, double cx, double cy, double size, const wxColour& color) {
+    double s = size * 0.4;
+    gc->SetPen(gc->CreatePen(wxPen(color, 2.0)));
+    gc->SetBrush(*wxTRANSPARENT_BRUSH);
+    // 显示器外壳
+    wxGraphicsPath frame = gc->CreatePath();
+    frame.AddRectangle(cx - s, cy - s * 0.8, s * 2.0, s * 1.4);
+    gc->StrokePath(frame);
+    // 屏幕内部（显示一个简单波形）
+    wxGraphicsPath screen = gc->CreatePath();
+    screen.AddRectangle(cx - s * 0.8, cy - s * 0.6, s * 1.6, s * 1.0);
+    gc->SetBrush(wxBrush(color));
+    gc->FillPath(screen);
+    gc->SetBrush(*wxTRANSPARENT_BRUSH);
+    // 底座
+    wxGraphicsPath stand = gc->CreatePath();
+    stand.MoveToPoint(cx, cy + s * 0.6);
+    stand.AddLineToPoint(cx, cy + s * 0.8);
+    stand.AddLineToPoint(cx - s * 0.4, cy + s * 1.0);
+    stand.AddLineToPoint(cx + s * 0.4, cy + s * 1.0);
+    stand.AddLineToPoint(cx, cy + s * 0.8);
+    gc->StrokePath(stand);
+    // 底座横线
+    gc->StrokeLine(cx - s * 0.6, cy + s * 1.0, cx + s * 0.6, cy + s * 1.0);
 }
 
 // ── Paint ──
@@ -332,21 +318,19 @@ void NavSidebar::OnPaint(wxPaintEvent& /*event*/)
     gc->SetPen(gc->CreatePen(wxPen(wxColour(255, 255, 255, 40), 1)));
     gc->StrokeLine(PADDING, titleAreaHeight, GetSize().x - PADDING, titleAreaHeight);
 
-    // 图标颜色映射（13个非分隔项）
+    // 图标颜色映射（11个非分隔项）
     const wxColour itemColors[] = {
-        wxColour(120, 175, 255),    // 0: 首页 - 蓝
+        wxColour(130, 220, 140),    // 0: 首页 - 浅绿
         wxColour(100, 230, 180),    // 1: 深度清理 - 绿
         wxColour(255, 170, 100),    // 2: 智能迁移 - 橙
         wxColour(255, 220, 100),    // 3: 加速优化 - 黄
         wxColour(255, 140, 140),    // 4: 软件管理 - 红
-        wxColour(190, 165, 255),    // 5: 软件推荐 - 紫
-        wxColour(255, 150, 180),    // 6: 安全防护 - 玫瑰
-        wxColour(120, 235, 185),    // 7: 网络优化 - 翡翠
-        wxColour(80, 220, 130),     // 8: 磁盘分析 - 亮绿
-        wxColour(200, 160, 255),    // 9: 文件分类 - 淡紫
-        wxColour(100, 195, 255),    // 10: 下载管理 - 天蓝
-        wxColour(180, 186, 200),    // 11: 设置 - 灰
-        wxColour(140, 185, 255),    // 12: 关于 - 浅蓝
+        wxColour(255, 150, 180),    // 5: 安全防护 - 玫瑰
+        wxColour(120, 235, 185),    // 6: 网络优化 - 翡翠
+        wxColour(85, 215, 190),     // 7: 下载管理 - 青绿
+        wxColour(180, 186, 200),    // 8: 设置 - 灰
+        wxColour(160, 205, 130),    // 9: 关于 - 草绿
+        wxColour(100, 180, 255),    // 10: 硬件监控 - 蓝
     };
 
     // Draw navigation items
@@ -399,20 +383,15 @@ void NavSidebar::OnPaint(wxPaintEvent& /*event*/)
             case 5: DrawRecommendIcon(gc, iconX, iconY, ICON_SIZE, iconColor); break;
             case 6: DrawPopupBlockerIcon(gc, iconX, iconY, ICON_SIZE, iconColor); break;
             case 7: DrawNetworkIcon(gc, iconX, iconY, ICON_SIZE, iconColor); break;
-            case 8: DrawDiskIcon(gc, iconX, iconY, ICON_SIZE, iconColor); break;
-            case 9: DrawFileTypeIcon(gc, iconX, iconY, ICON_SIZE, iconColor); break;
-            case 10: DrawDownloadIcon(gc, iconX, iconY, ICON_SIZE, iconColor); break;
-            case 11: DrawSettingsIcon(gc, iconX, iconY, ICON_SIZE, iconColor); break;
-            case 12: DrawAboutIcon(gc, iconX, iconY, ICON_SIZE, iconColor); break;
+            case 8: DrawSettingsIcon(gc, iconX, iconY, ICON_SIZE, iconColor); break;
+            case 9: DrawAboutIcon(gc, iconX, iconY, ICON_SIZE, iconColor); break;
+            case 10: DrawMonitorIcon(gc, iconX, iconY, ICON_SIZE, iconColor); break;
         }
 
-        // Draw label text
+        // Draw label text - 全部加粗以确保在深色侧边栏上清晰可读
         wxColour textColor = (i == m_selection) ? colors.sidebarSelectedText : m_textColor;
-        if (i == m_selection) {
-            gc->SetFont(wxFont(10, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD), textColor);
-        } else {
-            gc->SetFont(wxFont(10, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL), textColor);
-        }
+        gc->SetFont(wxFont(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD, false, L"微软雅黑"),
+                    textColor);
         gc->DrawText(m_items[i].label, itemRect.x + PADDING + ICON_SIZE + 10,
                      itemY + (ITEM_HEIGHT - 20) / 2);
 

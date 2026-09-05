@@ -104,10 +104,24 @@ std::vector<ScheduledTaskInfo> ScheduledTaskOptimizer::GetStartupTasks() {
             // 检查是否有登录/启动触发器
             bool triggersAtLogon = false;
             bool triggersAtStartup = false;
+            std::wstring description;
+            std::wstring action;      // 执行的程序/命令
 
             ITaskDefinition* pDefinition = nullptr;
             hr2 = pTask->get_Definition(&pDefinition);
             if (SUCCEEDED(hr2)) {
+                // 任务描述位于 RegistrationInfo
+                IRegistrationInfo* pRegInfo = nullptr;
+                hr2 = pDefinition->get_RegistrationInfo(&pRegInfo);
+                if (SUCCEEDED(hr2)) {
+                    BSTR taskDesc = nullptr;
+                    if (SUCCEEDED(pRegInfo->get_Description(&taskDesc)) && taskDesc) {
+                        description = taskDesc;
+                        SysFreeString(taskDesc);
+                    }
+                    pRegInfo->Release();
+                }
+
                 ITriggerCollection* pTriggers = nullptr;
                 hr2 = pDefinition->get_Triggers(&pTriggers);
                 if (SUCCEEDED(hr2)) {
@@ -132,19 +146,89 @@ std::vector<ScheduledTaskInfo> ScheduledTaskOptimizer::GetStartupTasks() {
                     }
                     pTriggers->Release();
                 }
+
+                // 获取执行动作(首个动作的程序路径)
+                IActionCollection* pActions = nullptr;
+                hr2 = pDefinition->get_Actions(&pActions);
+                if (SUCCEEDED(hr2)) {
+                    LONG actionCount = 0;
+                    pActions->get_Count(&actionCount);
+                    if (actionCount > 0) {
+                        IAction* pAction = nullptr;
+                        hr2 = pActions->get_Item(1, &pAction);
+                        if (SUCCEEDED(hr2)) {
+                            TASK_ACTION_TYPE actionType;
+                            pAction->get_Type(&actionType);
+                            if (actionType == TASK_ACTION_EXEC) {
+                                IExecAction* pExec = nullptr;
+                                if (SUCCEEDED(pAction->QueryInterface(IID_IExecAction,
+                                        reinterpret_cast<void**>(&pExec)))) {
+                                    BSTR execPath = nullptr;
+                                    if (SUCCEEDED(pExec->get_Path(&execPath)) && execPath) {
+                                        action = execPath;
+                                        SysFreeString(execPath);
+                                    }
+                                    BSTR execArgs = nullptr;
+                                    if (SUCCEEDED(pExec->get_Arguments(&execArgs)) && execArgs) {
+                                        if (!action.empty()) action += L" ";
+                                        action += execArgs;
+                                        SysFreeString(execArgs);
+                                    }
+                                    pExec->Release();
+                                }
+                            }
+                            pAction->Release();
+                        }
+                    }
+                    pActions->Release();
+                }
+
                 pDefinition->Release();
             }
+
+            // 获取上次/下次运行时间
+            std::wstring lastRunStr, nextRunStr;
+
+            DATE lastRunDate = 0;
+            if (SUCCEEDED(pTask->get_LastRunTime(&lastRunDate)) && lastRunDate > 0) {
+                SYSTEMTIME stLast{};
+                VariantTimeToSystemTime(lastRunDate, &stLast);
+                wchar_t buf[64] = {};
+                swprintf_s(buf, L"%04d-%02d-%02d %02d:%02d",
+                           stLast.wYear, stLast.wMonth, stLast.wDay,
+                           stLast.wHour, stLast.wMinute);
+                lastRunStr = buf;
+            }
+
+            DATE nextRunDate = 0;
+            if (SUCCEEDED(pTask->get_NextRunTime(&nextRunDate)) && nextRunDate > 0) {
+                SYSTEMTIME stNext{};
+                VariantTimeToSystemTime(nextRunDate, &stNext);
+                wchar_t buf[64] = {};
+                swprintf_s(buf, L"%04d-%02d-%02d %02d:%02d",
+                           stNext.wYear, stNext.wMonth, stNext.wDay,
+                           stNext.wHour, stNext.wMinute);
+                nextRunStr = buf;
+            }
+
+            LONG lastResult = 0;
+            pTask->get_LastTaskResult(&lastResult);
 
             // 只收集开机启动相关的任务
             if (triggersAtLogon || triggersAtStartup) {
                 ScheduledTaskInfo info;
                 info.name = taskName ? taskName : L"";
                 info.path = taskPath ? taskPath : L"";
+                info.description = description;
+                info.actionCommand = action;
                 info.isEnabled = (taskState != TASK_STATE_DISABLED);
                 info.triggersAtLogon = triggersAtLogon;
                 info.triggersAtStartup = triggersAtStartup;
                 info.isCritical = IsCriticalTask(info.path);
                 info.canDisable = !info.isCritical;
+                info.lastRunTime = lastRunStr;
+                info.nextRunTime = nextRunStr;
+                info.lastRunResult = lastResult;
 
                 tasks.push_back(info);
             }
@@ -207,6 +291,25 @@ std::vector<Models::StartupItem> ScheduledTaskOptimizer::GetDisablableTasks() {
         item.isEnabled = true;
         item.isSystemCritical = false;
         item.canDisable = true;
+
+        // 附加显示信息
+        item.description = task.description;
+        if (task.triggersAtLogon && task.triggersAtStartup) {
+            item.triggerText = L"登录+开机时";
+        } else if (task.triggersAtLogon) {
+            item.triggerText = L"登录时";
+        } else if (task.triggersAtStartup) {
+            item.triggerText = L"开机时";
+        }
+        item.nextRunTime = task.nextRunTime;
+        item.lastRunTime = task.lastRunTime;
+        if (task.lastRunResult == 0) {
+            item.lastRunResultText = L"成功";
+        } else {
+            wchar_t buf[32] = {};
+            swprintf_s(buf, L"失败 (0x%08X)", static_cast<unsigned int>(task.lastRunResult));
+            item.lastRunResultText = buf;
+        }
 
         items.push_back(item);
     }

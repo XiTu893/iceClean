@@ -1,5 +1,7 @@
 #include "CustomTitleBar.h"
 #include "ThemeManager.h"
+#include <wx/stdpaths.h>
+#include <windows.h>
 
 namespace IceClean::Gui {
 
@@ -38,7 +40,7 @@ CustomTitleBar::CustomTitleBar(wxWindow* parent, wxFrame* ownerFrame)
     m_minBtn->Bind(wxEVT_BUTTON, &CustomTitleBar::OnMinimize, this);
     // 悬停效果
     m_minBtn->Bind(wxEVT_ENTER_WINDOW, [this](wxMouseEvent&) {
-        m_minBtn->SetBackgroundColour(wxColour(70, 90, 140));
+        m_minBtn->SetBackgroundColour(wxColour(46, 168, 96));
         m_minBtn->SetForegroundColour(*wxWHITE);
     });
     m_minBtn->Bind(wxEVT_LEAVE_WINDOW, [this](wxMouseEvent&) {
@@ -55,7 +57,7 @@ CustomTitleBar::CustomTitleBar(wxWindow* parent, wxFrame* ownerFrame)
     m_maxBtn->SetFont(wxFont(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL));
     m_maxBtn->Bind(wxEVT_BUTTON, &CustomTitleBar::OnMaximize, this);
     m_maxBtn->Bind(wxEVT_ENTER_WINDOW, [this](wxMouseEvent&) {
-        m_maxBtn->SetBackgroundColour(wxColour(70, 90, 140));
+        m_maxBtn->SetBackgroundColour(wxColour(46, 168, 96));
         m_maxBtn->SetForegroundColour(*wxWHITE);
     });
     m_maxBtn->Bind(wxEVT_LEAVE_WINDOW, [this](wxMouseEvent&) {
@@ -107,24 +109,45 @@ void CustomTitleBar::OnPaint(wxPaintEvent& event) {
     wxAutoBufferedPaintDC dc(this);
     const auto& colors = ThemeManager::Instance().GetColors();
 
-    // 渐变背景（与侧边栏同色系）
+    // 背景渐变色（顶部冰感提亮 → 底部与菜单栏同色，衔接无缝无跳色）
     wxGraphicsContext* gc = wxGraphicsContext::Create(dc);
     if (gc) {
         wxGraphicsBrush bgBrush = gc->CreateLinearGradientBrush(
             0, 0, 0, GetSize().y,
-            colors.sidebar, colors.sidebarGradientEnd);
+            colors.sidebar.ChangeLightness(115), colors.sidebar);
         gc->SetBrush(bgBrush);
         gc->DrawRectangle(wxRect2DDouble(0, 0, GetSize().x, GetSize().y));
 
-        // 标题文字 - 在按钮区域左侧绘制
+        // ── 左侧"溪"字印章图标（直接绘制，避免依赖图片资源）──
+        int iconSize = TITLE_BAR_HEIGHT - 8;
+        double iconX = 8;
+        double iconY = (TITLE_BAR_HEIGHT - iconSize) / 2.0;
+
+        // 朱砂红圆角矩形
+        double r = 3.0;
+        wxGraphicsPath path = gc->CreatePath();
+        path.AddRoundedRectangle(iconX, iconY, iconSize, iconSize, r);
+        gc->SetBrush(gc->CreateBrush(wxColour(200, 25, 35, 255)));
+        gc->SetPen(*wxTRANSPARENT_PEN);
+        gc->FillPath(path);
+
+        // 白色"溪"字
+        wxFont titleFont(iconSize * 0.65, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD, false, L"微软雅黑");
+        gc->SetFont(titleFont, *wxWHITE);
+        double textW = 0, textH = 0;
+        gc->GetTextExtent(L"溪", &textW, &textH);
+        gc->DrawText(L"溪",
+                    iconX + (iconSize - textW) / 2.0,
+                    iconY + (iconSize - textH) / 2.0 - 1);
+
+        // ── 标题文字（图标右侧）──
         gc->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, L"微软雅黑"),
                     colors.sidebarText);
-        double textW = 0, textH = 0;
-        gc->GetTextExtent(m_title, &textW, &textH);
-        // 标题居中偏左（避开按钮区域）
-        double textX = 16;
-        double textY = (TITLE_BAR_HEIGHT - textH) / 2.0;
-        gc->DrawText(m_title, textX, textY);
+        double titleW = 0, titleH = 0;
+        gc->GetTextExtent(m_title, &titleW, &titleH);
+        double titleX = iconX + iconSize + 10;
+        double titleY = (TITLE_BAR_HEIGHT - titleH) / 2.0;
+        gc->DrawText(m_title, titleX, titleY);
 
         delete gc;
     }

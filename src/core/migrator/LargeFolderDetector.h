@@ -53,10 +53,25 @@ private:
 
     static uint64_t SumItemBytes(const std::vector<Models::MigrationItem>& items);
 
+    // 判断是否为用户配置文件目录（含 AppData/Desktop/Documents 等特征）
+    bool IsUserProfileDir(const std::wstring& dirPath) const;
+
     // 递归扫描目录
     void ScanDirectory(const std::wstring& path,
                        std::vector<Models::MigrationItem>& results,
                        ProgressCallback& progressCallback);
+
+    // 扫描被跳过的容器目录（如 AppData）的子目录，
+    // 使 vcpkg 等大子项不被容器遮蔽
+    void ScanContainerChildren(const std::wstring& containerPath,
+                               std::vector<Models::MigrationItem>& results,
+                               ProgressCallback& progressCallback);
+
+    // 扫描用户配置文件容器（如 C:\Users）的内部，
+    // 跳过自身但继续处理每个用户目录（zeus-zzp / Public）
+    void ScanUsersContainer(const std::wstring& usersPath,
+                           std::vector<Models::MigrationItem>& results,
+                           ProgressCallback& progressCallback);
 };
 
 } // namespace IceClean::Core::Migrator

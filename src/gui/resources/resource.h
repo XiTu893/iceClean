@@ -4,6 +4,7 @@
 
 // 图标
 #define IDI_APP_ICON                    101
+#define IDI_TRAY_ICON                   102
 
 // 图片资源
 #define XITU_LOGO                       201

@@ -642,7 +642,30 @@ bool RegistryCleaner::PathExists(const std::wstring& path) const {
     }
 
     std::wstring expandedPath = Win32Util::ExpandEnvVars(path);
-    return FileUtil::Exists(expandedPath);
+    if (FileUtil::Exists(expandedPath)) {
+        return true;
+    }
+
+    // 裸文件名（无路径分隔符）：UninstallString/启动项常以系统工具作为命令，
+    // 如 "MsiExec.exe /I{GUID}"、"rundll32.exe ..."，按相对路径检查会误判为无效。
+    // 尝试在系统目录中解析（对应 Windows 对这些命令的搜索行为）。
+    if (expandedPath.find(L'\\') == std::wstring::npos &&
+        expandedPath.find(L'/') == std::wstring::npos) {
+        wchar_t sysDir[MAX_PATH] = {};
+        if (GetSystemDirectoryW(sysDir, MAX_PATH)) {
+            const std::wstring sysDirs[] = {
+                sysDir,
+                std::wstring(sysDir) + L"\\wbem"
+            };
+            for (const auto& dir : sysDirs) {
+                if (FileUtil::Exists(dir + L"\\" + expandedPath)) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
 }
 
 // ============================================================================

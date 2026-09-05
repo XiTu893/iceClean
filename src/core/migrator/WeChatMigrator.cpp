@@ -61,7 +61,8 @@ std::vector<Models::MigrationItem> WeChatMigrator::Detect() {
         // 没有wxid子目录，直接迁移整个WeChat Files文件夹
         uint64_t totalSize = Utils::FileUtil::GetFolderSize(wechatPath);
 
-        if (totalSize > 0) {
+        constexpr uint64_t kMinSizeBytes = 100ULL * 1024 * 1024;
+        if (totalSize >= kMinSizeBytes) {
             Models::MigrationItem item;
             item.name = L"微信数据";
             item.sourcePath = wechatPath;
@@ -91,12 +92,16 @@ std::vector<Models::MigrationItem> WeChatMigrator::Detect() {
 
         uint64_t size = Utils::FileUtil::GetFolderSize(wxidPath);
 
+        // 阈值过滤：跳过小于 100MB 的小缓存目录
+        constexpr uint64_t kMinSizeBytes = 100ULL * 1024 * 1024;
+        if (size < kMinSizeBytes) continue;
+
         Models::MigrationItem item;
         item.name = std::wstring(L"微信 - ") + findData.cFileName;
         item.sourcePath = wxidPath;
         item.size = size;
         item.type = Models::MigrationType::WeChatCache;
-        item.advice = size > 500ULL * 1024 * 1024
+        item.advice = size > 1024ULL * 1024 * 1024
             ? Models::MigrationAdvice::Recommended
             : Models::MigrationAdvice::Possible;
         item.selected = false;

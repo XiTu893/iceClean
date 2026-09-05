@@ -1,0 +1,238 @@
+#include "SoftwareRecommendSeed.h"
+#include <nlohmann/json.hpp>
+
+// ⚠ 同步要求：本内容与仓库 docs/recommended_software.json 保持一致。
+// 更新流程：先改 docs/recommended_software.json（GitHub 端生效），再同步粘贴到下方 raw 字符串。
+namespace IceClean::Core::Safety {
+
+const char* GetSeedJsonUtf8() {
+    static const char kSeed[] = R"json({
+  "version": 1,
+  "updated_at": "2026-08-26",
+  "categories": [
+    {
+      "id": "system",
+      "name": "系统工具",
+      "icon": "tool",
+      "sort_order": 1,
+      "software": [
+        {
+          "id": "7zip",
+          "name": "7-Zip",
+          "description": "开源压缩解压工具，支持 7z/ZIP/RAR 等格式，压缩率高、完全免费",
+          "version": "24.09",
+          "category_id": "system",
+          "download_url": "https://www.7-zip.org/download.html",
+          "official_url": "https://www.7-zip.org",
+          "icon_url": "",
+          "size_mb": 2,
+          "platform": "win64",
+          "tags": ["压缩", "开源", "免费"],
+          "is_recommended": true,
+          "sort_order": 1
+        },
+        {
+          "id": "powertoys",
+          "name": "Microsoft PowerToys",
+          "description": "微软官方开源的 Windows 效率工具集：窗口管理、批量重命名、取色器等",
+          "version": "0.90",
+          "category_id": "system",
+          "download_url": "https://github.com/microsoft/PowerToys/releases",
+          "official_url": "https://learn.microsoft.com/windows/powertoys",
+          "icon_url": "",
+          "size_mb": 230,
+          "platform": "win64",
+          "tags": ["效率", "微软", "开源"],
+          "is_recommended": true,
+          "sort_order": 2
+        },
+        {
+          "id": "sharex",
+          "name": "ShareX",
+          "description": "强大的开源截图录屏工具，支持滚动截屏、OCR、自动上传",
+          "version": "16.1",
+          "category_id": "system",
+          "download_url": "https://github.com/ShareX/ShareX/releases",
+          "official_url": "https://getsharex.com",
+          "icon_url": "",
+          "size_mb": 8,
+          "platform": "win64",
+          "tags": ["截图", "录屏", "开源"],
+          "is_recommended": false,
+          "sort_order": 3
+        }
+      ]
+    },
+    {
+      "id": "network",
+      "name": "网络传输",
+      "icon": "network",
+      "sort_order": 2,
+      "software": [
+        {
+          "id": "filezilla",
+          "name": "FileZilla",
+          "description": "老牌开源 FTP/SFTP 客户端，站点管理、断点续传、拖拽传输",
+          "version": "3.68",
+          "category_id": "network",
+          "download_url": "https://filezilla-project.org/download.php?type=client",
+          "official_url": "https://filezilla-project.org",
+          "icon_url": "",
+          "size_mb": 13,
+          "platform": "win64",
+          "tags": ["FTP", "SFTP", "开源"],
+          "is_recommended": true,
+          "sort_order": 1
+        },
+        {
+          "id": "rustdesk",
+          "name": "RustDesk",
+          "description": "开源远程桌面软件，可自建中继服务器，替代 TeamViewer 的首选",
+          "version": "1.4.0",
+          "category_id": "network",
+          "download_url": "https://github.com/rustdesk/rustdesk/releases",
+          "official_url": "https://rustdesk.com",
+          "icon_url": "",
+          "size_mb": 25,
+          "platform": "win64",
+          "tags": ["远程控制", "开源自建", "加密"],
+          "is_recommended": true,
+          "sort_order": 2
+        },
+        {
+          "id": "localsend",
+          "name": "LocalSend",
+          "description": "跨平台局域网文件互传，无需联网服务器，AirDrop 的开源替代",
+          "version": "1.16",
+          "category_id": "network",
+          "download_url": "https://github.com/localsend/localsend/releases",
+          "official_url": "https://localsend.app",
+          "icon_url": "",
+          "size_mb": 30,
+          "platform": "win64",
+          "tags": ["互传", "局域网", "开源"],
+          "is_recommended": false,
+          "sort_order": 3
+        }
+      ]
+    },
+    {
+      "id": "office",
+      "name": "办公阅读",
+      "icon": "office",
+      "sort_order": 3,
+      "software": [
+        {
+          "id": "notepad-plus-plus",
+          "name": "Notepad++",
+          "description": "轻量高效的文本/代码编辑器，插件丰富，启动秒开",
+          "version": "8.7",
+          "category_id": "office",
+          "download_url": "https://notepad-plus-plus.org/downloads/",
+          "official_url": "https://notepad-plus-plus.org",
+          "icon_url": "",
+          "size_mb": 5,
+          "platform": "win64",
+          "tags": ["编辑器", "开源"],
+          "is_recommended": true,
+          "sort_order": 1
+        },
+        {
+          "id": "onlyoffice",
+          "name": "ONLYOFFICE",
+          "description": "开源办公套件，对 Word/Excel/PPT 格式兼容性极佳，界面现代",
+          "version": "8.3",
+          "category_id": "office",
+          "download_url": "https://github.com/ONLYOFFICE/DesktopEditors/releases",
+          "official_url": "https://www.onlyoffice.com",
+          "icon_url": "",
+          "size_mb": 320,
+          "platform": "win64",
+          "tags": ["办公套件", "开源", "高兼容"],
+          "is_recommended": false,
+          "sort_order": 2
+        },
+        {
+          "id": "sumatrapdf",
+          "name": "Sumatra PDF",
+          "description": "极速轻量的 PDF/EPUB 阅读器，单文件绿色版",
+          "version": "3.5.2",
+          "category_id": "office",
+          "download_url": "https://github.com/sumatrapdfreader/sumatrapdf/releases",
+          "official_url": "https://sumatrapdfreader.org",
+          "icon_url": "",
+          "size_mb": 10,
+          "platform": "win64",
+          "tags": ["PDF", "绿色", "开源"],
+          "is_recommended": false,
+          "sort_order": 3
+        },
+        {
+          "id": "keepassxc",
+          "name": "KeePassXC",
+          "description": "本地加密的开源密码管理器，数据完全自持",
+          "version": "2.7.9",
+          "category_id": "office",
+          "download_url": "https://github.com/keepassxreboot/keepassxc/releases",
+          "official_url": "https://keepassxc.org",
+          "icon_url": "",
+          "size_mb": 40,
+          "platform": "win64",
+          "tags": ["密码管理", "加密", "开源"],
+          "is_recommended": true,
+          "sort_order": 4
+        }
+      ]
+    },
+    {
+      "id": "media",
+      "name": "影音创作",
+      "icon": "media",
+      "sort_order": 4,
+      "software": [
+        {
+          "id": "vlc",
+          "name": "VLC Media Player",
+          "description": "全能开源播放器，几乎支持所有音视频格式，无广告",
+          "version": "3.0.21",
+          "category_id": "media",
+          "download_url": "https://www.videolan.org/vlc/download-windows.html",
+          "official_url": "https://www.videolan.org",
+          "icon_url": "",
+          "size_mb": 42,
+          "platform": "win64",
+          "tags": ["播放器", "开源"],
+          "is_recommended": true,
+          "sort_order": 1
+        },
+        {
+          "id": "obs-studio",
+          "name": "OBS Studio",
+          "description": "开源直播录屏软件，直播推流与游戏录制的事实标准",
+          "version": "31.0",
+          "category_id": "media",
+          "download_url": "https://github.com/obsproject/obs-studio/releases",
+          "official_url": "https://obsproject.com",
+          "icon_url": "",
+          "size_mb": 140,
+          "platform": "win64",
+          "tags": ["直播", "录屏", "开源"],
+          "is_recommended": false,
+          "sort_order": 2
+        }
+      ]
+    }
+  ]
+})json";
+    return kSeed;
+}
+
+int GetSeedJsonVersion() {
+    try {
+        return nlohmann::json::parse(GetSeedJsonUtf8()).value("version", 0);
+    } catch (...) {
+        return 0;
+    }
+}
+
+} // namespace IceClean::Core::Safety

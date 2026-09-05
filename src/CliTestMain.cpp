@@ -38,57 +38,65 @@ void PrintItem(const IceClean::Models::MigrationItem& item) {
 } // namespace
 
 int wmain(int argc, wchar_t* argv[]) {
-    fwprintf(stderr, L"[cli] entered wmain, argc=%d\n", argc);
-    fflush(stderr);
-    uint64_t minSizeMB = 500;
+    uint64_t minSizeMB = 100;
     if (argc >= 2) {
         minSizeMB = _wtoi64(argv[1]);
     }
-    wprintf(L"IceClean CLI 烟雾测试\n");
+    wprintf(L"IceClean CLI 烟雾测试 (阈值=%llu MB)\n", static_cast<unsigned long long>(minSizeMB));
     wprintf(L"=====================\n");
-    wprintf(L"最小大小阈值: %llu MB\n\n", static_cast<unsigned long long>(minSizeMB));
     fflush(stdout);
 
     try {
-        fwprintf(stderr, L"[cli] step 1/5: LargeFolderDetector ctor\n"); fflush(stderr);
         IceClean::Core::Migrator::LargeFolderDetector detector(minSizeMB);
-        fwprintf(stderr, L"[cli] step 1/5: ctor ok, calling Detect\n"); fflush(stderr);
-        int progressCount = 0;
-        auto items = detector.Detect(
-            [&progressCount](const std::wstring& path, int found, uint64_t) {
-                ++progressCount;
-                if (progressCount % 50 == 0) {
-                    wprintf(L"  progress #%d: %ls (found=%d)\n", progressCount, path.c_str(), found);
-                }
-            });
-        fwprintf(stderr, L"[cli] step 1/5: Detect done, items=%zu progress=%d\n", items.size(), progressCount); fflush(stderr);
-        wprintf(L"  -> 完成，进度回调 %d 次，找到 %zu 项\n\n", progressCount, items.size());
-        for (const auto& it : items) PrintItem(it);
+        auto items = detector.Detect(nullptr);
+        wprintf(L"  -> LargeFolderDetector 完成，找到 %zu 项\n", items.size());
+        for (const auto& it : items) {
+            wprintf(L"    [%ls] %ls (%llu MB)\n",
+                MigrationTypeStr(it.type),
+                it.sourcePath.c_str(),
+                static_cast<unsigned long long>(it.size / (1024 * 1024)));
+        }
 
-        fwprintf(stderr, L"[cli] step 2/5: WeChat\n"); fflush(stderr);
         IceClean::Core::Migrator::WeChatMigrator wechat;
         auto wechatItems = wechat.Detect();
-        wprintf(L"[2/5] 微信 -> %zu 项\n", wechatItems.size());
+        wprintf(L"[2] 微信 -> %zu 项\n", wechatItems.size());
+        for (const auto& it : wechatItems) {
+            wprintf(L"    [%ls] %ls (%llu MB)\n",
+                MigrationTypeStr(it.type), it.sourcePath.c_str(),
+                static_cast<unsigned long long>(it.size / (1024 * 1024)));
+        }
 
-        fwprintf(stderr, L"[cli] step 3/5: QQ\n"); fflush(stderr);
         IceClean::Core::Migrator::QQMigrator qq;
         auto qqItems = qq.Detect();
-        wprintf(L"[3/5] QQ -> %zu 项\n", qqItems.size());
+        wprintf(L"[3] QQ -> %zu 项\n", qqItems.size());
+        for (const auto& it : qqItems) {
+            wprintf(L"    [%ls] %ls (%llu MB)\n",
+                MigrationTypeStr(it.type), it.sourcePath.c_str(),
+                static_cast<unsigned long long>(it.size / (1024 * 1024)));
+        }
 
-        fwprintf(stderr, L"[cli] step 4/5: Steam\n"); fflush(stderr);
         IceClean::Core::Migrator::SteamMigrator steam;
         auto steamItems = steam.Detect();
-        wprintf(L"[4/5] Steam -> %zu 项\n", steamItems.size());
+        wprintf(L"[4] Steam -> %zu 项\n", steamItems.size());
+        for (const auto& it : steamItems) {
+            wprintf(L"    [%ls] %ls (%llu MB)\n",
+                MigrationTypeStr(it.type), it.sourcePath.c_str(),
+                static_cast<unsigned long long>(it.size / (1024 * 1024)));
+        }
 
-        fwprintf(stderr, L"[cli] step 5/5: UserFolder\n"); fflush(stderr);
         IceClean::Core::Migrator::UserFolderMigrator user;
         auto userItems = user.Detect();
-        wprintf(L"[5/5] 用户文件夹 -> %zu 项\n", userItems.size());
+        wprintf(L"[5] 用户文件夹 -> %zu 项\n", userItems.size());
+        for (const auto& it : userItems) {
+            wprintf(L"    [%ls] %ls (%llu MB)\n",
+                MigrationTypeStr(it.type), it.sourcePath.c_str(),
+                static_cast<unsigned long long>(it.size / (1024 * 1024)));
+        }
 
         wprintf(L"\n=====================\n");
-        wprintf(L"所有检测器完成。共 %zu 项可迁移。\n",
-            items.size() + wechatItems.size() + qqItems.size()
-            + steamItems.size() + userItems.size());
+        size_t total = items.size() + wechatItems.size() + qqItems.size()
+                     + steamItems.size() + userItems.size();
+        wprintf(L"总计 %zu 项可迁移。\n", total);
         return 0;
     } catch (const std::exception& e) {
         fwprintf(stderr, L"[cli] 异常: %hs\n", e.what());

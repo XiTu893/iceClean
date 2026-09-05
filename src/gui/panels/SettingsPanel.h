@@ -16,6 +16,11 @@ public:
     // 公开接口
     bool IsAutoRestoreEnabled() const;
     bool IsMinimizeToTrayEnabled() const;
+    bool IsStartupEnabled() const;
+    bool IsBackgroundMonitorEnabled() const;
+    bool IsCloseToExitEnabled() const;
+    bool IsNotifyOnScanComplete() const;
+    bool IsNotifyOnCleanComplete() const;
     std::vector<int> GetEnabledCleanCategories() const;
 
     // 持久化
@@ -31,7 +36,12 @@ public:
 private:
     // 常规设置控件
     wxCheckBox* m_autoRestoreCheck = nullptr;
-    wxCheckBox* m_minimizeToTrayCheck = nullptr;
+    wxRadioButton* m_closeToTrayRadio = nullptr;
+    wxRadioButton* m_closeToExitRadio = nullptr;
+    wxCheckBox* m_startupCheck = nullptr;
+    wxCheckBox* m_backgroundMonitorCheck = nullptr;
+    wxCheckBox* m_notifyScanCheck = nullptr;
+    wxCheckBox* m_notifyCleanCheck = nullptr;
 
     // 清理规则控件
     std::vector<wxCheckBox*> m_cleanRuleChecks;

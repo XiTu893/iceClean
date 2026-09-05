@@ -1,4 +1,5 @@
 #include "Win32Util.h"
+#include "FileUtil.h"
 #include <shlobj.h>
 #include <psapi.h>
 #include <tlhelp32.h>
@@ -7,6 +8,7 @@
 #include <algorithm>
 
 #pragma comment(lib, "psapi.lib")
+#pragma comment(lib, "version.lib")
 
 namespace IceClean::Utils {
 
@@ -325,6 +327,66 @@ std::wstring Win32Util::ExtractProcessName(const std::wstring& path) {
     return cleanPath;
 }
 
+std::wstring Win32Util::GetFilePublisher(const std::wstring& path) {
+    // 清理路径(去掉引号和参数)
+    std::wstring cleanPath = path;
+    if (!cleanPath.empty() && cleanPath.front() == L'"') {
+        auto endQuote = cleanPath.find(L'"', 1);
+        if (endQuote != std::wstring::npos) {
+            cleanPath = cleanPath.substr(1, endQuote - 1);
+        }
+    }
+    auto spacePos = cleanPath.find(L' ');
+    if (spacePos != std::wstring::npos) {
+        std::wstring possiblePath = cleanPath.substr(0, spacePos);
+        if (possiblePath.size() >= 4 &&
+            _wcsicmp(possiblePath.substr(possiblePath.size() - 4).c_str(), L".exe") == 0) {
+            cleanPath = possiblePath;
+        }
+    }
+
+    if (cleanPath.empty() || cleanPath.find(L".exe") == std::wstring::npos) {
+        return L"";
+    }
+
+    // 读取文件版本信息的CompanyName
+    DWORD handle = 0;
+    DWORD size = GetFileVersionInfoSizeW(cleanPath.c_str(), &handle);
+    if (size == 0) return L"";
+
+    std::vector<BYTE> buffer(size);
+    if (!GetFileVersionInfoW(cleanPath.c_str(), handle, size, buffer.data())) return L"";
+
+    // 查询固定版本信息以确定语言
+    VS_FIXEDFILEINFO* fixedInfo = nullptr;
+    UINT fixedLen = 0;
+    if (VerQueryValueW(buffer.data(), L"\\", reinterpret_cast<void**>(&fixedInfo), &fixedLen)) {
+        // 尝试多种语言子块(英文/中文等)，取第一个可用的CompanyName
+        struct LangEntry { WORD lang; WORD codepage; };
+        LangEntry* langEntries = nullptr;
+        UINT langCount = 0;
+        if (VerQueryValueW(buffer.data(), L"\\VarFileInfo\\Translation",
+                reinterpret_cast<void**>(&langEntries), &langCount)) {
+            for (UINT i = 0; i < langCount / sizeof(LangEntry); ++i) {
+                wchar_t subBlock[64] = {};
+                swprintf_s(subBlock, L"\\StringFileInfo\\%04x%04x\\CompanyName",
+                           langEntries[i].lang, langEntries[i].codepage);
+                wchar_t* value = nullptr;
+                UINT valueLen = 0;
+                if (VerQueryValueW(buffer.data(), subBlock,
+                        reinterpret_cast<void**>(&value), &valueLen) && value && valueLen > 0) {
+                    std::wstring company(value);
+                    if (!company.empty()) {
+                        return company;
+                    }
+                }
+            }
+        }
+    }
+
+    return L"";
+}
+
 bool Win32Util::ForceDeleteFile(const std::wstring& path) {
     // 先尝试直接删除
     if (DeleteFileW(path.c_str())) return true;
@@ -436,6 +498,66 @@ bool Win32Util::ForceDeleteDirectory(const std::wstring& path) {
     // 删除空目录
     SetFileAttributesW(path.c_str(), FILE_ATTRIBUTE_NORMAL);
     return RemoveDirectoryW(path.c_str()) != 0;
+}
+
+bool Win32Util::IsUserProfileDir(const std::wstring& path) {
+    static const std::vector<std::wstring> kMarkers = {
+        L"\\AppData",
+        L"\\Desktop",
+        L"\\Documents",
+        L"\\Downloads",
+        L"\\Pictures",
+        L"\\Videos",
+        L"\\Music",
+    };
+    for (const auto& marker : kMarkers) {
+        std::wstring test = path + marker;
+        if (FileUtil::Exists(test)) return true;
+    }
+    return false;
+}
+
+bool Win32Util::SetStartupEnabled(bool enabled) {
+    HKEY hKey = nullptr;
+    LSTATUS result = RegOpenKeyExW(HKEY_CURRENT_USER,
+                                    L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
+                                    0, KEY_SET_VALUE | KEY_QUERY_VALUE, &hKey);
+    if (result != ERROR_SUCCESS) return false;
+
+    bool ok = true;
+    if (enabled) {
+        wchar_t exePath[MAX_PATH] = {};
+        DWORD len = GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+        if (len == 0) {
+            ok = false;
+        } else {
+            std::wstring cmd = L"\"";
+            cmd += exePath;
+            cmd += L"\" --minimized";
+            result = RegSetValueExW(hKey, L"IceClean", 0, REG_SZ,
+                                    reinterpret_cast<const BYTE*>(cmd.c_str()),
+                                    static_cast<DWORD>((cmd.size() + 1) * sizeof(wchar_t)));
+            ok = (result == ERROR_SUCCESS);
+        }
+    } else {
+        result = RegDeleteValueW(hKey, L"IceClean");
+        ok = (result == ERROR_SUCCESS || result == ERROR_FILE_NOT_FOUND);
+    }
+
+    RegCloseKey(hKey);
+    return ok;
+}
+
+bool Win32Util::IsStartupEnabled() {
+    HKEY hKey = nullptr;
+    LSTATUS result = RegOpenKeyExW(HKEY_CURRENT_USER,
+                                    L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
+                                    0, KEY_QUERY_VALUE, &hKey);
+    if (result != ERROR_SUCCESS) return false;
+
+    bool exists = RegQueryValueExW(hKey, L"IceClean", nullptr, nullptr, nullptr, nullptr) == ERROR_SUCCESS;
+    RegCloseKey(hKey);
+    return exists;
 }
 
 } // namespace IceClean::Utils

@@ -36,9 +36,7 @@ const std::vector<std::wstring>& LargeFolderDetector::GetSkippedFolderNames() {
         L".npm",
         L".yarn",
         L".pnpm-store",
-        L".config",
-        L".cache",
-        L".local",
+        // node_modules 常见于大量项目，迁移价值低
         L"node_modules",
         L"bower_components",
         L"__pycache__",
@@ -48,16 +46,9 @@ const std::vector<std::wstring>& LargeFolderDetector::GetSkippedFolderNames() {
         L"venv",
         L".idea",
         L".vscode",
-        // 用户目录容器（由 UserFolderMigrator 专门处理，不作为整体迁移项）
-        L"users",
-        L"public",
-        L"default",
-        // 系统用户目录子项（由 UserFolderMigrator 专门处理）
+        // AppData 是容器目录：其内部子项（如 vcpkg、Google、微信等）是真正可迁移目标，
+        // 不应让 AppData 整体入列（27GB），而应扫描其子目录找细粒度大项
         L"appdata",
-        // 浏览器/IDE 内部缓存（避免和专用清理器冲突）
-        L"google",
-        L"microsoft",
-        L"mozilla",
     };
     return names;
 }
@@ -85,6 +76,23 @@ uint64_t LargeFolderDetector::SumItemBytes(const std::vector<Models::MigrationIt
     uint64_t b = 0;
     for (const auto& r : items) b += r.size;
     return b;
+}
+
+bool LargeFolderDetector::IsUserProfileDir(const std::wstring& dirPath) const {
+    static const std::vector<std::wstring> kMarkers = {
+        L"\\AppData",
+        L"\\Desktop",
+        L"\\Documents",
+        L"\\Downloads",
+        L"\\Pictures",
+        L"\\Videos",
+        L"\\Music",
+    };
+    for (const auto& marker : kMarkers) {
+        std::wstring test = dirPath + marker;
+        if (Utils::FileUtil::Exists(test)) return true;
+    }
+    return false;
 }
 
 void LargeFolderDetector::MeasureDirectory(const std::wstring& dir,
@@ -165,22 +173,36 @@ void LargeFolderDetector::ScanDirectory(const std::wstring& path,
         if (!(findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) continue;
 
         // 检查是否应该跳过
-        if (ShouldSkip(findData.cFileName, findData.dwFileAttributes)) continue;
+        if (ShouldSkip(findData.cFileName, findData.dwFileAttributes)) {
+            // AppData 容器：跳过自身但下钻子目录，让 vcpkg/Google 等真正可迁移的大子项被发现
+            if (_wcsicmp(findData.cFileName, L"AppData") == 0) {
+                std::wstring full = path;
+                if (!full.empty() && full.back() != L'\\') full += L'\\';
+                full += findData.cFileName;
+                ScanContainerChildren(full, results, progressCallback);
+            }
+            continue;
+        }
 
         std::wstring fullPath = path;
         if (!fullPath.empty() && fullPath.back() != L'\\') fullPath += L'\\';
         fullPath += findData.cFileName;
 
-        // 流式测量：统计期间持续上报当前遍历路径
         if (progressCallback) {
             progressCallback(fullPath, static_cast<int>(results.size()), itemsBytes);
         }
         uint64_t size = 0;
         MeasureDirectory(fullPath, results, itemsBytes, progressCallback, size);
 
-        // 如果大于阈值，添加到结果；父目录已整体入列，不再下钻
-        // （子文件夹包含其中，重复列出会导致父子同时勾选、二次迁移失效）
         if (size >= minSizeBytes_) {
+            // 大于 5GB 的目录几乎一定是"容器"（如 AppData\Local、.lmstudio、用户配置目录），
+            // 整体入列会屏蔽内部的真正可迁移大子项（vcpkg、模型文件等），改为下钻
+            constexpr uint64_t kContainerThreshold = 5ULL * 1024 * 1024 * 1024;
+            if (size >= kContainerThreshold) {
+                ScanDirectory(fullPath, results, progressCallback);
+                continue;
+            }
+
             Models::MigrationItem item;
             item.name = findData.cFileName;
             item.sourcePath = fullPath;
@@ -191,7 +213,6 @@ void LargeFolderDetector::ScanDirectory(const std::wstring& path,
                 : Models::MigrationAdvice::Possible;
             item.selected = false;
             item.migrated = false;
-
             results.push_back(item);
 
             if (progressCallback) {
@@ -222,42 +243,112 @@ std::vector<Models::MigrationItem> LargeFolderDetector::DetectAt(
     cancelled_ = false;
 
     std::vector<Models::MigrationItem> results;
-
     std::wstring scanPath = rootPath;
     if (scanPath.empty()) return results;
     if (scanPath.back() != L'\\') scanPath += L'\\';
 
-    // 扫描根目录下的一级目录
+    // 扫描根目录的一级子目录
     std::wstring searchPath = scanPath + L"*";
+    WIN32_FIND_DATAW findData{};
+    HANDLE hFind = FindFirstFileW(searchPath.c_str(), &findData);
+    if (hFind != INVALID_HANDLE_VALUE) {
+        do {
+            if (cancelled_) break;
+            if (wcscmp(findData.cFileName, L".") == 0 || wcscmp(findData.cFileName, L"..") == 0) continue;
+            if (!(findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) continue;
+            if (findData.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) continue;
+
+            // C:\Users 是用户目录容器，跳过自身但深入扫描其子目录
+            if (_wcsicmp(findData.cFileName, L"Users") == 0) {
+                ScanUsersContainer(scanPath + findData.cFileName, results, progressCallback);
+                continue;
+            }
+
+            if (ShouldSkip(findData.cFileName, findData.dwFileAttributes)) continue;
+
+            std::wstring fullPath = scanPath + findData.cFileName;
+
+            if (progressCallback) {
+                progressCallback(fullPath, static_cast<int>(results.size()), SumItemBytes(results));
+            }
+            uint64_t size = 0;
+            MeasureDirectory(fullPath, results, SumItemBytes(results), progressCallback, size);
+
+            if (size >= minSizeBytes_) {
+                Models::MigrationItem item;
+                item.name = findData.cFileName;
+                item.sourcePath = fullPath;
+                item.size = size;
+                item.type = Models::MigrationType::LargeSoftware;
+                item.advice = size > 5ULL * 1024 * 1024 * 1024
+                    ? Models::MigrationAdvice::Recommended
+                    : Models::MigrationAdvice::Possible;
+                item.selected = false;
+                item.migrated = false;
+                results.push_back(item);
+            }
+
+            if (progressCallback) {
+                uint64_t bytesSoFar = 0;
+                for (auto& r : results) bytesSoFar += r.size;
+                progressCallback(fullPath, static_cast<int>(results.size()), bytesSoFar);
+            }
+
+            if (size < minSizeBytes_) {
+                ScanDirectory(fullPath, results, progressCallback);
+            }
+        } while (FindNextFileW(hFind, &findData));
+        FindClose(hFind);
+    }
+
+    std::sort(results.begin(), results.end(),
+              [](const Models::MigrationItem& a, const Models::MigrationItem& b) {
+                  return a.size > b.size;
+              });
+
+    return results;
+}
+
+void LargeFolderDetector::ScanUsersContainer(const std::wstring& usersPath,
+                                            std::vector<Models::MigrationItem>& results,
+                                            ProgressCallback& progressCallback) {
+    if (cancelled_) return;
+
+    std::wstring searchPath = usersPath;
+    if (!searchPath.empty() && searchPath.back() != L'\\') searchPath += L'\\';
+    searchPath += L"*";
 
     WIN32_FIND_DATAW findData{};
     HANDLE hFind = FindFirstFileW(searchPath.c_str(), &findData);
-    if (hFind == INVALID_HANDLE_VALUE) return results;
+    if (hFind == INVALID_HANDLE_VALUE) return;
 
     do {
         if (cancelled_) break;
+        if (wcscmp(findData.cFileName, L".") == 0 || wcscmp(findData.cFileName, L"..") == 0) continue;
+        if (!(findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) continue;
+        if (findData.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) continue;
 
-        if (wcscmp(findData.cFileName, L".") == 0 ||
-            wcscmp(findData.cFileName, L"..") == 0) {
+        std::wstring fullPath = usersPath;
+        if (!fullPath.empty() && fullPath.back() != L'\\') fullPath += L'\\';
+        fullPath += findData.cFileName;
+
+        // Public / Default 等系统用户目录不是迁移目标，扫描其子目录即可
+        if (_wcsicmp(findData.cFileName, L"Public") == 0 ||
+            _wcsicmp(findData.cFileName, L"Default") == 0 ||
+            _wcsicmp(findData.cFileName, L"Default User") == 0) {
+            ScanContainerChildren(fullPath, results, progressCallback);
             continue;
         }
 
-        if (!(findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) continue;
-
-        if (ShouldSkip(findData.cFileName, findData.dwFileAttributes)) continue;
-
-        std::wstring fullPath = scanPath + findData.cFileName;
-
-        // 流式测量：统计期间持续上报当前遍历路径（大目录也有细节反馈）
         if (progressCallback) {
-            progressCallback(fullPath, static_cast<int>(results.size()),
-                             SumItemBytes(results));
+            progressCallback(fullPath, static_cast<int>(results.size()), SumItemBytes(results));
         }
         uint64_t size = 0;
-        MeasureDirectory(fullPath, results, SumItemBytes(results),
-                         progressCallback, size);
+        MeasureDirectory(fullPath, results, SumItemBytes(results), progressCallback, size);
 
-        if (size >= minSizeBytes_) {
+        // 用户配置文件目录（如 zeus-zzp）永远不入列，但始终下钻以发现 AppData 等大子项
+        bool isUserProfile = IsUserProfileDir(fullPath);
+        if (size >= minSizeBytes_ && !isUserProfile) {
             Models::MigrationItem item;
             item.name = findData.cFileName;
             item.sourcePath = fullPath;
@@ -268,35 +359,51 @@ std::vector<Models::MigrationItem> LargeFolderDetector::DetectAt(
                 : Models::MigrationAdvice::Possible;
             item.selected = false;
             item.migrated = false;
-
             results.push_back(item);
         }
 
-        // 上报放在入列之后，保证 foundCount/bytes 反映最新状态
         if (progressCallback) {
             uint64_t bytesSoFar = 0;
             for (auto& r : results) bytesSoFar += r.size;
             progressCallback(fullPath, static_cast<int>(results.size()), bytesSoFar);
         }
 
-        if (size >= minSizeBytes_) {
-            continue;  // 一级目录已入列，不再下钻重复统计
-        }
-
-        // 递归扫描子目录，查找更深层次的大文件夹
+        // 始终下钻：即使是大目录（用户配置目录），也要深入找 AppData 等子项
         ScanDirectory(fullPath, results, progressCallback);
-
     } while (FindNextFileW(hFind, &findData));
 
     FindClose(hFind);
+}
 
-    // 按大小降序排序
-    std::sort(results.begin(), results.end(),
-              [](const Models::MigrationItem& a, const Models::MigrationItem& b) {
-                  return a.size > b.size;
-              });
+void LargeFolderDetector::ScanContainerChildren(const std::wstring& containerPath,
+                                                  std::vector<Models::MigrationItem>& results,
+                                                  ProgressCallback& progressCallback) {
+    if (cancelled_) return;
 
-    return results;
+    std::wstring searchPath = containerPath;
+    if (!searchPath.empty() && searchPath.back() != L'\\') searchPath += L'\\';
+    searchPath += L"*";
+
+    WIN32_FIND_DATAW findData{};
+    HANDLE hFind = FindFirstFileW(searchPath.c_str(), &findData);
+    if (hFind == INVALID_HANDLE_VALUE) return;
+
+    do {
+        if (cancelled_) break;
+        if (wcscmp(findData.cFileName, L".") == 0 || wcscmp(findData.cFileName, L"..") == 0) continue;
+        if (!(findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) continue;
+        if (findData.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) continue;
+        if (ShouldSkip(findData.cFileName, findData.dwFileAttributes)) continue;
+
+        std::wstring full = containerPath;
+        if (!full.empty() && full.back() != L'\\') full += L'\\';
+        full += findData.cFileName;
+
+        // 直接用 ScanDirectory：会测量 + 按阈值入列 + 未达阈值继续下钻
+        ScanDirectory(full, results, progressCallback);
+    } while (FindNextFileW(hFind, &findData));
+
+    FindClose(hFind);
 }
 
 void LargeFolderDetector::Cancel() {

@@ -7,14 +7,18 @@ namespace IceClean::Core::Optimizer {
 
 // 计划任务信息
 struct ScheduledTaskInfo {
-    std::wstring name;
-    std::wstring path;
-    std::wstring description;
-    bool isEnabled;
-    bool triggersAtLogon;
-    bool triggersAtStartup;
-    bool canDisable;
-    bool isCritical;
+    std::wstring name;              // 任务名称
+    std::wstring path;              // 完整路径(\Microsoft\...\任务名)
+    std::wstring description;       // 任务描述
+    std::wstring actionCommand;     // 执行动作(程序路径+参数)
+    std::wstring nextRunTime;       // 下次运行时间(本地时间字符串)
+    std::wstring lastRunTime;       // 上次运行时间
+    long lastRunResult = 0;         // 上次运行结果代码
+    bool isEnabled = false;         // 是否启用
+    bool triggersAtLogon = false;   // 登录时触发
+    bool triggersAtStartup = false; // 开机时触发
+    bool canDisable = true;         // 是否可禁用
+    bool isCritical = false;        // 是否系统关键任务
 };
 
 class ScheduledTaskOptimizer {

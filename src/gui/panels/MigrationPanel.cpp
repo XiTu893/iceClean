@@ -16,7 +16,13 @@
 namespace IceClean::Gui {
 
 wxBEGIN_EVENT_TABLE(MigrationPanel, wxPanel)
+EVT_NOTEBOOK_PAGE_CHANGED(wxID_ANY, MigrationPanel::OnNotebookPageChanged)
 wxEND_EVENT_TABLE()
+
+namespace {
+constexpr int ID_TAB_PROGRAM = 1001;
+constexpr int ID_TAB_FOLDER = 1002;
+}
 
 MigrationPanel::MigrationPanel(wxWindow* parent, wxWindowID id)
     : wxPanel(parent, id)
@@ -31,6 +37,7 @@ void MigrationPanel::CreateControls() {
     auto* mainSizer = new wxBoxSizer(wxVERTICAL);
     mainSizer->AddSpacer(12);
 
+    // 标题
     auto* titleLabel = new wxStaticText(this, wxID_ANY, L"智能迁移");
     titleLabel->SetFont(wxFont(14, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD,
                                false, L"微软雅黑"));
@@ -38,6 +45,7 @@ void MigrationPanel::CreateControls() {
     mainSizer->Add(titleLabel, 0, wxLEFT | wxRIGHT, 20);
     mainSizer->AddSpacer(4);
 
+    // 描述
     auto* descLabel = new wxStaticText(this, wxID_ANY,
         L"将C盘大文件迁移到其他分区，通过Junction链接让程序无感知运行。");
     descLabel->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
@@ -46,6 +54,7 @@ void MigrationPanel::CreateControls() {
     mainSizer->Add(descLabel, 0, wxLEFT | wxRIGHT, 20);
     mainSizer->AddSpacer(12);
 
+    // ═══ 扫描控制栏 ═══
     auto* scanSizer = new wxBoxSizer(wxHORIZONTAL);
     scanSizer->AddSpacer(20);
 
@@ -63,7 +72,7 @@ void MigrationPanel::CreateControls() {
 
     scanSizer->AddSpacer(8);
 
-    m_scanButton = new wxButton(this, wxID_ANY, L"扫描大文件", wxDefaultPosition, wxSize(140, 36));
+    m_scanButton = new wxButton(this, wxID_ANY, L"开始扫描", wxDefaultPosition, wxSize(140, 36));
     m_scanButton->SetFont(wxFont(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD,
                                  false, L"微软雅黑"));
     m_scanButton->SetBackgroundColour(colors.accent);
@@ -89,6 +98,7 @@ void MigrationPanel::CreateControls() {
     mainSizer->Add(scanSizer, 0);
     mainSizer->AddSpacer(8);
 
+    // 扫描状态面板
     m_scanInfoPanel = new IceClean::Gui::ScanInfoPanel(this, wxID_ANY);
     m_scanInfoPanel->SetState(ScanInfoPanelState::Normal);
     m_scanInfoPanel->SetMinSize(wxSize(300, 48));
@@ -98,40 +108,25 @@ void MigrationPanel::CreateControls() {
     m_currentPathLabel = new wxStaticText(this, wxID_ANY, L"");
     m_currentPathLabel->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
                                       false, L"Consolas"));
-    m_currentPathLabel->SetForegroundColour(ThemeManager::Instance().GetColors().textSecondary);
+    m_currentPathLabel->SetForegroundColour(colors.textSecondary);
     m_currentPathLabel->SetLabelText(L"");
     mainSizer->Add(m_currentPathLabel, 0, wxLEFT | wxRIGHT, 20);
     mainSizer->AddSpacer(8);
 
-    // 列表上方全选 checkbox（三态）
-    m_headerCheckbox = new wxCheckBox(this, wxID_ANY, L"全选", wxDefaultPosition, wxDefaultSize,
-                                      wxCHK_3STATE);
-    m_headerCheckbox->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
-                                     false, L"微软雅黑"));
-    m_headerCheckbox->Bind(wxEVT_CHECKBOX, &MigrationPanel::OnHeaderCheckbox, this);
-    m_headerCheckbox->Hide();
-    mainSizer->Add(m_headerCheckbox, 0, wxLEFT | wxRIGHT, 20);
-    mainSizer->AddSpacer(4);
+    // ═══ wxNotebook 标签页（与启动优化一致）═══
+    m_notebook = new wxNotebook(this, wxID_ANY);
+    m_notebook->SetBackgroundColour(colors.surface);
 
-    m_fileList = new wxListCtrl(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
-                                wxLC_REPORT | wxLC_SINGLE_SEL | wxBORDER_NONE);
-    m_fileList->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
-                               false, L"微软雅黑"));
+    CreateProgramTab();
+    CreateFolderTab();
 
-    m_fileList->AppendColumn(L"名称", wxLIST_FORMAT_LEFT, 180);
-    m_fileList->AppendColumn(L"路径", wxLIST_FORMAT_LEFT, 250);
-    m_fileList->AppendColumn(L"大小", wxLIST_FORMAT_LEFT, 100);
-    m_fileList->AppendColumn(L"类型", wxLIST_FORMAT_LEFT, 100);
-    m_fileList->AppendColumn(L"迁移建议", wxLIST_FORMAT_LEFT, 90);
-    m_fileList->AppendColumn(L"状态", wxLIST_FORMAT_LEFT, 80);
+    m_notebook->SetSelection(0);  // 默认显示应用迁移 Tab
+    m_currentScanType = 1;
 
-    m_fileList->EnableCheckBoxes(true);
-    m_fileList->Bind(wxEVT_LIST_ITEM_ACTIVATED, &MigrationPanel::OnItemActivated, this);
-    m_fileList->Bind(wxEVT_LIST_ITEM_CHECKED, &MigrationPanel::OnListItemChecked, this);
-    m_fileList->Bind(wxEVT_LIST_ITEM_UNCHECKED, &MigrationPanel::OnListItemChecked, this);
+    mainSizer->Add(m_notebook, 1, wxEXPAND | wxLEFT | wxRIGHT, 20);
+    mainSizer->AddSpacer(8);
 
-    mainSizer->Add(m_fileList, 1, wxEXPAND | wxLEFT | wxRIGHT, 20);
-
+    // 展开面板
     m_expandPanel = new wxPanel(this, wxID_ANY);
     m_expandPanel->Hide();
     auto expandSizer = new wxBoxSizer(wxVERTICAL);
@@ -141,13 +136,14 @@ void MigrationPanel::CreateControls() {
     m_expandContent = new wxStaticText(m_expandPanel, wxID_ANY, L"");
     m_expandContent->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
                                       false, L"Consolas"));
-    m_expandContent->SetForegroundColour(ThemeManager::Instance().GetColors().textSecondary);
+    m_expandContent->SetForegroundColour(colors.textSecondary);
     expandSizer->Add(m_expandTitle, 0, wxLEFT, 8);
     expandSizer->Add(m_expandContent, 0, wxLEFT, 8);
     m_expandPanel->SetSizer(expandSizer);
     mainSizer->Add(m_expandPanel, 0, wxEXPAND | wxLEFT | wxRIGHT, 20);
     mainSizer->AddSpacer(12);
 
+    // 底部操作栏
     auto* bottomSizer = new wxBoxSizer(wxHORIZONTAL);
 
     auto* driveLabel = new wxStaticText(this, wxID_ANY, L"目标驱动器:");
@@ -166,7 +162,7 @@ void MigrationPanel::CreateControls() {
     m_deleteButton = new wxButton(this, wxID_ANY, L"删除", wxDefaultPosition, wxSize(100, 40));
     m_deleteButton->SetFont(wxFont(11, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD,
                                     false, L"微软雅黑"));
-    m_deleteButton->SetBackgroundColour(ThemeManager::Instance().GetColors().danger);
+    m_deleteButton->SetBackgroundColour(colors.danger);
     m_deleteButton->SetForegroundColour(*wxWHITE);
     m_deleteButton->Bind(wxEVT_BUTTON, &MigrationPanel::OnDeleteButton, this);
     bottomSizer->Add(m_deleteButton, 0, wxRIGHT, 8);
@@ -181,6 +177,174 @@ void MigrationPanel::CreateControls() {
 
     mainSizer->Add(bottomSizer, 0, wxEXPAND | wxBOTTOM, 12);
     SetSizer(mainSizer);
+
+    // 应用迁移 Tab 不需要阈值下拉框
+    m_thresholdChoice->Enable(false);
+}
+
+void MigrationPanel::CreateProgramTab() {
+    const auto& colors = ThemeManager::Instance().GetColors();
+    m_programPage = new wxPanel(m_notebook, wxID_ANY);
+    m_programPage->SetBackgroundColour(colors.surface);
+    auto* programSizer = new wxBoxSizer(wxVERTICAL);
+
+    m_headerCheckbox = new wxCheckBox(m_programPage, wxID_ANY, L"全选", wxDefaultPosition, wxDefaultSize,
+                                      wxCHK_3STATE);
+    m_headerCheckbox->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+                                     false, L"微软雅黑"));
+    m_headerCheckbox->Bind(wxEVT_CHECKBOX, &MigrationPanel::OnHeaderCheckbox, this);
+    m_headerCheckbox->Hide();
+    programSizer->Add(m_headerCheckbox, 0, wxALL, 4);
+
+    m_fileList = new wxListCtrl(m_programPage, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+                                wxLC_REPORT | wxLC_SINGLE_SEL | wxBORDER_NONE);
+    m_fileList->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+                               false, L"微软雅黑"));
+    m_fileList->EnableCheckBoxes(true);
+    m_fileList->Bind(wxEVT_LIST_ITEM_ACTIVATED, &MigrationPanel::OnItemActivated, this);
+    m_fileList->Bind(wxEVT_LIST_ITEM_CHECKED, &MigrationPanel::OnListItemChecked, this);
+    m_fileList->Bind(wxEVT_LIST_ITEM_UNCHECKED, &MigrationPanel::OnListItemChecked, this);
+
+    SetupListColumnsForType(2);
+    programSizer->Add(m_fileList, 1, wxEXPAND | wxALL, 4);
+    m_programPage->SetSizer(programSizer);
+    m_notebook->AddPage(m_programPage, L"应用迁移");
+}
+
+void MigrationPanel::CreateFolderTab() {
+    const auto& colors = ThemeManager::Instance().GetColors();
+    m_folderPage = new wxPanel(m_notebook, wxID_ANY);
+    m_folderPage->SetBackgroundColour(colors.surface);
+    auto* folderSizer = new wxBoxSizer(wxVERTICAL);
+
+    m_fileList = new wxListCtrl(m_folderPage, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+                                wxLC_REPORT | wxLC_SINGLE_SEL | wxBORDER_NONE);
+    m_fileList->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL,
+                               false, L"微软雅黑"));
+    m_fileList->EnableCheckBoxes(true);
+    m_fileList->Bind(wxEVT_LIST_ITEM_ACTIVATED, &MigrationPanel::OnItemActivated, this);
+    m_fileList->Bind(wxEVT_LIST_ITEM_CHECKED, &MigrationPanel::OnListItemChecked, this);
+    m_fileList->Bind(wxEVT_LIST_ITEM_UNCHECKED, &MigrationPanel::OnListItemChecked, this);
+
+    SetupListColumnsForType(1);
+    folderSizer->Add(m_fileList, 1, wxEXPAND | wxALL, 4);
+    m_folderPage->SetSizer(folderSizer);
+    m_notebook->AddPage(m_folderPage, L"大文件夹");
+}
+
+void MigrationPanel::OnNotebookPageChanged(wxNotebookEvent& event) {
+    int sel = m_notebook->GetSelection();
+    m_currentScanType = (sel == 0) ? 1 : 2;  // 0=应用迁移(1), 1=大文件夹(2)
+
+    m_thresholdChoice->Enable(sel == 1);  // 大文件夹 Tab 才需要阈值
+
+    // 重建当前 Tab 的列表内容
+    m_items.clear();
+    HideExpandPanel();
+
+    if (sel == 0) {
+        SetupListColumnsForType(2);
+    } else {
+        SetupListColumnsForType(1);
+    }
+    RefreshItemList();
+    Layout();
+}
+
+void MigrationPanel::SetupListColumnsForType(int scanType) {
+    if (!m_fileList) return;
+    m_fileList->DeleteAllColumns();
+    if (scanType == 1) {
+        // 大文件夹 Tab
+        m_fileList->AppendColumn(L"名称", wxLIST_FORMAT_LEFT, 180);
+        m_fileList->AppendColumn(L"路径", wxLIST_FORMAT_LEFT, 250);
+        m_fileList->AppendColumn(L"大小", wxLIST_FORMAT_LEFT, 100);
+        m_fileList->AppendColumn(L"类型", wxLIST_FORMAT_LEFT, 100);
+        m_fileList->AppendColumn(L"迁移建议", wxLIST_FORMAT_LEFT, 90);
+        m_fileList->AppendColumn(L"状态", wxLIST_FORMAT_LEFT, 80);
+    } else {
+        // 应用迁移 Tab
+        m_fileList->AppendColumn(L"程序名称", wxLIST_FORMAT_LEFT, 160);
+        m_fileList->AppendColumn(L"大小", wxLIST_FORMAT_LEFT, 90);
+        m_fileList->AppendColumn(L"安装路径", wxLIST_FORMAT_LEFT, 280);
+        m_fileList->AppendColumn(L"发行商", wxLIST_FORMAT_LEFT, 120);
+        m_fileList->AppendColumn(L"安全级别", wxLIST_FORMAT_LEFT, 100);
+        m_fileList->AppendColumn(L"状态", wxLIST_FORMAT_LEFT, 80);
+    }
+}
+
+void MigrationPanel::RefreshItemList() {
+    using namespace IceClean::Models;
+    using namespace IceClean::Utils;
+
+    if (!m_fileList) return;
+    m_fileList->DeleteAllItems();
+
+    for (size_t i = 0; i < m_items.size(); ++i) {
+        const auto& item = m_items[i];
+        long idx = m_fileList->InsertItem(static_cast<long>(i), L"");
+
+        if (m_currentScanType == 1) {
+            m_fileList->SetItem(idx, 0, item.name);
+            m_fileList->SetItem(idx, 1, item.sourcePath);
+            m_fileList->SetItem(idx, 2, FormatUtil::FormatFileSize(item.size));
+
+            wxString typeStr;
+            switch (item.type) {
+                case MigrationType::SteamGame:    typeStr = L"Steam游戏"; break;
+                case MigrationType::UserFolder:   typeStr = L"用户文件夹"; break;
+                case MigrationType::WeChatCache:  typeStr = L"微信缓存"; break;
+                case MigrationType::QQCache:      typeStr = L"QQ缓存"; break;
+                case MigrationType::CustomFolder: typeStr = L"自定义文件夹"; break;
+                case MigrationType::LargeSoftware: typeStr = L"大型软件"; break;
+                case MigrationType::InstalledProgram: typeStr = L"已安装应用"; break;
+                default: typeStr = L"其他"; break;
+            }
+            m_fileList->SetItem(idx, 3, typeStr);
+
+            wxString adviceStr;
+            switch (item.advice) {
+                case MigrationAdvice::Recommended:    adviceStr = L"推荐迁移"; break;
+                case MigrationAdvice::Possible:       adviceStr = L"可以迁移"; break;
+                case MigrationAdvice::NotRecommended: adviceStr = L"不建议"; break;
+                default: adviceStr = L""; break;
+            }
+            m_fileList->SetItem(idx, 4, adviceStr);
+
+            bool isJunction = JunctionPoint::IsJunction(item.sourcePath);
+            if (item.migrated || isJunction) {
+                m_fileList->SetItem(idx, 5, L"已迁移");
+            } else {
+                m_fileList->SetItem(idx, 5, L"可迁移");
+            }
+        } else {
+            m_fileList->SetItem(idx, 0, item.name);
+            m_fileList->SetItem(idx, 1, FormatUtil::FormatFileSize(item.size));
+            m_fileList->SetItem(idx, 2, item.sourcePath);
+            m_fileList->SetItem(idx, 3, item.publisher);
+
+            wxString safetyStr;
+            switch (item.programSafety) {
+                case ProgramSafetyLevel::Safe:      safetyStr = L"[安全]"; break;
+                case ProgramSafetyLevel::Caution:   safetyStr = L"[谨慎]"; break;
+                case ProgramSafetyLevel::Dangerous: safetyStr = L"[禁止]"; break;
+                default: safetyStr = L""; break;
+            }
+            m_fileList->SetItem(idx, 4, safetyStr);
+
+            if (item.isRunning) {
+                m_fileList->SetItem(idx, 5, L"运行中");
+            } else if (JunctionPoint::IsJunction(item.sourcePath)) {
+                m_fileList->SetItem(idx, 5, L"已迁移");
+            } else {
+                m_fileList->SetItem(idx, 5, L"空闲");
+            }
+        }
+
+        m_fileList->CheckItem(idx, item.selected);
+    }
+
+    UpdateHeaderCheckboxState();
 }
 
 void MigrationPanel::PopulateThresholdList() {
@@ -205,8 +369,9 @@ void MigrationPanel::PopulateDriveList() {
                 if (root[0] == L'C') continue;
                 ULARGE_INTEGER freeBytes;
                 if (GetDiskFreeSpaceExW(root, &freeBytes, nullptr, nullptr)) {
-                    wxString label = wxString::Format(L"%c: (%s 可用)",
-                        L'A' + i,
+                    wxString driveLetterStr(1, static_cast<wchar_t>(L'A' + i));
+                    wxString label = wxString::Format(L"%s: (%s 可用)",
+                        driveLetterStr,
                         IceClean::Utils::FormatUtil::FormatFileSize(freeBytes.QuadPart).c_str());
                     m_targetDriveChoice->Append(label);
                 }
@@ -231,56 +396,33 @@ void MigrationPanel::SetMigrationItems(const std::vector<IceClean::Models::Migra
         m_scanInfoPanel->SetProcessingItem(L"");
     }
     if (m_currentPathLabel) m_currentPathLabel->SetLabelText(L"");
-
     m_items = items;
-    m_fileList->DeleteAllItems();
     HideExpandPanel();
-
-    using namespace IceClean::Models;
-    using namespace IceClean::Utils;
-
-    for (size_t i = 0; i < items.size(); ++i) {
-        const auto& item = items[i];
-        long idx = m_fileList->InsertItem(static_cast<long>(i), L"");
-        m_fileList->SetItem(idx, 0, item.name);
-        m_fileList->SetItem(idx, 1, item.sourcePath);
-        m_fileList->SetItem(idx, 2, FormatUtil::FormatFileSize(item.size));
-
-        wxString typeStr;
-        switch (item.type) {
-            case MigrationType::SteamGame:    typeStr = L"Steam游戏"; break;
-            case MigrationType::UserFolder:   typeStr = L"用户文件夹"; break;
-            case MigrationType::WeChatCache:  typeStr = L"微信缓存"; break;
-            case MigrationType::QQCache:      typeStr = L"QQ缓存"; break;
-            case MigrationType::CustomFolder: typeStr = L"自定义文件夹"; break;
-            case MigrationType::LargeSoftware: typeStr = L"大型软件"; break;
-        }
-        m_fileList->SetItem(idx, 3, typeStr);
-
-        wxString adviceStr;
-        switch (item.advice) {
-            case MigrationAdvice::Recommended:    adviceStr = L"推荐迁移"; break;
-            case MigrationAdvice::Possible:       adviceStr = L"可以迁移"; break;
-            case MigrationAdvice::NotRecommended: adviceStr = L"不建议"; break;
-        }
-        m_fileList->SetItem(idx, 4, adviceStr);
-
-        bool isJunction = IceClean::Utils::JunctionPoint::IsJunction(item.sourcePath);
-        if (item.migrated || isJunction) {
-            m_fileList->SetItem(idx, 5, L"已迁移");
-        } else {
-            m_fileList->SetItem(idx, 5, L"可迁移");
-        }
-    }
-
-    for (size_t i = 0; i < items.size(); ++i) {
-        m_fileList->CheckItem(static_cast<long>(i), items[i].selected);
-    }
+    RefreshItemList();
 
     m_statusLabel->SetLabel(wxString::Format(L"扫描完成，找到 %d 个可迁移项",
         static_cast<int>(items.size())));
+}
 
-    UpdateHeaderCheckboxState();
+void MigrationPanel::SetProgramItems(const std::vector<IceClean::Models::MigrationItem>& items) {
+    m_scanButton->Show();
+    m_stopButton->Hide();
+    m_stopButton->Enable();
+    m_stopButton->SetLabel(L"停止");
+    Layout();
+
+    if (m_scanInfoPanel) {
+        m_scanInfoPanel->SetState(ScanInfoPanelState::Normal);
+        m_scanInfoPanel->SetStatusText(L"扫描完成");
+        m_scanInfoPanel->SetProcessingItem(L"");
+    }
+    if (m_currentPathLabel) m_currentPathLabel->SetLabelText(L"");
+    m_items = items;
+    HideExpandPanel();
+    RefreshItemList();
+
+    m_statusLabel->SetLabel(wxString::Format(L"扫描完成，找到 %d 个可迁移应用",
+        static_cast<int>(items.size())));
 }
 
 void MigrationPanel::UpdateScanProgress(const wxString& phase, const wxString& currentPath,
@@ -338,12 +480,12 @@ void MigrationPanel::OnScanButton(wxCommandEvent& event) {
 
     if (m_scanInfoPanel) {
         m_scanInfoPanel->SetState(ScanInfoPanelState::Processing);
-        m_scanInfoPanel->SetStatusText(L"正在扫描...");
+        m_scanInfoPanel->SetStatusText(m_currentScanType == 2 ? L"正在扫描大文件夹..." : L"正在扫描已安装应用...");
     }
     if (m_currentPathLabel) m_currentPathLabel->SetLabelText(L"  准备开始扫描...");
 
     wxThreadEvent scanEvt(wxEVT_MIGRATION_SCAN_REQUEST);
-    scanEvt.SetInt(m_currentThresholdMB);
+    scanEvt.SetInt(m_currentScanType == 1 ? 0 : m_currentThresholdMB);
     wxPostEvent(GetParent(), scanEvt);
 }
 
@@ -380,6 +522,17 @@ void MigrationPanel::OnMigrateButton(wxCommandEvent& event) {
     if (targetDrive.IsEmpty()) {
         wxMessageBox(L"请选择目标驱动器", L"提示", wxOK | wxICON_INFORMATION);
         return;
+    }
+
+    // 应用迁移时检查是否有"禁止"安全级别的项
+    if (m_currentScanType == 1) {
+        for (const auto& it : selectedItems) {
+            if (it.programSafety == IceClean::Models::ProgramSafetyLevel::Dangerous) {
+                wxMessageBox(L"已选择的列表中包含禁止迁移的应用（系统组件），请取消勾选",
+                             L"提示", wxOK | wxICON_WARNING);
+                return;
+            }
+        }
     }
 
     wxString desc = wxString::Format(L"即将将 %d 个项目迁移到 %s\n\n"
@@ -432,7 +585,6 @@ void MigrationPanel::OnDeleteButton(wxCommandEvent& event) {
         return;
     }
 
-    // 物理删除选中的项（跳过已迁移/junction 项）
     int deletedCount = 0;
     uint64_t freedSize = 0;
     for (const auto& it : selectedItems) {
@@ -446,7 +598,6 @@ void MigrationPanel::OnDeleteButton(wxCommandEvent& event) {
     m_statusLabel->SetLabel(wxString::Format(L"已删除 %d 个项目，释放 %s",
         deletedCount, IceClean::Utils::FormatUtil::FormatFileSize(freedSize).c_str()));
 
-    // 从 m_items 中移除已删除的项并刷新列表
     std::vector<IceClean::Models::MigrationItem> remaining;
     for (const auto& it : m_items) {
         bool wasDeleted = false;
@@ -531,7 +682,6 @@ void MigrationPanel::OnHeaderCheckbox(wxCommandEvent& event) {
 void MigrationPanel::OnListItemChecked(wxListEvent& event) {
     long idx = event.GetIndex();
     if (idx >= 0 && static_cast<size_t>(idx) < m_items.size()) {
-        // 通过 listctrl 自身查询确保状态一致
         m_items[static_cast<size_t>(idx)].selected = m_fileList->IsItemChecked(idx);
     }
     UpdateHeaderCheckboxState();
@@ -541,7 +691,6 @@ void MigrationPanel::UpdateHeaderCheckboxState() {
     if (m_items.empty()) {
         m_headerCheckbox->Set3StateValue(wxCHK_UNCHECKED);
         m_headerCheckbox->Hide();
-        Layout();
         return;
     }
 
@@ -560,7 +709,6 @@ void MigrationPanel::UpdateHeaderCheckboxState() {
     } else {
         m_headerCheckbox->Set3StateValue(wxCHK_UNDETERMINED);
     }
-    Layout();
 }
 
 std::wstring MigrationPanel::ScanLargeSubDirs(const std::wstring& parentPath, int thresholdBytes) {

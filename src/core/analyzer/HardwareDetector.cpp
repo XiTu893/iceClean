@@ -6,6 +6,9 @@
 #include <tlhelp32.h>
 #include <winternl.h>
 #include <intrin.h>
+#include <iphlpapi.h>
+#include <ipifcons.h>
+#pragma comment(lib, "iphlpapi.lib")
 
 namespace IceClean::Core::Analyzer {
 
@@ -17,17 +20,35 @@ using namespace IceClean::Utils;
 HardwareSummary HardwareDetector::GetSummary() {
     HardwareSummary summary;
     summary.cpu = GetCpuInfo();
-    summary.gpu = GetGpuInfo();
+
+    auto gpus = GetGpuInfo();
+    summary.gpus.push_back(gpus);
+
     summary.memory = GetMemoryInfo();
     summary.disks = GetDiskInfo();
     summary.motherboard = GetMotherboardInfo();
     GetOsInfo(summary.osVersion, summary.osBuild);
+
+    summary.osInstallDate = GetRegistryHardwareInfo(
+        L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", L"InstallDate");
+    summary.systemType = GetRegistryHardwareInfo(
+        L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\OEMInformation", L"Model");
+    if (summary.systemType.empty()) {
+        summary.systemType = GetRegistryHardwareInfo(
+            L"HARDWARE\\DESCRIPTION\\System\\BIOS", L"SystemProductName");
+    }
+    summary.locale = GetRegistryHardwareInfo(
+        L"SYSTEM\\CurrentControlSet\\Control\\Nls\\Language", L"InstallLanguage");
+
     summary.isAdmin = Win32Util::IsRunningAsAdmin();
     summary.computerName = GetRegistryHardwareInfo(
         L"SYSTEM\\CurrentControlSet\\Control\\ComputerName\\ActiveComputerName", L"ComputerName");
     summary.userName = GetRegistryHardwareInfo(
         L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer", L"LogonUserName");
     summary.systemUptime = GetSystemUptime();
+
+    summary.networkAdapters = GetNetworkAdaptersDetail();
+
     return summary;
 }
 
@@ -39,6 +60,10 @@ CpuInfo HardwareDetector::GetCpuInfo() {
         L"HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0", L"ProcessorNameString");
     info.manufacturer = GetRegistryHardwareInfo(
         L"HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0", L"VendorIdentifier");
+    info.cpuId = GetRegistryHardwareInfo(
+        L"HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0", L"Identifier");
+    info.socketDesignation = GetRegistryHardwareInfo(
+        L"HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0", L"SocketDesignation");
 
     SYSTEM_INFO sysInfo;
     GetNativeSystemInfo(&sysInfo);
@@ -47,7 +72,6 @@ CpuInfo HardwareDetector::GetCpuInfo() {
                     sysInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_IA64);
     info.architecture = info.is64Bit ? L"x64" : L"x86";
 
-    // 核心数
     PSYSTEM_LOGICAL_PROCESSOR_INFORMATION buffer = nullptr;
     DWORD bufferSize = 0;
     if (!GetLogicalProcessorInformation(buffer, &bufferSize) && GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
@@ -65,12 +89,20 @@ CpuInfo HardwareDetector::GetCpuInfo() {
     }
     if (info.coreCount == 0) info.coreCount = info.logicalProcessorCount / 2;
 
-    // 最大频率 (MHz 转 GHz)
     DWORD mhz = RegistryUtil::ReadDwordValue(HKEY_LOCAL_MACHINE,
         L"HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0", L"~MHz");
     if (mhz > 0) {
         info.maxClockSpeedGHz = static_cast<double>(mhz) / 1000.0;
+        info.currentClockSpeedGHz = info.maxClockSpeedGHz;
     }
+
+    DWORD l2Size = RegistryUtil::ReadDwordValue(HKEY_LOCAL_MACHINE,
+        L"HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0", L"L2CacheSize");
+    if (l2Size > 0) info.l2CacheKB = l2Size;
+
+    DWORD l3Size = RegistryUtil::ReadDwordValue(HKEY_LOCAL_MACHINE,
+        L"HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0", L"L3CacheSize");
+    if (l3Size > 0) info.l3CacheKB = l3Size;
 
     return info;
 }
@@ -80,7 +112,6 @@ CpuInfo HardwareDetector::GetCpuInfo() {
 GpuInfo HardwareDetector::GetGpuInfo() {
     GpuInfo info;
 
-    // 通过注册表读取
     auto subKeys = RegistryUtil::EnumSubKeys(HKEY_LOCAL_MACHINE,
         L"SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}");
     for (const auto& key : subKeys) {
@@ -90,16 +121,33 @@ GpuInfo HardwareDetector::GetGpuInfo() {
             info.name = driverDesc;
             info.adapterString = RegistryUtil::ReadStringValue(HKEY_LOCAL_MACHINE, keyPath, L"HardwareInformation.AdapterString");
             info.driverVersion = RegistryUtil::ReadStringValue(HKEY_LOCAL_MACHINE, keyPath, L"DriverVersion");
+            info.driverDate = RegistryUtil::ReadStringValue(HKEY_LOCAL_MACHINE, keyPath, L"DriverDate");
+            info.pnpDeviceId = RegistryUtil::ReadStringValue(HKEY_LOCAL_MACHINE, keyPath, L"DriverDesc");
 
             DWORD memSize = RegistryUtil::ReadDwordValue(HKEY_LOCAL_MACHINE, keyPath, L"HardwareInformation.DedicatedMemorySize");
-            if (memSize > 0) info.dedicatedMemoryMB = memSize;
+            if (memSize > 0) {
+                info.dedicatedMemoryMB = memSize;
+                info.totalMemoryMB = memSize;
+            }
+            info.sharedMemoryMB = 0;
 
-            // 获取当前分辨率
+            info.videoProcessor = RegistryUtil::ReadStringValue(HKEY_LOCAL_MACHINE, keyPath, L"HardwareInformation.VChipType");
+
             DEVMODEW devMode = {};
             devMode.dmSize = sizeof(devMode);
             if (EnumDisplaySettingsW(nullptr, ENUM_CURRENT_SETTINGS, &devMode)) {
-                info.resolution = std::to_wstring(devMode.dmPelsWidth) + L"x" + std::to_wstring(devMode.dmPelsHeight);
+                info.resolution = std::to_wstring(devMode.dmPelsWidth) + L" x " + std::to_wstring(devMode.dmPelsHeight);
+                info.refreshRate = devMode.dmDisplayFrequency;
+                info.videoModeDescription = std::to_wstring(devMode.dmPelsWidth) + L"x" +
+                    std::to_wstring(devMode.dmPelsHeight) + L" " +
+                    std::to_wstring(devMode.dmDisplayFrequency) + L"Hz " +
+                    ((devMode.dmDisplayFlags & DM_INTERLACED) ? L"隔行" : L"逐行");
             }
+
+            std::wstring mfg = RegistryUtil::ReadStringValue(HKEY_LOCAL_MACHINE, keyPath, L"ProviderName");
+            if (mfg.find(L"NVIDIA") != std::wstring::npos) info.manufacturer = L"NVIDIA";
+            else if (mfg.find(L"AMD") != std::wstring::npos || mfg.find(L"Radeon") != std::wstring::npos) info.manufacturer = L"AMD";
+            else if (mfg.find(L"Intel") != std::wstring::npos) info.manufacturer = L"Intel";
             break;
         }
     }
@@ -120,12 +168,18 @@ MemoryInfo HardwareDetector::GetMemoryInfo() {
         info.availableVirtualMB = memStatus.ullAvailVirtual / (1024 * 1024);
     }
 
-    // 内存模块信息（通过注册表）
+    DWORD memSpeed = RegistryUtil::ReadDwordValue(HKEY_LOCAL_MACHINE,
+        L"HARDWARE\\DESCRIPTION\\System\\BIOS", L"SystemMemorySpeed");
+    if (memSpeed > 0) info.memorySpeed = memSpeed;
+
+    std::wstring memType = GetRegistryHardwareInfo(
+        L"HARDWARE\\DESCRIPTION\\System\\BIOS", L"SystemMemoryType");
+    info.memoryType = memType;
+
     auto memorySubKeys = RegistryUtil::EnumSubKeys(HKEY_LOCAL_MACHINE,
         L"HARDWARE\\Resources\\System\\Memory\\Memory Device");
     if (!memorySubKeys.empty()) {
         info.memorySlotCount = static_cast<int>(memorySubKeys.size());
-
         for (const auto& slot : memorySubKeys) {
             std::wstring slotPath = L"HARDWARE\\Resources\\System\\Memory\\Memory Device\\" + slot;
             std::wstring capacity = RegistryUtil::ReadStringValue(HKEY_LOCAL_MACHINE, slotPath, L"Capacity");
@@ -134,10 +188,22 @@ MemoryInfo HardwareDetector::GetMemoryInfo() {
 
             if (!capacity.empty()) {
                 uint64_t capBytes = _wtoi64(capacity.c_str());
-                std::wstring moduleInfo = std::to_wstring(capBytes / (1024 * 1024)) + L"MB";
-                if (!speed.empty()) moduleInfo += L" @" + speed + L"MHz";
-                if (!manufacturer.empty() && manufacturer != L"Not Specified") moduleInfo += L" " + manufacturer;
-                info.memoryModules.push_back(moduleInfo);
+                if (capBytes > 0) {
+                    info.memoryModuleCount++;
+                    std::wstring moduleInfo;
+                    if (capBytes >= 1024ULL * 1024 * 1024) {
+                        moduleInfo = std::to_wstring(capBytes / (1024ULL * 1024 * 1024)) + L" GB";
+                    } else {
+                        moduleInfo = std::to_wstring(capBytes / (1024 * 1024)) + L" MB";
+                    }
+                    if (!speed.empty() && speed != L"0") {
+                        moduleInfo += L" @ " + speed + L" MHz";
+                    }
+                    if (!manufacturer.empty() && manufacturer.find(L"Not Specified") == std::wstring::npos) {
+                        moduleInfo += L"  " + manufacturer;
+                    }
+                    info.memoryModules.push_back(moduleInfo);
+                }
             }
         }
     }
@@ -157,7 +223,19 @@ std::vector<DiskInfo> HardwareDetector::GetDiskInfo() {
         if (GetDriveTypeW(drive.c_str()) != DRIVE_FIXED) continue;
 
         DiskInfo disk;
-        disk.driveLetter = drive;
+        disk.driveLetter = drive.empty() ? L'C' : drive[0];
+
+        std::wstring root = drive;
+        if (!root.empty() && root.back() != L'\\') root += L'\\';
+        disk.model = L"本地磁盘";
+
+        wchar_t volumeName[MAX_PATH + 1] = {};
+        if (GetVolumeInformationW(root.c_str(), volumeName, MAX_PATH, nullptr, nullptr, nullptr, nullptr, 0)) {
+            if (volumeName[0] != L'\0') {
+                disk.model = volumeName;
+            }
+        }
+
         disk.isSystemDisk = (_wcsicmp(drive.c_str(), systemDrive.c_str()) == 0);
 
         uint64_t totalBytes = 0, freeBytes = 0;
@@ -166,21 +244,20 @@ std::vector<DiskInfo> HardwareDetector::GetDiskInfo() {
             disk.freeGB = freeBytes / (1024ULL * 1024 * 1024);
         }
 
-        // 文件系统
         wchar_t fsName[32] = {};
-        if (GetVolumeInformationW(drive.c_str(), nullptr, 0, nullptr, nullptr, nullptr, fsName, 32)) {
+        if (GetVolumeInformationW(root.c_str(), nullptr, 0, nullptr, nullptr, nullptr, fsName, 32)) {
             disk.fileSystem = fsName;
         }
 
         disk.isSSD = IsSSD(drive);
         disk.healthPercent = EstimateDiskHealth(drive);
 
-        // 磁盘型号（通过注册表）
-        std::wstring devicePath = L"HARDWARE\\DEVICEMAP\\Scsi\\Scsi Port 0\\Scsi Bus 0\\Target Id 0\\Logical Unit Id 0";
-        disk.model = RegistryUtil::ReadStringValue(HKEY_LOCAL_MACHINE, devicePath, L"Identifier");
-        if (disk.model.empty()) {
-            disk.model = L"Unknown";
+        if (disk.isSSD) {
+            disk.mediaType = L"SSD";
+        } else {
+            disk.mediaType = L"HDD";
         }
+        disk.interfaceType = L"SATA / NVMe";
 
         disks.push_back(disk);
     }
@@ -332,6 +409,49 @@ double HardwareDetector::EstimateDiskHealth(const std::wstring& driveLetter) {
 std::wstring HardwareDetector::GetRegistryHardwareInfo(const std::wstring& keyPath,
                                                         const std::wstring& valueName) {
     return RegistryUtil::ReadStringValue(HKEY_LOCAL_MACHINE, keyPath, valueName);
+}
+
+std::vector<NetworkAdapterDetail> HardwareDetector::GetNetworkAdaptersDetail() {
+    std::vector<NetworkAdapterDetail> adapters;
+
+    ULONG bufLen = 0;
+    if (GetAdaptersInfo(nullptr, &bufLen) == ERROR_BUFFER_OVERFLOW) {
+        auto* pAdapterInfo = reinterpret_cast<IP_ADAPTER_INFO*>(new uint8_t[bufLen]);
+        if (GetAdaptersInfo(pAdapterInfo, &bufLen) == ERROR_SUCCESS) {
+            for (auto* p = pAdapterInfo; p; p = p->Next) {
+                if (p->Type != MIB_IF_TYPE_ETHERNET && p->Type != IF_TYPE_IEEE80211) continue;
+
+                NetworkAdapterDetail info;
+                info.description = std::wstring(p->Description, p->Description + strlen(p->Description));
+                info.name = info.description;
+                info.connectionType = (p->Type == IF_TYPE_IEEE80211) ? L"Wi-Fi" : L"以太网";
+
+                if (p->AddressLength > 0) {
+                    wchar_t mac[32];
+                    swprintf_s(mac, L"%02X-%02X-%02X-%02X-%02X-%02X",
+                        p->Address[0], p->Address[1], p->Address[2],
+                        p->Address[3], p->Address[4], p->Address[5]);
+                    info.macAddress = mac;
+                }
+
+                info.ipAddress = std::wstring(p->IpAddressList.IpAddress.String,
+                    p->IpAddressList.IpAddress.String + strlen(p->IpAddressList.IpAddress.String));
+                info.dhcpEnabled = (p->DhcpEnabled != 0);
+
+                if (info.description.find(L"Realtek") != std::wstring::npos) info.manufacturer = L"Realtek";
+                else if (info.description.find(L"Intel") != std::wstring::npos) info.manufacturer = L"Intel";
+                else if (info.description.find(L"Broadcom") != std::wstring::npos) info.manufacturer = L"Broadcom";
+                else if (info.description.find(L"Qualcomm") != std::wstring::npos) info.manufacturer = L"Qualcomm";
+                else if (info.description.find(L"MediaTek") != std::wstring::npos) info.manufacturer = L"MediaTek";
+                else info.manufacturer = L"Unknown";
+
+                adapters.push_back(info);
+            }
+        }
+        delete[] reinterpret_cast<uint8_t*>(pAdapterInfo);
+    }
+
+    return adapters;
 }
 
 } // namespace IceClean::Core::Analyzer

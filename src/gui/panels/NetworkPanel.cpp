@@ -2,7 +2,6 @@
 #include "core/optimizer/NetworkOptimizer.h"
 #include "gui/dialogs/ConfirmDialog.h"
 #include "gui/controls/ThemeManager.h"
-#include "utils/FormatUtil.h"
 #include <thread>
 #include <algorithm>
 
@@ -23,7 +22,6 @@ void NetworkPanel::CreateControls() {
     auto* mainSizer = new wxBoxSizer(wxVERTICAL);
     mainSizer->AddSpacer(12);
 
-    // 标题
     auto* titleLabel = new wxStaticText(this, wxID_ANY, L"网络优化");
     titleLabel->SetFont(wxFont(14, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD, false, L"微软雅黑"));
     titleLabel->SetForegroundColour(colors.textPrimary);
@@ -37,7 +35,6 @@ void NetworkPanel::CreateControls() {
     mainSizer->Add(tipLabel, 0, wxLEFT | wxRIGHT, 20);
     mainSizer->AddSpacer(8);
 
-    // 网络适配器
     auto* adapterLabel = new wxStaticText(this, wxID_ANY, L"网络适配器");
     adapterLabel->SetFont(wxFont(11, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD, false, L"微软雅黑"));
     adapterLabel->SetForegroundColour(colors.textPrimary);
@@ -45,7 +42,7 @@ void NetworkPanel::CreateControls() {
     mainSizer->AddSpacer(4);
 
     m_adapterListCtrl = new wxListCtrl(this, wxID_ANY, wxDefaultPosition, wxSize(-1, 100),
-                                        wxLC_REPORT | wxLC_SINGLE_SEL | wxBORDER_SIMPLE);
+                                         wxLC_REPORT | wxLC_SINGLE_SEL | wxBORDER_SIMPLE);
     m_adapterListCtrl->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, L"微软雅黑"));
     m_adapterListCtrl->AppendColumn(L"连接名称", wxLIST_FORMAT_LEFT, 150);
     m_adapterListCtrl->AppendColumn(L"IP地址", wxLIST_FORMAT_LEFT, 120);
@@ -55,14 +52,13 @@ void NetworkPanel::CreateControls() {
     mainSizer->Add(m_adapterListCtrl, 0, wxEXPAND | wxLEFT | wxRIGHT, 20);
     mainSizer->AddSpacer(8);
 
-    // 网络优化项
     auto* optLabel = new wxStaticText(this, wxID_ANY, L"网络优化项");
     optLabel->SetFont(wxFont(11, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD, false, L"微软雅黑"));
     optLabel->SetForegroundColour(colors.textPrimary);
     mainSizer->Add(optLabel, 0, wxLEFT | wxRIGHT, 20);
     mainSizer->AddSpacer(4);
 
-    m_optimizeListCtrl = new wxListCtrl(this, wxID_ANY, wxDefaultPosition, wxSize(-1, 140),
+    m_optimizeListCtrl = new wxListCtrl(this, wxID_ANY, wxDefaultPosition, wxSize(-1, 160),
                                          wxLC_REPORT | wxLC_SINGLE_SEL | wxBORDER_SIMPLE);
     m_optimizeListCtrl->SetFont(wxFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, L"微软雅黑"));
     m_optimizeListCtrl->AppendColumn(L"优化项", wxLIST_FORMAT_LEFT, 180);
@@ -73,7 +69,6 @@ void NetworkPanel::CreateControls() {
     mainSizer->Add(m_optimizeListCtrl, 0, wxEXPAND | wxLEFT | wxRIGHT, 20);
     mainSizer->AddSpacer(8);
 
-    // DNS设置
     auto* dnsLabel = new wxStaticText(this, wxID_ANY, L"DNS设置");
     dnsLabel->SetFont(wxFont(11, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD, false, L"微软雅黑"));
     dnsLabel->SetForegroundColour(colors.textPrimary);
@@ -114,7 +109,6 @@ void NetworkPanel::CreateControls() {
     mainSizer->Add(dnsSizer, 0, wxEXPAND);
     mainSizer->AddSpacer(8);
 
-    // 底部按钮栏
     auto* bottomSizer = new wxBoxSizer(wxHORIZONTAL);
 
     m_applyOptButton = new wxButton(this, wxID_ANY, L"一键优化", wxDefaultPosition, wxSize(100, 36));
@@ -333,8 +327,6 @@ void NetworkPanel::OnPingTest(wxCommandEvent& event) {
     }).detach();
 }
 
-void NetworkPanel::OnOptimizeChecked(wxListEvent& event) {
-    // No-op for now
-}
+void NetworkPanel::OnOptimizeChecked(wxListEvent& event) {}
 
 } // namespace IceClean::Gui

@@ -4,8 +4,25 @@
 #include <fstream>
 #include <filesystem>
 #include <shlobj.h>
+#include <windows.h>
 
 namespace IceClean::Utils {
+
+namespace {
+    std::wstring GetDataDir() {
+        wchar_t exePath[MAX_PATH] = {};
+        DWORD len = GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+        if (len == 0) return L"";
+
+        std::filesystem::path p(exePath);
+        std::filesystem::path parent = p.parent_path();
+        std::filesystem::path dataDir = parent / L"data";
+
+        std::error_code ec;
+        std::filesystem::create_directories(dataDir, ec);
+        return dataDir.wstring();
+    }
+}
 
 nlohmann::json JsonUtil::LoadJson(const std::wstring& filePath) {
     try {
@@ -46,29 +63,47 @@ bool JsonUtil::SaveJson(const std::wstring& filePath, const nlohmann::json& data
 }
 
 std::wstring JsonUtil::GetConfigPath() {
-    // 在Roaming AppData下创建IceClean目录
-    std::wstring appData = Win32Util::GetSpecialFolder(CSIDL_APPDATA);
-    if (appData.empty()) return L"";
+    std::wstring dataDir = GetDataDir();
+    if (dataDir.empty()) return L"";
 
-    std::wstring configDir = appData + L"\\IceClean";
-    if (!FileUtil::Exists(configDir)) {
-        FileUtil::CreateDirectoryRecursive(configDir);
-    }
+    std::filesystem::path configDir = std::filesystem::path(dataDir) / L"config";
+    std::error_code ec;
+    std::filesystem::create_directories(configDir, ec);
 
-    return configDir + L"\\config.json";
+    return (configDir / L"config.json").wstring();
 }
 
 std::wstring JsonUtil::GetLogPath() {
-    // 在Local AppData下创建IceClean日志目录
-    std::wstring localAppData = Win32Util::GetSpecialFolder(CSIDL_LOCAL_APPDATA);
-    if (localAppData.empty()) return L"";
+    std::wstring dataDir = GetDataDir();
+    if (dataDir.empty()) return L"";
 
-    std::wstring logDir = localAppData + L"\\IceClean\\Logs";
-    if (!FileUtil::Exists(logDir)) {
-        FileUtil::CreateDirectoryRecursive(logDir);
-    }
+    std::filesystem::path logDir = std::filesystem::path(dataDir) / L"logs";
+    std::error_code ec;
+    std::filesystem::create_directories(logDir, ec);
 
-    return logDir;
+    return logDir.wstring();
+}
+
+std::wstring JsonUtil::Utf8ToWide(const std::string& utf8) {
+    if (utf8.empty()) return {};
+    int n = MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(),
+                                static_cast<int>(utf8.size()), nullptr, 0);
+    if (n <= 0) return {};
+    std::wstring wide(n, L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(),
+                        static_cast<int>(utf8.size()), wide.data(), n);
+    return wide;
+}
+
+std::string JsonUtil::WideToUtf8(const std::wstring& wide) {
+    if (wide.empty()) return {};
+    int n = WideCharToMultiByte(CP_UTF8, 0, wide.c_str(),
+                                static_cast<int>(wide.size()), nullptr, 0, nullptr, nullptr);
+    if (n <= 0) return {};
+    std::string utf8(n, '\0');
+    WideCharToMultiByte(CP_UTF8, 0, wide.c_str(),
+                        static_cast<int>(wide.size()), utf8.data(), n, nullptr, nullptr);
+    return utf8;
 }
 
 } // namespace IceClean::Utils

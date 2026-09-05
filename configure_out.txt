@@ -1,0 +1,171 @@
+Preset CMake variables:
+
+  CMAKE_BUILD_TYPE="Debug"
+  CMAKE_TOOLCHAIN_FILE:FILEPATH="f:\project\iceClean\vcpkg /scripts/buildsystems/vcpkg.cmake"
+  VCPKG_HOST_TRIPLET="x64-windows-static"
+  VCPKG_TARGET_TRIPLET="x64-windows-static"
+
+-- Running vcpkg install
+Fetching registry information from https://github.com/microsoft/vcpkg.git (HEAD)...
+Detecting compiler hash for triplet x64-windows-static...
+Compiler found: C:/Program Files/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe
+The following packages will be built and installed:
+  * egl-registry:x64-windows-static@2025-05-27 -- git+https://github.com/microsoft/vcpkg.git@980ed62fded868a1cb66460b32704aca030af013
+  * expat:x64-windows-static@2.8.1 -- git+https://github.com/microsoft/vcpkg.git@92923916d226d340977bef606ce267474f6f57a4
+  * fmt:x64-windows-static@12.1.0 -- git+https://github.com/microsoft/vcpkg.git@936231a2c765082457d348a8781ea9d3610eb331
+    gtest:x64-windows-static@1.17.0#2 -- git+https://github.com/microsoft/vcpkg.git@b8a81820356e90917e5eb5dfe0092bfac57dbb12
+  * libjpeg-turbo:x64-windows-static@3.1.4.1 -- git+https://github.com/microsoft/vcpkg.git@723593f24a8b38ac93a54667ccf36961646b4cc3
+  * liblzma:x64-windows-static@5.8.3 -- git+https://github.com/microsoft/vcpkg.git@ae94eaf58eb64ce5b0dfba7769095c43c6c65d71
+  * libpng:x64-windows-static@1.6.58 -- git+https://github.com/microsoft/vcpkg.git@909d98e06046a0901fd11300b3d725d6a80d27bf
+  * libwebp[core,libwebpmux,nearlossless,simd,unicode]:x64-windows-static@1.6.0#2 -- git+https://github.com/microsoft/vcpkg.git@5366c6ab4c6a5ece31ab06309b9729d29a5d4da1
+  * nanosvg:x64-windows-static@2023-12-29 -- git+https://github.com/microsoft/vcpkg.git@6fbdab7bdd32d0755336f499d49f9a0f31e8fb36
+    nlohmann-json:x64-windows-static@3.12.0#2 -- git+https://github.com/microsoft/vcpkg.git@ac3b8821cf486e45dd543bef2a4ba1d1ba230258
+  * opengl:x64-windows-static@2022-12-04#3 -- git+https://github.com/microsoft/vcpkg.git@c3ae71738f88449ebcd781cef60d9a253fa091d4
+  * opengl-registry:x64-windows-static@2026-01-26 -- git+https://github.com/microsoft/vcpkg.git@0cd17c3b57221250d5ba174580f0a2993853ce34
+  * pcre2[core,jit,platform-default-features]:x64-windows-static@10.47 -- git+https://github.com/microsoft/vcpkg.git@753cc6dbffbcde00b0c10b8d594108beb320a183
+    spdlog[core,fmt,tz-offset]:x64-windows-static@1.17.0 -- git+https://github.com/microsoft/vcpkg.git@7971db787034aef4204ace90e0f94fdbab808f75
+    sqlite3[core,json1]:x64-windows-static@3.53.1#2 -- git+https://github.com/microsoft/vcpkg.git@59a23e5083c8966c60eda30bd9a164c959f104ae
+  * tiff[core,jpeg,lzma,zip]:x64-windows-static@4.7.1 -- git+https://github.com/microsoft/vcpkg.git@9391305288677bb3959bf22a08218a61ffec0be0
+  * vcpkg-cmake:x64-windows-static@2024-04-23 -- git+https://github.com/microsoft/vcpkg.git@e74aa1e8f93278a8e71372f1fa08c3df420eb840
+  * vcpkg-cmake-config:x64-windows-static@2024-05-23 -- git+https://github.com/microsoft/vcpkg.git@97a63e4bc1a17422ffe4eff71da53b4b561a7841
+    wxwidgets[core,debug-support,sound]:x64-windows-static@3.3.1#1 -- git+https://github.com/microsoft/vcpkg.git@c3b7a128822dda9b567ad7efaa48fbcdf889e7d0
+  * zlib:x64-windows-static@1.3.2 -- git+https://github.com/microsoft/vcpkg.git@e2a9ce8cf8f5d07e489e14c256eefdd58cd535c1
+Additional packages (*) will be modified to complete this operation.
+Restored 0 package(s) from C:\Users\zeus-zzp\AppData\Local\vcpkg\archives in 1.38 ms. Use --debug to see more details.
+Installing 1/20 vcpkg-cmake-config:x64-windows-static@2024-05-23...
+vcpkg-cmake-config:x64-windows-static@2024-05-23 package ABI: cf57a49475815e8b32e44a978b4af64bd6432c23e3996313a087c661f18f4ef7
+Building vcpkg-cmake-config:x64-windows-static@2024-05-23...
+C:\Users\zeus-zzp\AppData\Local\vcpkg\registries\git-trees\97a63e4bc1a17422ffe4eff71da53b4b561a7841: info: installing from git registry git+https://github.com/microsoft/vcpkg.git@97a63e4bc1a17422ffe4eff71da53b4b561a7841
+-- Installing: F:/project/iceClean/vcpkg/packages/vcpkg-cmake-config_x64-windows-static/share/vcpkg-cmake-config/vcpkg_cmake_config_fixup.cmake
+-- Installing: F:/project/iceClean/vcpkg/packages/vcpkg-cmake-config_x64-windows-static/share/vcpkg-cmake-config/vcpkg-port-config.cmake
+-- Installing: F:/project/iceClean/vcpkg/packages/vcpkg-cmake-config_x64-windows-static/share/vcpkg-cmake-config/copyright
+-- Skipping post-build validation due to VCPKG_POLICY_EMPTY_PACKAGE
+Starting submission of vcpkg-cmake-config:x64-windows-static@2024-05-23 to 1 binary cache(s) in the background
+Elapsed time to handle vcpkg-cmake-config:x64-windows-static: 286 ms
+Installing 2/20 vcpkg-cmake:x64-windows-static@2024-04-23...
+vcpkg-cmake:x64-windows-static@2024-04-23 package ABI: 336b0a3120fd52d4b60e6e3565caa30adb480572098503b68525aeeb65bda332
+Building vcpkg-cmake:x64-windows-static@2024-04-23...
+C:\Users\zeus-zzp\AppData\Local\vcpkg\registries\git-trees\e74aa1e8f93278a8e71372f1fa08c3df420eb840: info: installing from git registry git+https://github.com/microsoft/vcpkg.git@e74aa1e8f93278a8e71372f1fa08c3df420eb840
+-- Installing: F:/project/iceClean/vcpkg/packages/vcpkg-cmake_x64-windows-static/share/vcpkg-cmake/vcpkg_cmake_configure.cmake
+-- Installing: F:/project/iceClean/vcpkg/packages/vcpkg-cmake_x64-windows-static/share/vcpkg-cmake/vcpkg_cmake_build.cmake
+-- Installing: F:/project/iceClean/vcpkg/packages/vcpkg-cmake_x64-windows-static/share/vcpkg-cmake/vcpkg_cmake_install.cmake
+-- Installing: F:/project/iceClean/vcpkg/packages/vcpkg-cmake_x64-windows-static/share/vcpkg-cmake/vcpkg-port-config.cmake
+-- Installing: F:/project/iceClean/vcpkg/packages/vcpkg-cmake_x64-windows-static/share/vcpkg-cmake/copyright
+-- Performing post-build validation
+Starting submission of vcpkg-cmake:x64-windows-static@2024-04-23 to 1 binary cache(s) in the background
+Elapsed time to handle vcpkg-cmake:x64-windows-static: 267 ms
+Installing 3/20 gtest:x64-windows-static@1.17.0#2...
+gtest:x64-windows-static@1.17.0#2 package ABI: 2747842843c78773aacd43e2e34cad7908c4ffe00482912a5cf97344e61d646e
+Building gtest:x64-windows-static@1.17.0#2...
+C:\Users\zeus-zzp\AppData\Local\vcpkg\registries\git-trees\b8a81820356e90917e5eb5dfe0092bfac57dbb12: info: installing from git registry git+https://github.com/microsoft/vcpkg.git@b8a81820356e90917e5eb5dfe0092bfac57dbb12
+-- Using cached google-googletest-v1.17.0.tar.gz
+-- Cleaning sources at F:/project/iceClean/vcpkg/buildtrees/gtest/src/v1.17.0-0c449efaff.clean. Use --editable to skip cleaning for the packages you specify.
+-- Extracting source F:/project/iceClean/vcpkg/downloads/google-googletest-v1.17.0.tar.gz
+-- Applying patch 001-fix-UWP-death-test.patch
+-- Applying patch clang-tidy-no-lint.patch
+-- Applying patch fix-main-lib-path.patch
+-- Using source at F:/project/iceClean/vcpkg/buildtrees/gtest/src/v1.17.0-0c449efaff.clean
+-- Configuring x64-windows-static
+-- Building x64-windows-static-dbg
+-- Building x64-windows-static-rel
+-- Installing: F:/project/iceClean/vcpkg/packages/gtest_x64-windows-static/src/gtest.cc
+-- Installing: F:/project/iceClean/vcpkg/packages/gtest_x64-windows-static/src/gtest_main.cc
+-- Installing: F:/project/iceClean/vcpkg/packages/gtest_x64-windows-static/src/gtest-all.cc
+-- Installing: F:/project/iceClean/vcpkg/packages/gtest_x64-windows-static/src/gtest-assertion-result.cc
+-- Installing: F:/project/iceClean/vcpkg/packages/gtest_x64-windows-static/src/gtest-death-test.cc
+-- Installing: F:/project/iceClean/vcpkg/packages/gtest_x64-windows-static/src/gtest-filepath.cc
+-- Installing: F:/project/iceClean/vcpkg/packages/gtest_x64-windows-static/src/gtest-internal-inl.h
+-- Installing: F:/project/iceClean/vcpkg/packages/gtest_x64-windows-static/src/gtest-matchers.cc
+-- Installing: F:/project/iceClean/vcpkg/packages/gtest_x64-windows-static/src/gtest-port.cc
+-- Installing: F:/project/iceClean/vcpkg/packages/gtest_x64-windows-static/src/gtest-printers.cc
+-- Installing: F:/project/iceClean/vcpkg/packages/gtest_x64-windows-static/src/gtest-test-part.cc
+-- Installing: F:/project/iceClean/vcpkg/packages/gtest_x64-windows-static/src/gtest-typed-test.cc
+-- Fixing pkgconfig file: F:/project/iceClean/vcpkg/packages/gtest_x64-windows-static/lib/pkgconfig/gmock.pc
+-- Fixing pkgconfig file: F:/project/iceClean/vcpkg/packages/gtest_x64-windows-static/lib/pkgconfig/gmock_main.pc
+-- Fixing pkgconfig file: F:/project/iceClean/vcpkg/packages/gtest_x64-windows-static/lib/pkgconfig/gtest.pc
+-- Fixing pkgconfig file: F:/project/iceClean/vcpkg/packages/gtest_x64-windows-static/lib/pkgconfig/gtest_main.pc
+-- Using cached msys2-mingw-w64-x86_64-pkgconf-1~2.5.1-1-any.pkg.tar.zst
+-- Using cached msys2-msys2-runtime-3.6.5-1-x86_64.pkg.tar.zst
+-- Using msys root at F:/project/iceClean/vcpkg/downloads/tools/msys2/3e71d1f8e22ab23f
+-- Fixing pkgconfig file: F:/project/iceClean/vcpkg/packages/gtest_x64-windows-static/debug/lib/pkgconfig/gmock.pc
+-- Fixing pkgconfig file: F:/project/iceClean/vcpkg/packages/gtest_x64-windows-static/debug/lib/pkgconfig/gmock_main.pc
+-- Fixing pkgconfig file: F:/project/iceClean/vcpkg/packages/gtest_x64-windows-static/debug/lib/pkgconfig/gtest.pc
+-- Fixing pkgconfig file: F:/project/iceClean/vcpkg/packages/gtest_x64-windows-static/debug/lib/pkgconfig/gtest_main.pc
+-- Installing: F:/project/iceClean/vcpkg/packages/gtest_x64-windows-static/share/gtest/copyright
+-- Installing: F:/project/iceClean/vcpkg/packages/gtest_x64-windows-static/share/gtest/usage
+-- Performing post-build validation
+Starting submission of gtest:x64-windows-static@1.17.0#2 to 1 binary cache(s) in the background
+Elapsed time to handle gtest:x64-windows-static: 1.9 min
+Completed submission of vcpkg-cmake-config:x64-windows-static@2024-05-23 to 1 binary cache(s) in 457 ms
+Completed submission of vcpkg-cmake:x64-windows-static@2024-04-23 to 1 binary cache(s) in 151 ms
+Installing 4/20 nlohmann-json:x64-windows-static@3.12.0#2...
+nlohmann-json:x64-windows-static@3.12.0#2 package ABI: 82d148651412e11f8991209ec4f8a758d8fa8623fe32e6a28676e6c0a7173a03
+Building nlohmann-json:x64-windows-static@3.12.0#2...
+C:\Users\zeus-zzp\AppData\Local\vcpkg\registries\git-trees\ac3b8821cf486e45dd543bef2a4ba1d1ba230258: info: installing from git registry git+https://github.com/microsoft/vcpkg.git@ac3b8821cf486e45dd543bef2a4ba1d1ba230258
+-- Using cached nlohmann-json-v3.12.0.tar.gz
+-- Cleaning sources at F:/project/iceClean/vcpkg/buildtrees/nlohmann-json/src/v3.12.0-89fed620e6.clean. Use --editable to skip cleaning for the packages you specify.
+-- Extracting source F:/project/iceClean/vcpkg/downloads/nlohmann-json-v3.12.0.tar.gz
+-- Applying patch fix-4736_char8_t.patch
+-- Applying patch fix-4742_std_optional.patch
+-- Using source at F:/project/iceClean/vcpkg/buildtrees/nlohmann-json/src/v3.12.0-89fed620e6.clean
+-- Configuring x64-windows-static
+-- Building x64-windows-static-dbg
+-- Building x64-windows-static-rel
+-- Fixing pkgconfig file: F:/project/iceClean/vcpkg/packages/nlohmann-json_x64-windows-static/share/pkgconfig/nlohmann_json.pc
+-- Using cached msys2-mingw-w64-x86_64-pkgconf-1~2.5.1-1-any.pkg.tar.zst
+-- Using cached msys2-msys2-runtime-3.6.5-1-x86_64.pkg.tar.zst
+-- Using msys root at F:/project/iceClean/vcpkg/downloads/tools/msys2/3e71d1f8e22ab23f
+-- Fixing pkgconfig file: F:/project/iceClean/vcpkg/packages/nlohmann-json_x64-windows-static/debug/share/pkgconfig/nlohmann_json.pc
+-- Installing: F:/project/iceClean/vcpkg/packages/nlohmann-json_x64-windows-static/share/nlohmann-json/copyright
+-- Performing post-build validation
+Starting submission of nlohmann-json:x64-windows-static@3.12.0#2 to 1 binary cache(s) in the background
+Elapsed time to handle nlohmann-json:x64-windows-static: 47 s
+Completed submission of gtest:x64-windows-static@1.17.0#2 to 1 binary cache(s) in 26 s
+Installing 5/20 fmt:x64-windows-static@12.1.0...
+fmt:x64-windows-static@12.1.0 package ABI: 1fe2dc2d7b98764828b537a77a0a2b4071d11f07aa0c3c6dfa428ac5c5cc4a7e
+Building fmt:x64-windows-static@12.1.0...
+C:\Users\zeus-zzp\AppData\Local\vcpkg\registries\git-trees\936231a2c765082457d348a8781ea9d3610eb331: info: installing from git registry git+https://github.com/microsoft/vcpkg.git@936231a2c765082457d348a8781ea9d3610eb331
+-- Using cached fmtlib-fmt-12.1.0.tar.gz
+-- Cleaning sources at F:/project/iceClean/vcpkg/buildtrees/fmt/src/12.1.0-54f1f91231.clean. Use --editable to skip cleaning for the packages you specify.
+-- Extracting source F:/project/iceClean/vcpkg/downloads/fmtlib-fmt-12.1.0.tar.gz
+-- Using source at F:/project/iceClean/vcpkg/buildtrees/fmt/src/12.1.0-54f1f91231.clean
+-- Configuring x64-windows-static
+-- Building x64-windows-static-dbg
+-- Building x64-windows-static-rel
+-- Fixing pkgconfig file: F:/project/iceClean/vcpkg/packages/fmt_x64-windows-static/lib/pkgconfig/fmt.pc
+-- Using cached msys2-mingw-w64-x86_64-pkgconf-1~2.5.1-1-any.pkg.tar.zst
+-- Using cached msys2-msys2-runtime-3.6.5-1-x86_64.pkg.tar.zst
+-- Using msys root at F:/project/iceClean/vcpkg/downloads/tools/msys2/3e71d1f8e22ab23f
+-- Fixing pkgconfig file: F:/project/iceClean/vcpkg/packages/fmt_x64-windows-static/debug/lib/pkgconfig/fmt.pc
+-- Installing: F:/project/iceClean/vcpkg/packages/fmt_x64-windows-static/share/fmt/usage
+-- Installing: F:/project/iceClean/vcpkg/packages/fmt_x64-windows-static/share/fmt/copyright
+-- Performing post-build validation
+Starting submission of fmt:x64-windows-static@12.1.0 to 1 binary cache(s) in the background
+Elapsed time to handle fmt:x64-windows-static: 35 s
+Completed submission of nlohmann-json:x64-windows-static@3.12.0#2 to 1 binary cache(s) in 895 ms
+Installing 6/20 spdlog[core,fmt,tz-offset]:x64-windows-static@1.17.0...
+spdlog[core,fmt,tz-offset]:x64-windows-static@1.17.0 package ABI: e16c2c3809c59938fa3e7f8fb93d8fec513c02161287bf171a2fbca374472f14
+Building spdlog[core,fmt,tz-offset]:x64-windows-static@1.17.0...
+C:\Users\zeus-zzp\AppData\Local\vcpkg\registries\git-trees\7971db787034aef4204ace90e0f94fdbab808f75: info: installing from git registry git+https://github.com/microsoft/vcpkg.git@7971db787034aef4204ace90e0f94fdbab808f75
+-- Using cached gabime-spdlog-v1.17.0.tar.gz
+-- Cleaning sources at F:/project/iceClean/vcpkg/buildtrees/spdlog/src/v1.17.0-2617b3696e.clean. Use --editable to skip cleaning for the packages you specify.
+-- Extracting source F:/project/iceClean/vcpkg/downloads/gabime-spdlog-v1.17.0.tar.gz
+-- Using source at F:/project/iceClean/vcpkg/buildtrees/spdlog/src/v1.17.0-2617b3696e.clean
+-- Configuring x64-windows-static
+-- Building x64-windows-static-dbg
+-- Building x64-windows-static-rel
+-- Fixing pkgconfig file: F:/project/iceClean/vcpkg/packages/spdlog_x64-windows-static/lib/pkgconfig/spdlog.pc
+-- Using cached msys2-mingw-w64-x86_64-pkgconf-1~2.5.1-1-any.pkg.tar.zst
+-- Using cached msys2-msys2-runtime-3.6.5-1-x86_64.pkg.tar.zst
+-- Using msys root at F:/project/iceClean/vcpkg/downloads/tools/msys2/3e71d1f8e22ab23f
+-- Fixing pkgconfig file: F:/project/iceClean/vcpkg/packages/spdlog_x64-windows-static/debug/lib/pkgconfig/spdlog.pc
+-- Installing: F:/project/iceClean/vcpkg/packages/spdlog_x64-windows-static/share/spdlog/usage
+-- Installing: F:/project/iceClean/vcpkg/packages/spdlog_x64-windows-static/share/spdlog/copyright
+-- Performing post-build validation
+Starting submission of spdlog[core,fmt,tz-offset]:x64-windows-static@1.17.0 to 1 binary cache(s) in the background
+Elapsed time to handle spdlog:x64-windows-static: 1.4 min
+Completed submission of fmt:x64-windows-static@12.1.0 to 1 binary cache(s) in 1.2 s
+Installing 7/20 sqlite3[core,json1]:x64-windows-static@3.53.1#2...
+sqlite3[core,json1]:x64-windows-static@3.53.1#2 package ABI: 9821747471ff101e82024a0fc5f7ca25d3df992bbaba0ee4f0350edd3b5de3b0
+Building sqlite3[core,json1]:x64-windows-static@3.53.1#2...
+C:\Users\zeus-zzp\AppData\Local\vcpkg\registries\git-trees\59a23e5083c8966c60eda30bd9a164c959f104ae: info: installing from git registry git+https://github.com/microsoft/vcpkg.git@59a23e5083c8966c60eda30bd9a164c959f104ae

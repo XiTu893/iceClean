@@ -6,10 +6,16 @@
 #include <cfgmgr32.h>
 #include <algorithm>
 
+// Fallback definitions for SDKs missing these
+#ifndef DN_DISABLED
+#define DN_DISABLED 0x00000001
+#endif
+
 // DEVPROPKEY for DriverSignature property (not in all SDK headers)
 // {A45C254E-DF1C-4EFD-8020-67D146A850E0}, 13
-DEFINE_DEVPROPKEY(DEVPKEY_Device_DriverSignature, 0xa45c254e, 0xdf1c, 0x4efd,
-                  0x80, 0x67, 0xd1, 0x46, 0xa8, 0x50, 0xe0, 13);
+// Uses direct struct init to avoid macro compatibility issues across SDK versions
+const DEVPROPKEY DEVPKEY_Device_DriverSignature = {
+    {0xa45c254e, 0xdf1c, 0x4efd, {0x80, 0x67, 0xd1, 0x46, 0xa8, 0x50, 0xe0}}, 13 };
 
 namespace IceClean::Core::Driver {
 
@@ -39,43 +45,38 @@ std::wstring DeviceDriverScanner::GetStringProperty(HDEVINFO hdev,
                                                     PSP_DEVINFO_DATA devData,
                                                     const DEVPROPKEY& key) {
     DEVPROPTYPE type = 0;
-    DWORD needed = 0;
-    if (!SetupDiGetDevicePropertyW(hdev, devData, &key, &type, nullptr, 0, &needed, 0)) {
-        return {};
-    }
-    if (type != DEVPROP_TYPE_STRING || needed == 0) return {};
-    std::wstring buf(static_cast<size_t>(needed / sizeof(wchar_t)), L'\0');
+    wchar_t buf[512] = {};
+    DWORD needed = sizeof(buf);
     if (!SetupDiGetDevicePropertyW(hdev, devData, &key, &type,
-                                   reinterpret_cast<PBYTE>(buf.data()), needed, nullptr, 0)) {
+                                   reinterpret_cast<PBYTE>(buf), sizeof(buf), &needed, 0)) {
         return {};
     }
-    // 去掉末尾可能的双 NUL
-    if (!buf.empty() && buf.back() == L'\0') buf.pop_back();
-    return Trim(buf);
+    if (type != DEVPROP_TYPE_STRING || needed < sizeof(wchar_t)) return {};
+    const DWORD len = (needed >= 2 && buf[needed / sizeof(wchar_t) - 1] == L'\0')
+                      ? (needed / sizeof(wchar_t) - 1) : (needed / sizeof(wchar_t));
+    return Trim(std::wstring(buf, len));
 }
 
 bool DeviceDriverScanner::GetFileTimeProperty(HDEVINFO hdev, PSP_DEVINFO_DATA devData,
                                               const DEVPROPKEY& key, FILETIME& out) {
     DEVPROPTYPE type = 0;
-    DWORD needed = 0;
-    if (!SetupDiGetDevicePropertyW(hdev, devData, &key, &type, nullptr, 0, &needed, 0)) {
+    DWORD needed = sizeof(out);
+    if (!SetupDiGetDevicePropertyW(hdev, devData, &key, &type,
+                                   reinterpret_cast<PBYTE>(&out), sizeof(out), &needed, 0)) {
         return false;
     }
-    if (type != DEVPROP_TYPE_FILETIME || needed < sizeof(FILETIME)) return false;
-    return SetupDiGetDevicePropertyW(hdev, devData, &key, &type,
-                                     reinterpret_cast<PBYTE>(&out), needed, nullptr, 0);
+    return type == DEVPROP_TYPE_FILETIME && needed == sizeof(FILETIME);
 }
 
 bool DeviceDriverScanner::GetUint32Property(HDEVINFO hdev, PSP_DEVINFO_DATA devData,
                                             const DEVPROPKEY& key, uint32_t& out) {
     DEVPROPTYPE type = 0;
-    DWORD needed = 0;
-    if (!SetupDiGetDevicePropertyW(hdev, devData, &key, &type, nullptr, 0, &needed, 0)) {
+    DWORD needed = sizeof(out);
+    if (!SetupDiGetDevicePropertyW(hdev, devData, &key, &type,
+                                   reinterpret_cast<PBYTE>(&out), sizeof(out), &needed, 0)) {
         return false;
     }
-    if (type != DEVPROP_TYPE_UINT32 || needed < sizeof(uint32_t)) return false;
-    return SetupDiGetDevicePropertyW(hdev, devData, &key, &type,
-                                     reinterpret_cast<PBYTE>(&out), needed, nullptr, 0);
+    return type == DEVPROP_TYPE_UINT32 && needed == sizeof(uint32_t);
 }
 
 std::wstring DeviceDriverScanner::FormatFileTime(const FILETIME& ft) {
