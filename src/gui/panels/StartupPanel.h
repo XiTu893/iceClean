@@ -100,7 +100,7 @@ private:
 
     // 自绘Toggle开关
     wxPanel* CreateToggleSwitch(wxWindow* parent, bool isOn, bool canToggle);
-    void DrawToggle(wxPanel* panel, bool isOn, bool canToggle);
+    void DrawToggleBuffered(wxPanel* panel, bool isOn, bool canToggle);
     void OnToggleClick(wxMouseEvent& event);
 
     void OnOptimizeButton(wxCommandEvent& event);

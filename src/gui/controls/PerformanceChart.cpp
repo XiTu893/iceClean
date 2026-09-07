@@ -14,9 +14,8 @@ PerformanceChart::PerformanceChart(wxWindow* parent, wxWindowID id,
     Bind(wxEVT_PAINT, &PerformanceChart::OnPaint, this);
     Bind(wxEVT_SIZE, &PerformanceChart::OnSize, this);
 
-    ThemeManager::Instance().RegisterChangeCallback([this](const ThemeColors& c) {
-        Refresh();
-    });
+    // Theme callback removed to reduce unnecessary refresh churn.
+    // PerformanceChart::SetData() already calls Refresh() when data changes.
 }
 
 void PerformanceChart::SetData(const std::deque<double>& data) {

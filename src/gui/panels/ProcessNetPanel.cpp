@@ -1,5 +1,7 @@
 #include "ProcessNetPanel.h"
 #include "gui/controls/ThemeManager.h"
+#include <set>
+#include <map>
 
 namespace IceClean::Gui {
 
@@ -90,7 +92,7 @@ void ProcessNetPanel::SortAndPopulate() {
     if (!m_listCtrl) return;
 
     auto sortFn = [this](const IceClean::Core::Analyzer::ProcessNetworkStats& a,
-                          const IceClean::Core::Analyzer::ProcessNetworkStats& b) {
+                           const IceClean::Core::Analyzer::ProcessNetworkStats& b) {
         bool result = false;
         switch (m_sortCol) {
             case ColProcess:   result = a.processName < b.processName; break;
@@ -107,17 +109,65 @@ void ProcessNetPanel::SortAndPopulate() {
     std::vector<IceClean::Core::Analyzer::ProcessNetworkStats> sorted = m_data;
     std::sort(sorted.begin(), sorted.end(), sortFn);
 
-    m_listCtrl->Freeze();
-    m_listCtrl->DeleteAllItems();
-    for (size_t i = 0; i < sorted.size() && i < 500; ++i) {
-        const auto& s = sorted[i];
-        long idx = m_listCtrl->InsertItem(i, s.processName);
-        m_listCtrl->SetItem(idx, 1, wxString::Format(L"%u", s.pid));
-        m_listCtrl->SetItem(idx, 2, FormatSpeed(s.currentDownBps));
-        m_listCtrl->SetItem(idx, 3, FormatSpeed(s.currentUpBps));
-        m_listCtrl->SetItem(idx, 4, FormatBytes(s.sessionTotalDown));
-        m_listCtrl->SetItem(idx, 5, FormatBytes(s.sessionTotalUp));
+    // 使用数据本身作 key（PID+name），删除项时使用批量更新策略
+    // 收集当前显示的 PID 集合和目标 PID 集合
+    std::set<uint32_t> currentPids;
+    for (int i = 0; i < m_listCtrl->GetItemCount(); ++i) {
+        wxString pidStr = m_listCtrl->GetItemText(i, 1);
+        long pid = 0;
+        pidStr.ToLong(&pid);
+        currentPids.insert(static_cast<uint32_t>(pid));
     }
+
+    std::set<uint32_t> targetPids;
+    std::map<uint32_t, const IceClean::Core::Analyzer::ProcessNetworkStats*> pidToStats;
+    for (const auto& s : sorted) {
+        targetPids.insert(s.pid);
+        pidToStats[s.pid] = &s;
+    }
+
+    m_listCtrl->Freeze();
+
+    // 就地更新：先按顺序重置所有现有行（不删除），剩余的 InsertItem 追加
+    int existingCount = m_listCtrl->GetItemCount();
+    int targetCount = static_cast<int>(sorted.size());
+
+    // 找到目标数据中与现有行最大匹配的 PID 序列（按行顺序）
+    // 简化策略：先标记哪些 PID 需要被移除（先 SetItemText 为空），然后重新填充
+    for (int i = 0; i < existingCount; ++i) {
+        wxString pidStr = m_listCtrl->GetItemText(i, 1);
+        long pid = 0;
+        pidStr.ToLong(&pid);
+        uint32_t uPid = static_cast<uint32_t>(pid);
+        if (targetPids.find(uPid) == targetPids.end()) {
+            m_listCtrl->DeleteItem(i);
+            --existingCount;
+            --i;
+        }
+    }
+
+    // 更新或追加
+    for (int i = 0; i < targetCount; ++i) {
+        const auto& s = sorted[i];
+        if (i < existingCount) {
+            // 现有行：更新数据
+            m_listCtrl->SetItem(i, 0, s.processName);
+            m_listCtrl->SetItem(i, 1, wxString::Format(L"%u", s.pid));
+            m_listCtrl->SetItem(i, 2, FormatSpeed(s.currentDownBps));
+            m_listCtrl->SetItem(i, 3, FormatSpeed(s.currentUpBps));
+            m_listCtrl->SetItem(i, 4, FormatBytes(s.sessionTotalDown));
+            m_listCtrl->SetItem(i, 5, FormatBytes(s.sessionTotalUp));
+        } else {
+            // 追加新行
+            long idx = m_listCtrl->InsertItem(i, s.processName);
+            m_listCtrl->SetItem(idx, 1, wxString::Format(L"%u", s.pid));
+            m_listCtrl->SetItem(idx, 2, FormatSpeed(s.currentDownBps));
+            m_listCtrl->SetItem(idx, 3, FormatSpeed(s.currentUpBps));
+            m_listCtrl->SetItem(idx, 4, FormatBytes(s.sessionTotalDown));
+            m_listCtrl->SetItem(idx, 5, FormatBytes(s.sessionTotalUp));
+        }
+    }
+
     m_listCtrl->Thaw();
 }
 
@@ -140,5 +190,4 @@ wxString ProcessNetPanel::FormatSpeed(uint64_t bytesPerSec) {
     }
     return wxString::Format(L"%llu B/s", static_cast<unsigned long long>(bytesPerSec));
 }
-
 } // namespace IceClean::Gui

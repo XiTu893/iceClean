@@ -157,7 +157,7 @@ void HardwareMonitorPanel::BuildLayout() {
 
     m_hardwareInfoScroller = new wxScrolledWindow(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxVSCROLL);
     m_hardwareInfoScroller->SetBackgroundColour(colors.background);
-    m_hardwareInfoScroller->SetScrollRate(0, 8);
+    m_hardwareInfoScroller->SetScrollRate(0, 1);
 
     m_hardwareInfoSizer = new wxBoxSizer(wxVERTICAL);
 

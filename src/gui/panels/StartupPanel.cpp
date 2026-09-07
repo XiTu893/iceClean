@@ -1,6 +1,7 @@
 #include "StartupPanel.h"
 #include <map>
 #include <algorithm>
+#include <wx/dcbuffer.h>
 #include "gui/dialogs/ConfirmDialog.h"
 #include "gui/Events.h"
 #include "gui/controls/ThemeManager.h"
@@ -167,7 +168,7 @@ wxPanel* StartupPanel::CreateToggleSwitch(wxWindow* parent, bool isOn, bool canT
     panel->SetBackgroundStyle(wxBG_STYLE_PAINT);
     panel->SetCursor(canToggle ? wxCURSOR_HAND : wxCURSOR_ARROW);
 
-    // 绑定绘制事件 - 从ToggleItem向量中查找状态
+    // 绑定绘制事件 - 使用 wxBufferedPaintDC 防止闪烁
     panel->Bind(wxEVT_PAINT, [this, panel, canToggle](wxPaintEvent&) {
         // 在所有ToggleItem向量中查找此面板的状态
         bool state = false;
@@ -185,28 +186,33 @@ wxPanel* StartupPanel::CreateToggleSwitch(wxWindow* parent, bool isOn, bool canT
                 if (item.togglePanel == panel) { state = item.isOn; found = true; break; }
             }
         }
-        DrawToggle(panel, found ? state : false, canToggle);
+        DrawToggleBuffered(panel, found ? state : false, canToggle);
     });
 
     if (canToggle) {
         panel->Bind(wxEVT_LEFT_DOWN, &StartupPanel::OnToggleClick, this);
     }
 
-    // 初始绘制
-    DrawToggle(panel, isOn, canToggle);
+    // 初始状态：通过 SendMessage 发送 paint event 而不是直接调用
+    // 这避免了直接绘制导致的双重渲染
+    panel->Refresh(false);
 
     return panel;
 }
 
-void StartupPanel::DrawToggle(wxPanel* panel, bool isOn, bool canToggle) {
+void StartupPanel::DrawToggleBuffered(wxPanel* panel, bool isOn, bool canToggle) {
     if (!panel) return;
 
+    wxBufferedPaintDC dc(panel);
     const auto& colors = ThemeManager::Instance().GetColors();
-    const int w = panel->GetSize().GetWidth();
-    const int h = panel->GetSize().GetHeight();
+    const wxSize size = panel->GetClientSize();
+    const int w = size.GetWidth();
+    const int h = size.GetHeight();
     const int radius = h / 2;
 
-    // 轨道背景颜色
+    dc.SetBackground(wxBrush(colors.background));
+    dc.Clear();
+
     wxColour trackColor;
     if (!canToggle) {
         trackColor = colors.border;
@@ -216,16 +222,10 @@ void StartupPanel::DrawToggle(wxPanel* panel, bool isOn, bool canToggle) {
         trackColor = colors.border;
     }
 
-    // 使用wxClientDC进行绘制（Refresh时触发）
-    wxClientDC dc(panel);
-    dc.SetBackground(colors.background);
-    dc.Clear();
-
     dc.SetBrush(wxBrush(trackColor));
     dc.SetPen(*wxTRANSPARENT_PEN);
     dc.DrawRoundedRectangle(0, 0, w, h, radius);
 
-    // 滑块
     int knobX = isOn ? (w - h) : 0;
     dc.SetBrush(wxBrush(colors.surface));
     dc.DrawCircle(knobX + radius, radius, radius - 2);
@@ -242,8 +242,9 @@ void StartupPanel::OnToggleClick(wxMouseEvent& event) {
                 if (item.isSystemCritical) return false;
                 item.isOn = !item.isOn;
                 data[item.itemIndex].isEnabled = item.isOn;
-                // 刷新Toggle显示
-                item.togglePanel->Refresh();
+                // 使用 RefreshRect 仅刷新toggle panel自身,避免整面板重绘闪烁
+                wxRect rect = clickedPanel->GetClientRect();
+                clickedPanel->Refresh(false, &rect);
                 return true;
             }
         }

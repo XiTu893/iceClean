@@ -34,6 +34,9 @@ class SecurityPanel;
 class SettingsPanel;
 class AboutPanel;
 class HardwareMonitorPanel;
+class WindowsDebloaterPanel;
+class PrivacyOptimizerPanel;
+class SystemFileManagerPanel;
 
 class CleanProgressDialog;
 class UnifiedProgressDialog;
@@ -151,8 +154,11 @@ private:
     ProcessNetPanel* m_processNetPanel = nullptr;
     SecurityPanel* m_securityPanel = nullptr;
     SettingsPanel* m_settingsPanel = nullptr;
-    AboutPanel* m_aboutPanel = nullptr;
-    HardwareMonitorPanel* m_hardwareMonitorPanel = nullptr;
+AboutPanel* m_aboutPanel = nullptr;
+HardwareMonitorPanel* m_hardwareMonitorPanel = nullptr;
+WindowsDebloaterPanel* m_windowsDebloaterPanel = nullptr;
+PrivacyOptimizerPanel* m_privacyOptimizerPanel = nullptr;
+SystemFileManagerPanel* m_systemFileManagerPanel = nullptr;
 
     // ── 工作线程 ──
     std::thread m_workerThread;

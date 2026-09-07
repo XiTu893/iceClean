@@ -204,17 +204,17 @@ void MainWindow::CreateControls()
 
     try { m_startupPanel = new StartupPanel(startupNotebook); }
     catch (const std::exception& e) { DebugLog("MainWindow", "StartupPanel failed: %s", e.what()); m_startupPanel = nullptr; }
-    try { (void)new WindowsDebloaterPanel(startupNotebook); }
-    catch (const std::exception& e) { DebugLog("MainWindow", "WindowsDebloaterPanel failed: %s", e.what()); }
-    try { (void)new PrivacyOptimizerPanel(startupNotebook); }
-    catch (const std::exception& e) { DebugLog("MainWindow", "PrivacyOptimizerPanel failed: %s", e.what()); }
-    try { (void)new SystemFileManagerPanel(startupNotebook); }
-    catch (const std::exception& e) { DebugLog("MainWindow", "SystemFileManagerPanel failed: %s", e.what()); }
+    try { m_windowsDebloaterPanel = new WindowsDebloaterPanel(startupNotebook); }
+    catch (const std::exception& e) { DebugLog("MainWindow", "WindowsDebloaterPanel failed: %s", e.what()); m_windowsDebloaterPanel = nullptr; }
+    try { m_privacyOptimizerPanel = new PrivacyOptimizerPanel(startupNotebook); }
+    catch (const std::exception& e) { DebugLog("MainWindow", "PrivacyOptimizerPanel failed: %s", e.what()); m_privacyOptimizerPanel = nullptr; }
+    try { m_systemFileManagerPanel = new SystemFileManagerPanel(startupNotebook); }
+    catch (const std::exception& e) { DebugLog("MainWindow", "SystemFileManagerPanel failed: %s", e.what()); m_systemFileManagerPanel = nullptr; }
 
-    startupNotebook->AddPage(m_startupPanel, L"启动管理");
-    startupNotebook->AddPage(new wxPanel(startupNotebook, wxID_ANY), L"Windows组件精简");
-    startupNotebook->AddPage(new wxPanel(startupNotebook, wxID_ANY), L"隐私策略");
-    startupNotebook->AddPage(new wxPanel(startupNotebook, wxID_ANY), L"系统文件");
+    startupNotebook->AddPage(m_startupPanel ? m_startupPanel : new wxPanel(startupNotebook, wxID_ANY), L"启动管理");
+    startupNotebook->AddPage(m_windowsDebloaterPanel ? m_windowsDebloaterPanel : new wxPanel(startupNotebook, wxID_ANY), L"Windows组件精简");
+    startupNotebook->AddPage(m_privacyOptimizerPanel ? m_privacyOptimizerPanel : new wxPanel(startupNotebook, wxID_ANY), L"隐私策略");
+    startupNotebook->AddPage(m_systemFileManagerPanel ? m_systemFileManagerPanel : new wxPanel(startupNotebook, wxID_ANY), L"系统文件");
 
     auto* startupSizer = new wxBoxSizer(wxVERTICAL);
     startupSizer->Add(startupNotebook, 1, wxEXPAND);
@@ -268,7 +268,7 @@ void MainWindow::CreateControls()
     catch (const std::exception& e) { DebugLog("MainWindow", "SettingsPanel failed: %s", e.what()); m_settingsPanel = nullptr; }
 
     // ════════════════════════════════════════════════════════
-    //  12: 关于 + 硬件信息
+    //  12: 关于
     // ════════════════════════════════════════════════════════
     auto* aboutComboPanel = new wxPanel(m_contentBook);
     aboutComboPanel->SetBackgroundColour(ThemeManager::Instance().GetColors().background);
@@ -276,11 +276,8 @@ void MainWindow::CreateControls()
 
     try { m_aboutPanel = new AboutPanel(aboutNotebook); }
     catch (const std::exception& e) { DebugLog("MainWindow", "AboutPanel failed: %s", e.what()); m_aboutPanel = nullptr; }
-    try { (void)new HardwareInfoPanel(aboutNotebook); }
-    catch (const std::exception& e) { DebugLog("MainWindow", "HardwareInfoPanel failed: %s", e.what()); }
 
-    aboutNotebook->AddPage(m_aboutPanel, L"关于 IceClean");
-    aboutNotebook->AddPage(new wxPanel(aboutNotebook, wxID_ANY), L"硬件信息");
+    aboutNotebook->AddPage(m_aboutPanel ? m_aboutPanel : new wxPanel(aboutNotebook, wxID_ANY), L"关于 IceClean");
 
     auto* aboutSizer = new wxBoxSizer(wxVERTICAL);
     aboutSizer->Add(aboutNotebook, 1, wxEXPAND);
